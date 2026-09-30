@@ -126,7 +126,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
     }
     
     initApp();
-    showNotification("Sukses", `Selamat datang kembali, ${currentUser}!`, "success");
+    showNotification("Success", `Welcome back, ${currentUser}!`, "success");
 });
 
 function logoutApp() {
@@ -135,7 +135,7 @@ function logoutApp() {
     document.getElementById('app-container').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
     switchTab('dashboard');
-    showNotification("Info", "Berhasil keluar aplikasi.", "info");
+    showNotification("Info", "Successfully logged out of the application.", "info");
 }
 
 async function initApp() {
