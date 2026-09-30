@@ -1,0 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&family=Poppins:wght@400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* === DARK MODE & LIGHT MODE VARIABLES === */
+:root {
+  --main-bg-start: #eaeef6;
+  --main-bg-end: #d9e3f2;
+  --card-bg: #ffffff;
+  --text-main: #1e293b;
+  --border-color: #e2e8f0;
+  --input-bg: #ffffff;
+  --table-header: #f8fafc;
+  --btn-filter-bg: #f1f5f9;
+  --btn-filter-text: #334155;
+  
+  --borderRadius: 10px;
+  --spacer: 1rem;
+  --primary: #406ff3;
+  --text: #6a778e;
+  --linkHeight: 3.5rem;
+  --timing: 250ms;
+}
+
+body.dark-theme {
+  --main-bg-start: #090d16; /* Hitam kebiruan pekat yang bersih */
+  --main-bg-end: #0f172a;   /* Transisi gelap yang elegan */
+  --card-bg: #111827;       /* Hitam arang (charcoal) yang solid untuk card */
+  --text-main: #f8fafc;     /* Putih terang agar font sangat kontras dan terbaca */
+  --border-color: #1f2937;  /* Border gelap yang rapi */
+  --input-bg: #1f2937;      /* Background input pekat */
+  --table-header: #1f2937;  /* Header tabel gelap kontras */
+  --btn-filter-bg: #1f2937;
+  --btn-filter-text: #f8fafc;
+  --text: #94a3b8;
+}
+
+body {
+  background: linear-gradient(to bottom right, var(--main-bg-start), var(--main-bg-end));
+  color: var(--text-main);
+  min-height: 100vh;
+  font-family: "Poppins", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.theme-card, .theme-header, .theme-body {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+.theme-input {
+  background: var(--input-bg);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+.theme-table thead th {
+  background: var(--table-header);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+.theme-table tr, .theme-table td {
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+body.dark-theme tr:hover td {
+  background-color: #1f2937 !important;
+}
+
+.theme-btn-filter {
+  background: var(--btn-filter-bg);
+  color: var(--btn-filter-text);
+  border: 1px solid var(--border-color);
+}
+.theme-btn-filter:hover {
+  opacity: 0.9;
+}
+
+/* Tombol Magnetic */
+.btn-magnetic {
+  padding: 0.75rem 1.25rem;
+  border-radius: 11px;
+  border: none;
+  background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-magnetic:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+}
+
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* Membuat ikon kalender jadi putih di dark mode */
+}
+
+/* === FLOATING GOOEY NAVBAR (SIDEBAR) === */
+.navbar {
+  position: fixed;
+  top: var(--spacer);
+  left: var(--spacer);
+  background: var(--card-bg);
+  border-radius: var(--borderRadius);
+  padding: var(--spacer) 0;
+  box-shadow: 0 0 40px rgba(0,0,0,0.06);
+  height: calc(100vh - (var(--spacer) * 2));
+  width: 5.5rem;
+  z-index: 100;
+  transition: background 0.3s ease;
+}
+
+.navbar__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--linkHeight);
+  width: 5.5rem;
+  color: var(--text);
+  transition: 250ms ease all;
+  text-decoration: none;
+}
+
+.navbar__link span {
+  position: absolute;
+  left: 100%;
+  transform: translate(-3rem);
+  margin-left: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--primary);
+  background: var(--card-bg);
+  padding: 0.75rem 1rem;
+  transition: 250ms ease all;
+  border-radius: calc(var(--borderRadius) * 1.75);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+  white-space: nowrap;
+  z-index: 101;
+  font-weight: 600;
+}
+
+.navbar__link:hover,
+.navbar__link.active {
+  color: #fff;
+}
+
+.navbar:not(:hover) .navbar__link:focus,
+.navbar__link:hover span {
+  opacity: 1;
+  transform: translate(0);
+}
+
+.navbar__menu {
+  position: relative;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Gooey Effect Keyframes (7 Items) */
+@keyframes gooeyEffect-1 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-2 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-3 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-4 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-5 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-6 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+@keyframes gooeyEffect-7 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
+
+.navbar__item:last-child:before {
+  content: '';
+  position: absolute;
+  opacity: 0;
+  z-index: -1;
+  top: 0;
+  left: var(--spacer);
+  width: var(--linkHeight);
+  height: var(--linkHeight);
+  background: var(--primary);
+  border-radius: calc(var(--borderRadius) * 1.75);
+  transition: 250ms cubic-bezier(1, 0.2, 0.1, 1.2) all;
+}
+
+/* Hover tracking untuk 7 menu item */
+.navbar__item:nth-child(1):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 0); animation: gooeyEffect-1 250ms 1; }
+.navbar__item:nth-child(2):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 1); animation: gooeyEffect-2 250ms 1; }
+.navbar__item:nth-child(3):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 2); animation: gooeyEffect-3 250ms 1; }
+.navbar__item:nth-child(4):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 3); animation: gooeyEffect-4 250ms 1; }
+.navbar__item:nth-child(5):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 4); animation: gooeyEffect-5 250ms 1; }
+.navbar__item:nth-child(6):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 5); animation: gooeyEffect-6 250ms 1; }
+.navbar__item:last-child:hover:before { opacity: 1; top: calc((100% / 7) * 6); animation: gooeyEffect-7 250ms 1; }
+
+/* Margin Konten Utama agar tidak tertutup floating navbar */
+#main-content {
+  margin-left: 100px;
+}
+
+/* === UIVERSE DARK MODE SWITCH === */
+.ui-switch {
+  --switch-bg: rgb(135, 150, 165);
+  --switch-width: 42px;
+  --switch-height: 18px;
+  --circle-diameter: 26px;
+  --circle-bg: rgb(0, 56, 146);
+  --circle-inset: calc((var(--circle-diameter) - var(--switch-height)) / 2);
+}
+.ui-switch input { display: none; }
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--switch-width);
+  height: var(--switch-height);
+  background: var(--switch-bg);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+}
+.slider .circle {
+  top: calc(var(--circle-inset) * -1);
+  left: 0;
+  width: var(--circle-diameter);
+  height: var(--circle-diameter);
+  position: absolute;
+  background: var(--circle-bg);
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjAiIHdpZHRoPSIyMCIgdmlld0JveD0iMCAwIDIwIDIwIj4KICAgIDxwYXRoIGZpbGw9IiNmZmYiCiAgICAgICAgZD0iTTkuMzA1IDEuNjY3VjMuNzVoMS4zODlWMS42newUserLTEuMzl6bS00LjcwNyAxLjk1bC0uOTgyLjk4Mkw1LjA5IDYuMDcybC45ODItLjk4Mi0xLjQ3My0xLjQ3M3ptMTAuODAyIDBMMTMuOTI3IDUuMDlsLjk4Mi45ODIgMS40NzMtMS40NzMtLjk4Mi0uOTgyek0xMCA1LjEzOWE0Ljg3MiA0Ljg3MiAwIDAwLTQuODYyIDQuODYyIDQuODcyIDQuODcyIDAgMDExNC44Ni0xMC4wIDQuODcyIDQuODcyIDAgMDAtNC44NjItNC44NnptMCAxLjM4OWEzLjQ2MiAzLjQ2MiAwIDAxMy40NzMgMy40NzJBMi4wOCAyLjA4IDAgMDE2LjUyNyAxMCBza2luLmk=");
+  background-repeat: no-repeat;
+  background-position: center center;
+  transition: left 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2);
+}
+.ui-switch input:checked+.slider .circle {
+  left: calc(100% - var(--circle-diameter));
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjAiIHdpZHRoPSIyMCIgdmlld0JveD0iMCAwIDIwIDIwIj4KICAgIDxwYXRoIGZpbGw9IiNmZmYiCiAgICAgICAgZD0iTTQuMiAyLjVsLS43IDEuOC0xLjguNyAxLjguNy43IDEuOC02LTEuOEw2LjcgNWwtMS45LS43LS42LTEuOHptMTUgOC4zYTYuNyA2LjcgMCAxMS02LjYtNi.5LjggNS44IDAgMDDA2LjYgNi42eiIvPgo8L3N2Zz4=");
+}
+
+@media print {
+    body { background: white !important; }
+    .no-print, .navbar, header { display: none !important; }
+    main { padding: 0 !important; margin: 0 !important; width: 100% !important; }
+    .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; display: block !important; }
+}

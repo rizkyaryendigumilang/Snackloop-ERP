@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnackLoop ERP - Cloud Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Feather Icons CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <!-- Chart.js CDN untuk Grafik Keuangan -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SUPABASE SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- html2pdf & SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gradient-to-br from-[#F1FAFF] to-[#CBE4FF] min-h-screen text-slate-800">
+
+    <!-- CONTAINER TOAST NOTIFIKASI -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] space-y-3 pointer-events-none w-80 max-w-full"></div>
+
+    <!-- LAYAR LOGIN -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-6">
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-user-shield"></i></div>
+            <div><h2 class="text-2xl font-bold text-slate-800">SnackLoop ERP</h2><p class="text-sm text-slate-500 mt-1">Silakan Login ke Akun Anda</p></div>
+            <form id="login-form" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Username</label>
+                    <input type="text" id="login-username" placeholder="admin" class="w-full text-sm border-2 border-slate-200 rounded-xl p-3 focus:border-indigo-600 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Password</label>
+                    <input type="password" id="login-password" placeholder="••••••" class="w-full text-sm border-2 border-slate-200 rounded-xl p-3 focus:border-indigo-600 outline-none" required>
+                </div>
+                <button type="submit" class="btn-magnetic w-full py-3 text-base">Masuk Aplikasi</button>
+            </form>
+            <p class="text-[11px] text-slate-400">Default: admin / 123456</p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="hidden flex min-h-screen">
+        
+        <!-- SIDEBAR -->
+        <nav class="navbar">
+            <ul class="navbar__menu">
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('dashboard')" id="btn-dashboard" class="navbar__link active">
+                        <i data-feather="home"></i><span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('transactions')" id="btn-transactions" class="navbar__link">
+                        <i data-feather="book-open"></i><span>Buku Transaksi</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('calculator')" id="btn-calculator" class="navbar__link">
+                        <i data-feather="cpu"></i><span>Kalkulator Repack</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('master')" id="btn-master" class="navbar__link">
+                        <i data-feather="archive"></i><span>Master Produk</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('customers')" id="btn-customers" class="navbar__link">
+                        <i data-feather="users"></i><span>Customers</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-agents">
+                    <a href="#" onclick="switchTab('agents')" id="btn-agents" class="navbar__link">
+                        <i data-feather="truck"></i><span>Kelola Agen</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-users" style="display: none;">
+                    <a href="#" onclick="switchTab('users')" id="btn-users" class="navbar__link">
+                        <i data-feather="user-plus"></i><span>Kelola User</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="logoutApp()" class="navbar__link" title="Logout">
+                        <i data-feather="log-out"></i><span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="absolute bottom-4 left-0 w-full flex justify-center">
+                <label class="ui-switch" title="Toggle Dark Mode">
+                  <input type="checkbox" id="dark-mode-toggle">
+                  <div class="slider"><div class="circle"></div></div>
+                </label>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT -->
+        <main id="main-content" class="flex-grow flex flex-col min-h-screen transition-all duration-400 w-full max-w-full overflow-hidden">
+            
+            <header class="theme-header border-b px-6 py-4 flex justify-between items-center shadow-sm no-print mt-4 mr-4 rounded-t-2xl">
+                <h2 id="page-title" class="text-xl font-bold">Dashboard</h2>
+                <div class="flex items-center space-x-3 text-sm">
+                    <span id="user-badge" class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-bold border border-indigo-200 text-[11px] shadow-sm">
+                        <i class="fa-solid fa-user mr-1"></i> <span id="current-user-label">-</span>
+                    </span>
+                    <span class="bg-emerald-50 text-emerald-700 px-3.5 py-1.5 rounded-full font-bold border border-emerald-200 text-[11px] shadow-sm flex items-center">
+                        <i class="fa-solid fa-cloud mr-1.5"></i> Supabase Cloud
+                    </span>
+                </div>
+            </header>
+
+            <div class="p-6 mr-4 flex-grow space-y-6 overflow-y-auto theme-body rounded-b-2xl shadow-sm mb-4">
+
+                <!-- TAB 1: DASHBOARD -->
+                <div id="tab-dashboard" class="tab-content space-y-6">
+                    <div class="theme-card p-4 rounded-2xl border shadow-sm flex flex-wrap justify-between items-center gap-4">
+                        <div>
+                            <h3 class="font-bold text-sm">Filter Tampilan Keuangan</h3>
+                            <p class="text-xs opacity-70">Pilih periode untuk melihat rincian Pendapatan dan Keuntungan per bulan.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select id="dashboard-month-filter" onchange="updateDashboard()" class="theme-input border rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer">
+                                <option value="all">🌐 Keuntungan Keseluruhan</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        <div class="theme-card p-5 rounded-2xl border shadow-sm flex items-center justify-between">
+                            <div class="space-y-1"><p class="text-[11px] font-bold uppercase opacity-70">Total Pendapatan</p><h3 id="stat-Pendapatan" class="text-2xl font-bold">Rp 0</h3><span id="stat-Pendapatan-desc" class="text-[10px] text-emerald-600 font-bold bg-emerald-50/50 px-2 py-0.5 rounded">Keseluruhan</span></div>
+                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-wallet"></i></div>
+                        </div>
+                        <div class="theme-card p-5 rounded-2xl border shadow-sm flex items-center justify-between">
+                            <div class="space-y-1"><p class="text-[11px] font-bold uppercase opacity-70">Total Modal (HPP)</p><h3 id="stat-modal" class="text-2xl font-bold">Rp 0</h3><span class="text-[10px] font-bold bg-slate-100/50 px-2 py-0.5 rounded">Sesuai Batch & Master</span></div>
+                            <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-cart-shopping"></i></div>
+                        </div>
+                        <div class="theme-card p-5 rounded-2xl border shadow-sm flex items-center justify-between">
+                            <div class="space-y-1"><p class="text-[11px] font-bold uppercase opacity-70">Keuntungan Bersih</p><h3 id="stat-Keuntungan" class="text-2xl font-bold text-emerald-500">Rp 0</h3><span class="text-[10px] text-emerald-600 font-bold bg-emerald-50/50 px-2 py-0.5 rounded">Status Lunas</span></div>
+                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-chart-line"></i></div>
+                        </div>
+                        <div class="theme-card p-5 rounded-2xl border shadow-sm flex items-center justify-between">
+                            <div class="space-y-1"><p class="text-[11px] font-bold uppercase opacity-70">Total Hutang</p><h3 id="stat-Hutang" class="text-2xl font-bold text-rose-500">Rp 0</h3><span class="text-[10px] text-rose-600 font-bold bg-rose-50/50 px-2 py-0.5 rounded">Belum Lunas</span></div>
+                            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                        </div>
+                    </div>
+
+                    <!-- KARTU VISUALISASI GRAFIK KEUANGAN -->
+                    <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-inherit pb-3">
+                            <h3 class="font-bold text-base"><i class="fa-solid fa-chart-column text-indigo-500 mr-2"></i>Monthly Revenue & Net Profit Trends</h3>
+                            <span class="text-xs opacity-60">Visualisasi Multi-Bulan</span>
+                        </div>
+                        <div class="w-full h-[300px] relative">
+                            <canvas id="financialChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-inherit pb-3">
+                            <h3 class="font-bold text-base"><i class="fa-solid fa-triangle-exclamation text-rose-500 mr-2"></i>Daftar Hutang Aktif</h3>
+                            <span id="unpaid-badge" class="bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full text-xs font-bold">0 Item</span>
+                        </div>
+                        <div class="overflow-x-auto max-h-[300px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-2.5 border border-inherit">Tanggal</th><th class="p-2.5 border border-inherit">Pelanggan</th><th class="p-2.5 border border-inherit">Barang</th><th class="p-2.5 border border-inherit">Tagihan</th><th class="p-2.5 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="dashboard-unpaid-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: BUKU TRANSAKSI -->
+                <div id="tab-transactions" class="tab-content hidden space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-2 border-b border-inherit pb-3 no-print">
+                        <div id="month-tabs-container" class="flex flex-wrap items-center gap-2"></div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="printMonthlyRecapPDF()" class="btn-magnetic flex items-center justify-center space-x-2 bg-rose-600 text-white"><i class="fa-solid fa-file-pdf mr-1"></i> <span>Cetak Rekap PDF</span></button>
+                            <button onclick="exportActiveSheetToExcelLocal()" class="btn-magnetic flex items-center justify-center space-x-2"><i class="fa-solid fa-file-excel mr-1"></i> <span>Export Excel</span></button>
+                        </div>
+                    </div>
+                    
+                    <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-transaksi-card">
+                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-plus-circle text-indigo-500 mr-2"></i>Catat Transaksi Baru</h3>
+                        <form id="trx-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-sm">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Tanggal</label><input type="date" id="t-date" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Pelanggan</label><select id="t-customer" class="theme-input w-full border rounded-xl p-2.5 outline-none" required></select></div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-rose-500 mb-1">1. Pilih Laci (Sumber Agen)</label>
+                                <select id="t-source" class="theme-input w-full border rounded-xl p-2.5 outline-none font-bold" onchange="onSourceChange()" required>
+                                    <option value="" disabled selected>-- Pilih Sumber --</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">2. Produk / Batch</label><select id="t-product" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="fillProductData()" required><option value="" disabled selected>-- Pilih Sumber Dulu --</option></select></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Qty</label><input type="number" id="t-qty" value="1" min="1" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">ID Batch (Asal)</label><input type="text" id="t-batch" class="theme-input opacity-60 w-full border rounded-xl p-2.5 outline-none" readonly placeholder="Otomatis"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Modal /Pcs (Rp)</label><input type="text" id="t-buy" required class="theme-input opacity-60 w-full border rounded-xl p-2.5 outline-none" readonly></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual /Pcs (Rp)</label><input type="text" inputmode="numeric" id="t-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div>
+                                <label class="block text-[11px] font-bold opacity-70 mb-1">Status Pembayaran</label>
+                                <select id="t-status" class="theme-input w-full border rounded-xl p-2.5 outline-none">
+                                    <option value="Lunas">Lunas</option>
+                                    <option value="Belum Lunas">Belum Lunas</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3 flex justify-end"><button type="submit" class="btn-magnetic w-full"><i class="fa-solid fa-save mr-1"></i> Simpan Penjualan</button></div>
+                        </form>
+                    </div>
+
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                        <div class="flex justify-between items-center flex-wrap gap-4 border-b border-inherit pb-3">
+                            <h3 class="text-base font-bold" id="table-sheet-heading">Tabel Transaksi</h3>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="font-bold opacity-70">Filter:</span>
+                                <button onclick="filterTrxStatus('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white transition">Semua</button>
+                                <button onclick="filterTrxStatus('Lunas')" id="filter-btn-lunas" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition">Lunas</button>
+                                <button onclick="filterTrxStatus('Belum Lunas')" id="filter-btn-belum" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition">Belum Lunas</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-3 border border-inherit">Tgl</th><th class="p-3 border border-inherit">Pelanggan</th><th class="p-3 border border-inherit">Barang (Sumber)</th><th class="p-3 border border-inherit">Qty</th><th class="p-3 border border-inherit">Total Modal</th><th class="p-3 border border-inherit">Total Jual</th><th class="p-3 border border-inherit">Status</th><th class="p-3 border border-inherit">Keuntungan</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="trx-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: KALKULATOR & GUDANG REPACK -->
+                <div id="tab-calculator" class="tab-content hidden space-y-6">
+                    <div class="theme-card rounded-2xl border-2 border-indigo-400/50 p-6 shadow-md space-y-4 relative overflow-hidden" id="form-repack-card">
+                        <div class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">Dapur Produksi</div>
+                        <h3 class="text-base font-bold text-indigo-500"><i class="fa-solid fa-calculator mr-2"></i>Kalkulator HPP & Simpan Batch Repack</h3>
+                        <p class="text-xs opacity-70 mb-2">Hitung modal dari Shopee dan simpan ke Gudang Repack agar modal terkunci akurat.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-indigo-200/30 p-5 rounded-xl text-sm">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Barang Repack</label><input type="text" id="c-name" placeholder="Cth: Makaroni Bantet Repack" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Asli (Rp)</label><input type="text" inputmode="numeric" id="c-price" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Total Diskon (Rp)</label><input type="text" inputmode="numeric" id="c-disc" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Biaya Ongkir/Layanan (Rp)</label><input type="text" inputmode="numeric" id="c-fee" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Hasil Qty (Bungkus)</label><input type="number" id="c-qty" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Plastik /Bungkus (Rp)</label><input type="text" inputmode="numeric" id="c-plastic" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div class="md:col-span-3 border-t border-inherit mt-1 pt-3"></div>
+                            <div><label class="block text-[11px] font-bold text-emerald-500 mb-1">Rencana Harga Jual /Bungkus</label><input type="text" inputmode="numeric" id="c-sell" class="theme-input w-full border-2 border-emerald-400 rounded-xl p-2.5 outline-none"></div>
+                            <div class="md:col-span-2 flex items-end justify-end space-x-3">
+                                <button onclick="calculateRepack()" class="px-5 py-2.5 theme-btn-filter font-bold rounded-xl text-xs transition">1. Hitung Modal</button>
+                                <button onclick="saveToRepackWarehouse()" id="btn-save-repack" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition hidden"><i class="fa-solid fa-box-archive mr-2"></i> 2. Simpan Batch</button>
+                            </div>
+                        </div>
+                        <div id="calc-res" class="hidden border border-indigo-400/50 p-4 rounded-xl text-sm space-y-1">
+                            <p id="res-final" class="font-bold">-</p><p id="res-profit" class="text-emerald-500 font-bold">-</p>
+                        </div>
+                    </div>
+
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                        <h3 class="font-bold text-base"><i class="fa-solid fa-boxes-packing text-emerald-500 mr-2"></i>Gudang Repack</h3>
+                        <div class="overflow-x-auto max-h-[400px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0"><tr><th class="p-3 border border-inherit">ID Batch</th><th class="p-3 border border-inherit">Nama Barang Repack</th><th class="p-3 border border-inherit">Modal HPP /Pcs</th><th class="p-3 border border-inherit">Harga Jual /Pcs</th><th class="p-3 border border-inherit text-center">Stok Awal</th><th class="p-3 border border-inherit text-center">Sisa Stok</th><th class="p-3 border border-inherit text-center">Action</th></tr></thead>
+                                <tbody id="repack-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: MASTER PRODUK REGULER -->
+                <div id="tab-master" class="tab-content hidden space-y-6">
+                    <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-master-card">
+                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-2"></i>Tambah Master Produk</h3>
+                        <form id="master-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-sm">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Barang</label><input type="text" id="m-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div>
+                                <label class="block text-[11px] font-bold opacity-70 mb-1">Sumber Agen</label>
+                                <select id="m-source" class="theme-input w-full border rounded-xl p-2.5 outline-none" required>
+                                    <option value="" disabled selected>-- Pilih Agen --</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Beli /Modal</label><input type="text" inputmode="numeric" id="m-buy" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual</label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div class="md:col-span-4 flex justify-end"><button type="submit" class="btn-magnetic">Simpan Master</button></div>
+                        </form>
+                    </div>
+                    
+                    <div class="theme-card rounded-2xl border shadow-sm p-6">
+                        <h3 class="text-base font-bold mb-4">Daftar Master Produk</h3>
+                        <div class="overflow-x-auto max-h-[400px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="master-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: DATA PELANGGAN -->
+                <div id="tab-customers" class="tab-content hidden space-y-6">
+                    <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-customer-card">
+                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i>Tambah Pelanggan</h3>
+                        <form id="cust-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-sm">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Pelanggan</label><input type="text" id="cu-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">No. WhatsApp</label><input type="text" id="cu-phone" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><button type="submit" class="btn-magnetic w-full">Simpan Pelanggan</button></div>
+                        </form>
+                    </div>
+                    
+                    <div class="theme-card rounded-2xl border shadow-sm p-6">
+                        <h3 class="text-base font-bold mb-4">Daftar Pelanggan</h3>
+                        <div class="overflow-x-auto max-h-[400px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="cust-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 6: KELOLA AGEN (Agent Pool) -->
+                <div id="tab-agents" class="tab-content hidden space-y-6">
+                    <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-agent-card">
+                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-truck-fast text-indigo-500 mr-2"></i>Tambah / Kelola Agen</h3>
+                        <form id="agent-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-sm">
+                            <div class="md:col-span-2"><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Agen / Supplier Baru</label><input type="text" id="ag-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none" placeholder="Cth: Agen Tanah Abang / Tokopedia Supplier"></div>
+                            <div><button type="submit" class="btn-magnetic w-full">Simpan Agen</button></div>
+                        </form>
+                    </div>
+                    
+                    <div class="theme-card rounded-2xl border shadow-sm p-6">
+                        <h3 class="text-base font-bold mb-4">Daftar Agent</h3>
+                        <div class="overflow-x-auto max-h-[400px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-3 border border-inherit">ID Agen</th><th class="p-3 border border-inherit">Nama Agen</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="agent-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 7: KELOLA USER (Super Admin Only) -->
+                <div id="tab-users" class="tab-content hidden space-y-6">
+                    <div class="theme-card rounded-2xl border shadow-sm p-6">
+                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i>Tambah Akun Rekan (Role: View)</h3>
+                        <form id="user-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-sm">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Username</label><input type="text" id="u-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Password</label><input type="password" id="u-pass" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><button type="submit" class="btn-magnetic w-full">Buat Akun View</button></div>
+                        </form>
+                    </div>
+                    
+                    <div class="theme-card rounded-2xl border shadow-sm p-6">
+                        <h3 class="text-base font-bold mb-4">Daftar Pengguna Sistem</h3>
+                        <div class="overflow-x-auto max-h-[400px]">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0">
+                                    <tr><th class="p-3 border border-inherit">Username</th><th class="p-3 border border-inherit">Role</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                </thead>
+                                <tbody id="user-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TEMPLATE INVOICE / REKAP PDF -->
+                <div id="tab-invoice" class="tab-content hidden space-y-6">
+                    <div class="theme-card border rounded-2xl p-8 shadow-sm space-y-6 print-area mt-4">
+                        <div class="flex justify-between items-start border-b-2 border-slate-800 pb-6">
+                            <div>
+                                <h1 class="text-3xl font-bold tracking-tight" id="pdf-doc-title">INVOICE</h1>
+                                <p class="text-sm font-semibold text-indigo-500 mt-1 tracking-widest uppercase">SnackLoop ID</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold opacity-70" id="pdf-meta-subtitle">Ditagihkan Kepada:</p>
+                                <h3 class="text-xl font-bold" id="inv-meta-customer">-</h3>
+                                <p class="text-sm opacity-70 mt-2">Tanggal / Periode: <span class="font-medium" id="inv-meta-date">-</span></p>
+                                <p class="text-sm opacity-70" id="pdf-meta-id-wrap">Nomor Nota: <span class="font-medium" id="inv-meta-no">-</span></p>
+                            </div>
+                        </div>
+
+                        <table class="w-full text-left text-sm mt-4">
+                            <thead>
+                                <tr class="border-b-2 border-slate-300" id="pdf-table-head">
+                                    <th class="pb-3 pt-2 font-bold uppercase text-xs">Deskripsi Barang</th>
+                                    <th class="pb-3 pt-2 font-bold uppercase text-xs text-center">Qty</th>
+                                    <th class="pb-3 pt-2 font-bold uppercase text-xs text-right">Harga Satuan</th>
+                                    <th class="pb-3 pt-2 font-bold uppercase text-xs text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inv-cart-body"></tbody>
+                        </table>
+
+                        <div class="flex justify-end pt-4">
+                            <div class="w-1/2 md:w-1/3 space-y-3">
+                                <div class="flex justify-between text-sm opacity-80" id="pdf-subtotal-row"><span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span></div>
+                                <div class="flex justify-between text-lg font-bold border-t-2 border-slate-400 pt-2"><span id="pdf-total-label">Total Tagihan</span><span id="inv-grand-total">Rp 0</span></div>
+                                <div class="pt-4 text-xs opacity-60 text-right italic" id="pdf-footer-note">Terima kasih telah berbelanja di SnackLoop!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
