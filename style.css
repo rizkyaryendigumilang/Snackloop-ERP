@@ -7,10 +7,9 @@
   font-family: 'Poppins', sans-serif;
 }
 
-/* === DARK MODE & LIGHT MODE VARIABLES === */
 :root {
-  --main-bg-start: #eaeef6;
-  --main-bg-end: #d9e3f2;
+  --main-bg-start: #ffffff;
+  --main-bg-end: #ffffff;
   --card-bg: #ffffff;
   --text-main: #1e293b;
   --border-color: #e2e8f0;
@@ -21,37 +20,42 @@
   
   --borderRadius: 10px;
   --spacer: 1rem;
-  --primary: #406ff3;
+  --primary: #4f46e5;
   --text: #6a778e;
   --linkHeight: 3.5rem;
   --timing: 250ms;
 }
 
 body.dark-theme {
-  --main-bg-start: #090d16; /* Hitam kebiruan pekat yang bersih */
-  --main-bg-end: #0f172a;   /* Transisi gelap yang elegan */
-  --card-bg: #111827;       /* Hitam arang (charcoal) yang solid untuk card */
-  --text-main: #f8fafc;     /* Putih terang agar font sangat kontras dan terbaca */
-  --border-color: #1f2937;  /* Border gelap yang rapi */
-  --input-bg: #1f2937;      /* Background input pekat */
-  --table-header: #1f2937;  /* Header tabel gelap kontras */
-  --btn-filter-bg: #1f2937;
+  --main-bg-start: #000000;
+  --main-bg-end: #000000;
+  --card-bg: #0d1117;
+  --text-main: #f8fafc;
+  --border-color: #21262d;
+  --input-bg: #161b22;
+  --table-header: #161b22;
+  --btn-filter-bg: #161b22;
   --btn-filter-text: #f8fafc;
-  --text: #94a3b8;
+  --text: #8b949e;
 }
 
 body {
-  background: linear-gradient(to bottom right, var(--main-bg-start), var(--main-bg-end));
+  background: #ffffff;
   color: var(--text-main);
   min-height: 100vh;
   font-family: "Poppins", sans-serif;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+body.dark-theme {
+  background: #000000;
+}
+
 .theme-card, .theme-header, .theme-body {
   background: var(--card-bg);
   border-color: var(--border-color);
   color: var(--text-main);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .theme-input {
   background: var(--input-bg);
@@ -68,7 +72,14 @@ body {
   color: var(--text-main);
 }
 body.dark-theme tr:hover td {
-  background-color: #1f2937 !important;
+  background-color: #161b22 !important;
+}
+
+table.compact-mode th,
+table.compact-mode td {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    font-size: 11px !important;
 }
 
 .theme-btn-filter {
@@ -80,7 +91,7 @@ body.dark-theme tr:hover td {
   opacity: 0.9;
 }
 
-/* Tombol Magnetic */
+/* Flex Icon Alignment & Smooth Button Micro-Interactions */
 .btn-magnetic {
   padding: 0.75rem 1.25rem;
   border-radius: 11px;
@@ -90,14 +101,18 @@ body.dark-theme tr:hover td {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 150ms ease;
+  transition: transform 150ms ease, box-shadow 150ms ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
 }
 .btn-magnetic:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+}
+.btn-magnetic:active {
+  transform: scale(0.97);
 }
 
 input[type=number]::-webkit-inner-spin-button {
@@ -105,10 +120,9 @@ input[type=number]::-webkit-inner-spin-button {
   margin: 0;
 }
 body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1); /* Membuat ikon kalender jadi putih di dark mode */
+  filter: invert(1);
 }
 
-/* === FLOATING GOOEY NAVBAR (SIDEBAR) === */
 .navbar {
   position: fixed;
   top: var(--spacer);
@@ -171,15 +185,6 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   margin: 0;
 }
 
-/* Gooey Effect Keyframes (7 Items) */
-@keyframes gooeyEffect-1 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-2 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-3 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-4 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-5 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-6 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-@keyframes gooeyEffect-7 { 0% { transform: scale(1, 1); } 50% { transform: scale(0.5, 1.5); } 100% { transform: scale(1, 1); } }
-
 .navbar__item:last-child:before {
   content: '';
   position: absolute;
@@ -194,60 +199,16 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   transition: 250ms cubic-bezier(1, 0.2, 0.1, 1.2) all;
 }
 
-/* Hover tracking untuk 7 menu item */
-.navbar__item:nth-child(1):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 0); animation: gooeyEffect-1 250ms 1; }
-.navbar__item:nth-child(2):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 1); animation: gooeyEffect-2 250ms 1; }
-.navbar__item:nth-child(3):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 2); animation: gooeyEffect-3 250ms 1; }
-.navbar__item:nth-child(4):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 3); animation: gooeyEffect-4 250ms 1; }
-.navbar__item:nth-child(5):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 4); animation: gooeyEffect-5 250ms 1; }
-.navbar__item:nth-child(6):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 5); animation: gooeyEffect-6 250ms 1; }
-.navbar__item:last-child:hover:before { opacity: 1; top: calc((100% / 7) * 6); animation: gooeyEffect-7 250ms 1; }
+.navbar__item:nth-child(1):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 0); }
+.navbar__item:nth-child(2):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 1); }
+.navbar__item:nth-child(3):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 2); }
+.navbar__item:nth-child(4):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 3); }
+.navbar__item:nth-child(5):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 4); }
+.navbar__item:nth-child(6):hover ~ .navbar__item:last-child:before { opacity: 1; top: calc((100% / 7) * 5); }
+.navbar__item:last-child:hover:before { opacity: 1; top: calc((100% / 7) * 6); }
 
-/* Margin Konten Utama agar tidak tertutup floating navbar */
 #main-content {
   margin-left: 100px;
-}
-
-/* === UIVERSE DARK MODE SWITCH === */
-.ui-switch {
-  --switch-bg: rgb(135, 150, 165);
-  --switch-width: 42px;
-  --switch-height: 18px;
-  --circle-diameter: 26px;
-  --circle-bg: rgb(0, 56, 146);
-  --circle-inset: calc((var(--circle-diameter) - var(--switch-height)) / 2);
-}
-.ui-switch input { display: none; }
-.slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: var(--switch-width);
-  height: var(--switch-height);
-  background: var(--switch-bg);
-  border-radius: 999px;
-  position: relative;
-  cursor: pointer;
-}
-.slider .circle {
-  top: calc(var(--circle-inset) * -1);
-  left: 0;
-  width: var(--circle-diameter);
-  height: var(--circle-diameter);
-  position: absolute;
-  background: var(--circle-bg);
-  border-radius: inherit;
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjAiIHdpZHRoPSIyMCIgdmlld0JveD0iMCAwIDIwIDIwIj4KICAgIDxwYXRoIGZpbGw9IiNmZmYiCiAgICAgICAgZD0iTTkuMzA1IDEuNjY3VjMuNzVoMS4zODlWMS42newUserLTEuMzl6bS00LjcwNyAxLjk1bC0uOTgyLjk4Mkw1LjA5IDYuMDcybC45ODItLjk4Mi0xLjQ3My0xLjQ3M3ptMTAuODAyIDBMMTMuOTI3IDUuMDlsLjk4Mi45ODIgMS40NzMtMS40NzMtLjk4Mi0uOTgyek0xMCA1LjEzOWE0Ljg3MiA0Ljg3MiAwIDAwLTQuODYyIDQuODYyIDQuODcyIDQuODcyIDAgMDExNC44Ni0xMC4wIDQuODcyIDQuODcyIDAgMDAtNC44NjItNC44NnptMCAxLjM4OWEzLjQ2MiAzLjQ2MiAwIDAxMy40NzMgMy40NzJBMi4wOCAyLjA4IDAgMDE2LjUyNyAxMCBza2luLmk=");
-  background-repeat: no-repeat;
-  background-position: center center;
-  transition: left 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2);
-}
-.ui-switch input:checked+.slider .circle {
-  left: calc(100% - var(--circle-diameter));
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjAiIHdpZHRoPSIyMCIgdmlld0JveD0iMCAwIDIwIDIwIj4KICAgIDxwYXRoIGZpbGw9IiNmZmYiCiAgICAgICAgZD0iTTQuMiAyLjVsLS43IDEuOC0xLjguNyAxLjguNy43IDEuOC02LTEuOEw2LjcgNWwtMS45LS43LS42LTEuOHptMTUgOC4zYTYuNyA2LjcgMCAxMS02LjYtNi.5LjggNS44IDAgMDDA2LjYgNi42eiIvPgo8L3N2Zz4=");
 }
 
 @media print {
@@ -255,4 +216,19 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
     .no-print, .navbar, header { display: none !important; }
     main { padding: 0 !important; margin: 0 !important; width: 100% !important; }
     .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; display: block !important; }
+}
+
+/* Penyesuaian Tombol Hapus pada Tab Bulan */
+#month-tabs-container button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#month-tabs-container button span i {
+  transition: transform 0.2s ease;
+}
+
+#month-tabs-container button span:hover i {
+  transform: scale(1.2);
 }
