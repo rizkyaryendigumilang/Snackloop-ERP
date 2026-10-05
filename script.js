@@ -66,7 +66,7 @@ function showNotification(title, message, type = 'success') {
     }, 4000);
 }
 
-// ======================= PENGGANTI DEFAULT TOOLTIP BROWSER ======================= //
+// ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
 document.addEventListener("DOMContentLoaded", function() {
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
@@ -98,6 +98,34 @@ document.addEventListener("DOMContentLoaded", function() {
 
     loadMemos();
     loadCacheFromLocal();
+
+    // Cek Sesi Login yang Tersimpan (Persistent Session Check)
+    const savedSession = localStorage.getItem('snackloop_session');
+    if (savedSession) {
+        try {
+            const sessionData = JSON.parse(savedSession);
+            currentUser = sessionData.username;
+            currentRole = sessionData.role;
+
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('current-user-label').innerText = `${currentUser} (${currentRole.toUpperCase()})`;
+
+            if (currentRole === 'super_admin') {
+                document.getElementById('nav-item-users').style.display = 'block';
+            } else {
+                document.getElementById('nav-item-users').style.display = 'none';
+                ['form-transaksi-card', 'form-repack-card', 'form-master-card', 'form-customer-card', 'form-agent-card'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.style.display = 'none';
+                });
+            }
+
+            initApp();
+        } catch(e) {
+            localStorage.removeItem('snackloop_session');
+        }
+    }
 });
 
 // ======================= LOCALSTORAGE CACHING (OFFLINE READY) ======================= //
@@ -316,6 +344,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
     const userInfo = data[0];
     currentUser = userInfo.username;
     currentRole = userInfo.role;
+
+    // Simpan sesi login ke localStorage
+    localStorage.setItem('snackloop_session', JSON.stringify({ username: currentUser, role: currentRole }));
     
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
@@ -341,6 +372,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
 function logoutApp() {
     currentUser = null;
     currentRole = null;
+    localStorage.removeItem('snackloop_session'); // Hapus sesi saat logout
     document.getElementById('app-container').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
     switchTab('dashboard');
@@ -1132,7 +1164,7 @@ function renderMonthTabs() {
 
 function filterTrxStatus(st) {
     currentTransactionFilter = st;
-    currentTransactionPage = 1; // Reset halaman ke 1 saat filter status diganti
+    currentTransactionPage = 1; 
     document.getElementById('filter-btn-all').className = st === 'all' ? 'px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white text-xs' : 'px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition text-xs';
     document.getElementById('filter-btn-lunas').className = st === 'Lunas' ? 'px-3 py-1.5 rounded-lg font-bold bg-emerald-600 text-white text-xs' : 'px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition text-xs';
     document.getElementById('filter-btn-belum').className = st === 'Belum Lunas' ? 'px-3 py-1.5 rounded-lg font-bold bg-rose-600 text-white text-xs' : 'px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition text-xs';
@@ -1153,7 +1185,7 @@ function toggleDateSorting() {
 function filterTable() {
     const input = document.getElementById('quick-search');
     currentSearchKeyword = input ? input.value.toLowerCase() : '';
-    currentTransactionPage = 1; // Reset ke halaman 1 saat mengetik pencarian
+    currentTransactionPage = 1; 
     renderTransactionsForActiveSheet();
 }
 
@@ -1164,7 +1196,6 @@ function renderTransactionsForActiveSheet() {
     
     const list = transactionData[activeMonthSheet] || [];
     
-    // In-memory filtering (Status & Search Keyword)
     let filteredList = list.filter(t => {
         const matchStatus = (currentTransactionFilter === 'all' || t.status === currentTransactionFilter);
         if (!matchStatus) return false;
@@ -1188,7 +1219,6 @@ function renderTransactionsForActiveSheet() {
         return;
     }
 
-    // Pagination Slicing
     const totalPages = Math.ceil(filteredList.length / rowsPerPage);
     if(currentTransactionPage > totalPages) currentTransactionPage = totalPages || 1;
     const startIndex = (currentTransactionPage - 1) * rowsPerPage;
@@ -1734,4 +1764,4 @@ async function exportActiveSheetToExcelLocal() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Data_Penjualan_${activeMonthSheet.replace(' ', '_')}.xlsx`;
     document.body.appendChild(a); a.click(); a.remove();
     showNotification("Sukses", "Data Excel berhasil diexport.", "success");
-}
+}s
