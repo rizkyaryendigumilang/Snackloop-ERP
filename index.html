@@ -2,9 +2,18 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnackLoop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SnackLoop ERP</title>
+    <!-- PWA & App Icons -->
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="Snackloop-logo.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SnackLoop">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -31,20 +40,122 @@
     <!-- LAYAR LOGIN -->
     <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[999] flex items-center justify-center p-4">
         <div class="theme-card rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-6 border">
-            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-user-shield"></i></div>
-            <div><h2 class="text-2xl font-bold">SnackLoop</h2><p class="text-sm opacity-70 mt-1">Sign in to your account</p></div>
+            <div class="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-2 bg-white/95 dark:bg-slate-800 shadow-xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <img src="icon-192.png" alt="SnackLoop Logo" class="w-full h-full object-contain rounded-xl">
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold">SnackLoop</h2>
+                <p class="text-sm opacity-70 mt-1" data-i18n="login_tagline">Masuk ke Akun Anda</p>
+            </div>
             <form id="login-form" class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs font-bold opacity-70 mb-1">Username <span class="text-rose-500">*</span></label>
-                    <input type="text" id="login-username" placeholder="admin" class="w-full text-sm theme-input border-2 rounded-xl p-3 outline-none" required>
+                    <input type="text" id="login-username" placeholder="admin_kiky atau staff1" class="w-full text-sm theme-input border-2 rounded-xl p-3 outline-none" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold opacity-70 mb-1">Password <span class="text-rose-500">*</span></label>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold opacity-70">Password <span class="text-rose-500">*</span></label>
+                        <button type="button" onclick="openForgotPasswordModal(event)" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold focus:outline-none" data-i18n="forgot_password_btn">Lupa Password?</button>
+                    </div>
                     <input type="password" id="login-password" placeholder="••••••" class="w-full text-sm theme-input border-2 rounded-xl p-3 outline-none" required>
                 </div>
                 <button type="submit" class="btn-magnetic w-full py-3 text-base flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Login
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span data-i18n="login_btn">Masuk</span>
                 </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL LUPA PASSWORD (SUPABASE AUTH / USER RECOVERY) -->
+    <div id="modal-forgot-password" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[1000] hidden items-center justify-center p-4">
+        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl border space-y-4 text-left">
+            <div class="flex items-center justify-between border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Lupa Password</h3>
+                        <p class="text-[11px] opacity-70">Pemulihan akun via Supabase</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeForgotPasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <p class="text-xs opacity-80 leading-relaxed">
+                Masukkan alamat <strong>Email Supabase</strong> atau <strong>Username</strong> akun Anda. Kami akan memverifikasi dan mengirimkan instruksi pemulihan kata sandi.
+            </p>
+
+            <form id="forgot-password-form" onsubmit="handleForgotPassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold opacity-70 mb-1">Email / Username <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" id="forgot-identifier" placeholder="contoh: admin@snackloop.com atau username" class="w-full text-sm theme-input border rounded-xl p-3 pl-10 outline-none" required>
+                        <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                    </div>
+                </div>
+
+                <div id="forgot-password-feedback" class="hidden p-3 rounded-xl border text-xs"></div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeForgotPasswordModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="btn-submit-forgot" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>Kirim Instruksi Reset</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-inherit text-[11px] opacity-80 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info text-indigo-500 mt-0.5 text-xs"></i>
+                <div>
+                    <span>Untuk akun staf internal yang dibuat oleh Super Admin (tanpa email auth), Anda dapat langsung meminta bantuan reset ke Super Admin.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SETEL PASSWORD BARU (SUPABASE RECOVERY CALLBACK) -->
+    <div id="modal-reset-password" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[1000] hidden items-center justify-center p-4">
+        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl border space-y-4 text-left">
+            <div class="flex items-center justify-between border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Setel Password Baru</h3>
+                        <p class="text-[11px] opacity-70">Masukkan kata sandi baru untuk akun Anda</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeResetPasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="reset-password-form" onsubmit="handleResetPassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold opacity-70 mb-1">Password Baru <span class="text-rose-500">*</span></label>
+                    <input type="password" id="new-password" placeholder="Minimal 6 karakter" class="w-full text-sm theme-input border rounded-xl p-3 outline-none" required minlength="6">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold opacity-70 mb-1">Konfirmasi Password Baru <span class="text-rose-500">*</span></label>
+                    <input type="password" id="confirm-new-password" placeholder="Ulangi password baru" class="w-full text-sm theme-input border rounded-xl p-3 outline-none" required minlength="6">
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeResetPasswordModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                        Batal
+                    </button>
+                    <button type="submit" id="btn-submit-reset" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Simpan Password Baru</span>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -57,54 +168,74 @@
             <ul class="navbar__menu">
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('dashboard')" id="btn-dashboard" class="navbar__link active">
-                        <i data-feather="home"></i><span>Dashboard</span>
+                        <i data-feather="home"></i><span data-i18n="nav_dashboard">Dashboard</span>
                     </a>
                 </li>
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('transactions')" id="btn-transactions" class="navbar__link">
-                        <i data-feather="book-open"></i><span>Buku Transaksi</span>
+                        <i data-feather="book-open"></i><span data-i18n="nav_transactions">Buku Transaksi</span>
                     </a>
                 </li>
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('invoices')" id="btn-invoices" class="navbar__link">
-                        <i data-feather="file-text"></i><span>Manajemen Invoice</span>
+                        <i data-feather="file-text"></i><span data-i18n="nav_invoices">Manajemen Invoice</span>
+                    </a>
+                </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('returns')" id="btn-returns" class="navbar__link">
+                        <i data-feather="rotate-ccw"></i><span data-i18n="nav_returns">Retur & Klaim Agen</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-reports">
+                    <a href="#" onclick="switchTab('reports')" id="btn-reports" class="navbar__link">
+                        <i data-feather="bar-chart-2"></i><span data-i18n="nav_reports">Laporan Bisnis</span>
                     </a>
                 </li>
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('calculator')" id="btn-calculator" class="navbar__link">
-                        <i data-feather="cpu"></i><span>Kalkulator Repack</span>
+                        <i data-feather="cpu"></i><span data-i18n="nav_calculator">Kalkulator Repack</span>
                     </a>
                 </li>
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('master')" id="btn-master" class="navbar__link">
-                        <i data-feather="archive"></i><span>Master Produk</span>
+                        <i data-feather="archive"></i><span data-i18n="nav_master">Master Produk</span>
                     </a>
                 </li>
                 <li class="navbar__item">
                     <a href="#" onclick="switchTab('customers')" id="btn-customers" class="navbar__link">
-                        <i data-feather="users"></i><span>Customers</span>
+                        <i data-feather="users"></i><span data-i18n="nav_customers">Data Pelanggan</span>
                     </a>
                 </li>
                 <li class="navbar__item" id="nav-item-agents">
                     <a href="#" onclick="switchTab('agents')" id="btn-agents" class="navbar__link">
-                        <i data-feather="truck"></i><span>Kelola Agen</span>
+                        <i data-feather="truck"></i><span data-i18n="nav_agents">Kelola Agen</span>
                     </a>
                 </li>
                 <li class="navbar__item" id="nav-item-users" style="display: none;">
                     <a href="#" onclick="switchTab('users')" id="btn-users" class="navbar__link">
-                        <i data-feather="user-plus"></i><span>Kelola Akun</span>
+                        <i data-feather="user-plus"></i><span data-i18n="nav_users">Kelola Pengguna</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-settings">
+                    <a href="#" onclick="openSettingsModal('app')" id="btn-settings" class="navbar__link" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
+                        <i data-feather="settings"></i><span data-i18n="nav_settings">Pengaturan</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-install-pwa">
+                    <a href="#" onclick="triggerPwaInstall()" class="navbar__link text-indigo-600 dark:text-indigo-400 font-semibold" title="Pasang ke Layar Utama" data-i18n-title="nav_install">
+                        <i data-feather="download"></i><span data-i18n="nav_install">Pasang App</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="logoutApp()" class="navbar__link" title="Logout">
-                        <i data-feather="log-out"></i><span>Logout</span>
+                    <a href="#" onclick="logoutApp()" class="navbar__link" title="Keluar dari Aplikasi" data-i18n-title="nav_logout">
+                        <i data-feather="log-out"></i><span data-i18n="nav_logout">Keluar</span>
                     </a>
                 </li>
             </ul>
             
             <div class="pb-6 flex justify-center">
-                <button id="dark-mode-btn" onclick="toggleDarkMode()" class="w-12 h-12 rounded-2xl theme-input border flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm group" title="Ganti Tema">
-                    <span id="dark-mode-icon" class="material-symbols-outlined text-xl text-slate-600 dark:text-amber-400">dark_mode</span>
+                <button onclick="openSettingsModal('app')" class="w-12 h-12 rounded-2xl theme-input border flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm group" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
+                    <i class="fa-solid fa-sliders text-base text-slate-600 dark:text-indigo-400 group-hover:rotate-90 transition-transform duration-300"></i>
                 </button>
             </div>
         </nav>
@@ -123,15 +254,30 @@
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-3 text-sm">
+                <div class="flex items-center space-x-2.5 text-sm">
+                    <!-- Indikator Status Online/Offline & Sync Outbox (Kompak & Minimal) -->
+                    <div id="sync-status-container" class="cursor-pointer" onclick="handleSyncBadgeClick()" title="Status: Online - Terhubung (Klik untuk info)">
+                        <span id="sync-status-badge" class="w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm transition-all duration-300 hover:scale-105">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span id="sync-status-text" class="hidden">Online</span>
+                        </span>
+                    </div>
+
+                    <!-- Mode Ringkas -->
                     <button id="toggle-compact-btn" onclick="toggleCompactView()" class="text-xs theme-input px-3 py-2 rounded-xl border transition flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-table-cells text-indigo-500"></i>
                         <span>Mode Ringkas: <strong id="compact-status" class="opacity-50">OFF</strong></span>
                     </button>
 
-                    <span id="user-badge" class="theme-input px-3 py-1.5 rounded-full font-bold border text-[11px] shadow-sm flex items-center gap-1.5">
-                        <i class="fa-solid fa-user text-indigo-500"></i> <span id="current-user-label">-</span>
+                    <!-- User Badge (Disembunyikan agar header bersih) -->
+                    <span id="user-badge" class="hidden">
+                        <span id="current-user-label">-</span>
                     </span>
+
+                    <!-- Tombol Pengaturan Header (Kecil, Elegan & Selaras) -->
+                    <button id="btn-open-settings" onclick="openSettingsModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-xl theme-input border flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm hover:border-indigo-400 group text-slate-600 dark:text-slate-300 shrink-0" title="Pengaturan Sistem & Profil Usaha" data-i18n-title="set_modal_title">
+                        <i class="fa-solid fa-gear text-xs md:text-sm group-hover:rotate-45 transition-transform duration-300"></i>
+                    </button>
                 </div>
             </header>
 
@@ -142,14 +288,14 @@
                     
                     <div class="theme-card p-4 rounded-2xl border shadow-sm flex flex-wrap justify-between items-center gap-4">
                         <div>
-                            <h3 class="font-bold text-sm">Ringkasan Performa Toko Anda</h3>
-                            <p class="text-xs opacity-70">Pilih rentang waktu untuk melihat analisis penjualan instan</p>
+                            <h3 class="font-bold text-sm" data-i18n="dash_overview_title">Ringkasan Performa Usaha</h3>
+                            <p class="text-xs opacity-70" data-i18n="dash_overview_subtitle">Pilih rentang waktu untuk melihat analisis penjualan</p>
                         </div>
                         <div class="flex items-center theme-input p-1.5 rounded-full border shadow-inner gap-1 text-xs font-bold">
-                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="px-4 py-2 rounded-full transition">Hari Ini</button>
-                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="px-4 py-2 rounded-full transition">7 Hari</button>
-                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="px-4 py-2 rounded-full transition">30 Hari</button>
-                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="px-4 py-2 rounded-full transition bg-indigo-600 text-white shadow-md">Keseluruhan</button>
+                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="px-4 py-2 rounded-full transition" data-i18n="filter_today">Hari Ini</button>
+                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="px-4 py-2 rounded-full transition" data-i18n="filter_7days">7 Hari</button>
+                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="px-4 py-2 rounded-full transition" data-i18n="filter_30days">30 Hari</button>
+                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="px-4 py-2 rounded-full transition bg-indigo-600 text-white shadow-md" data-i18n="filter_all">Keseluruhan</button>
                         </div>
                     </div>
 
@@ -157,35 +303,35 @@
                         <div class="lg:col-span-2 theme-card p-6 rounded-2xl border shadow-sm space-y-4 flex flex-col justify-between">
                             <div class="flex flex-wrap justify-between items-center gap-4">
                                 <div>
-                                    <h3 class="font-bold text-sm">Financial & Expense Tracker</h3>
-                                    <p class="text-xs opacity-70">Pendapatan Bersih</p>
+                                    <h3 class="font-bold text-sm" data-i18n="dash_financial_title">Pelacak Keuangan & Beban</h3>
+                                    <p class="text-xs opacity-70" data-i18n="dash_financial_subtitle">Pendapatan Bersih</p>
                                 </div>
                                 <span id="stat-time-label" class="text-xs font-bold px-3 py-1 theme-input border rounded-xl">Periode: Keseluruhan</span>
                             </div>
 
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div class="p-4 rounded-xl border border-inherit theme-input">
-                                    <p class="text-[10px] font-bold uppercase opacity-70">Pendapatan</p>
+                                    <p class="text-[10px] font-bold uppercase opacity-70" data-i18n="stat_revenue">Pendapatan</p>
                                     <h3 id="stat-Pendapatan" class="text-lg font-bold mt-1">Rp 0</h3>
                                     <span id="stat-Pendapatan-desc" class="text-[9px] opacity-60">Keseluruhan</span>
                                 </div>
                                 <div class="p-4 rounded-xl border border-inherit theme-input">
-                                    <p class="text-[10px] font-bold uppercase text-amber-500">Biaya Operasional</p>
+                                    <p class="text-[10px] font-bold uppercase text-amber-500" data-i18n="stat_expense">Biaya Operasional</p>
                                     <h3 id="stat-expense" class="text-lg font-bold text-amber-500 mt-1">Rp 0</h3>
                                 </div>
                                 <div class="p-4 rounded-xl border border-inherit theme-input">
-                                    <p class="text-[10px] font-bold uppercase text-emerald-500">Laba Bersih Final</p>
+                                    <p class="text-[10px] font-bold uppercase text-emerald-500" data-i18n="stat_net_profit">Laba Bersih Final</p>
                                     <h3 id="stat-Keuntungan" class="text-lg font-bold text-emerald-500 mt-1">Rp 0</h3>
                                 </div>
                                 <div class="p-4 rounded-xl border border-inherit theme-input">
-                                    <p class="text-[10px] font-bold uppercase text-rose-500">Total Hutang</p>
+                                    <p class="text-[10px] font-bold uppercase text-rose-500" data-i18n="stat_debt">Total Tagihan Piutang</p>
                                     <h3 id="stat-Hutang" class="text-lg font-bold text-rose-500 mt-1">Rp 0</h3>
                                 </div>
                             </div>
 
                             <div class="flex flex-wrap gap-2 pt-2 border-t border-inherit">
                                 <button onclick="openExpenseModal()" class="btn-magnetic bg-amber-600 hover:bg-amber-700 !py-2 !px-4 !text-xs flex items-center gap-1.5">
-                                    <i class="fa-solid fa-receipt"></i> Catat Biaya Operasional
+                                    <i class="fa-solid fa-receipt"></i> <span data-i18n="btn_record_expense">Catat Biaya Operasional</span>
                                 </button>
                             </div>
                         </div>
@@ -193,17 +339,17 @@
                         <div class="theme-card p-5 rounded-2xl border shadow-sm flex flex-col justify-between">
                             <div>
                                 <div class="flex justify-between items-center mb-3">
-                                    <h3 class="font-bold text-sm">Quick Owner Memo & To-Do</h3>
-                                    <span class="text-[10px] theme-input border px-2 py-0.5 rounded-full font-medium">Prioritas</span>
+                                    <h3 class="font-bold text-sm" data-i18n="dash_memo_title">Catatan Cepat & Agenda Owner</h3>
+                                    <span class="text-[10px] theme-input border px-2 py-0.5 rounded-full font-medium" data-i18n="memo_priority">Prioritas</span>
                                 </div>
                                 <div class="space-y-2 mb-3">
-                                    <input type="text" id="memo-input" placeholder="Tulis catatan tugas kilat..." class="w-full text-xs px-3 py-2 theme-input border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <input type="text" id="memo-input" placeholder="Tulis catatan tugas kilat..." data-i18n-placeholder="memo_placeholder" class="w-full text-xs px-3 py-2 theme-input border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                                     <div class="flex justify-between items-center">
                                         <select id="memo-priority" class="text-xs theme-input border rounded-lg px-2 py-1">
                                             <option value="Urgent">Urgent</option>
                                             <option value="Normal">Normal</option>
                                         </select>
-                                        <button onclick="addMemo()" class="btn-magnetic !py-1.5 !px-3 !text-xs">Simpan Memo</button>
+                                        <button onclick="addMemo()" class="btn-magnetic !py-1.5 !px-3 !text-xs" data-i18n="btn_save_memo">Simpan Catatan</button>
                                     </div>
                                 </div>
                             </div>
@@ -266,7 +412,7 @@
                                         <th class="p-2.5 border border-inherit">Barang</th>
                                         <th class="p-2.5 border border-inherit">Tagihan</th>
                                         <th class="p-2.5 border border-inherit text-center">WhatsApp Penagihan</th>
-                                        <th class="p-2.5 border border-inherit text-center">Action</th>
+                                        <th class="p-2.5 border border-inherit text-center" data-i18n="th_action">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="dashboard-unpaid-body"></tbody>
@@ -319,26 +465,30 @@
                                     <option value="Belum Lunas">Belum Lunas</option>
                                 </select>
                             </div>
-                            <div class="md:col-span-1 flex justify-end"><button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5"><i class="fa-solid fa-save"></i> Simpan Penjualan</button></div>
+                            <div class="md:col-span-1 flex justify-end">
+                                <button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-save"></i> <span data-i18n="btn_save_sale">Simpan Penjualan</span>
+                                </button>
+                            </div>
                         </form>
                     </div>
 
                     <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
                         <div class="flex justify-between items-center flex-wrap gap-4 border-b border-inherit pb-3">
-                            <h3 class="text-base font-bold" id="table-sheet-heading">Tabel Transaksi</h3>
+                            <h3 class="text-base font-bold" id="table-sheet-heading">Tabel Penjualan</h3>
                             
                             <div class="relative w-full sm:w-72">
-                                <input type="text" id="quick-search" oninput="filterTable()" placeholder="Cari transaksi, pelanggan..." class="w-full pl-4 pr-12 py-2.5 theme-input border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner">
+                                <input type="text" id="quick-search" oninput="debouncedFilterTable()" placeholder="Cari transaksi, pelanggan..." data-i18n-placeholder="search_trx_placeholder" class="w-full pl-4 pr-12 py-2.5 theme-input border rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner">
                                 <div class="absolute right-1.5 top-1.5 w-7 h-7 bg-transparent rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition">
                                     <i class="fa-solid fa-magnifying-glass text-xs"></i>
                                 </div>
                             </div>
 
                             <div class="flex items-center space-x-2 text-xs">
-                                <span class="font-bold opacity-70">Filter:</span>
-                                <button onclick="filterTrxStatus('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white transition">Semua</button>
-                                <button onclick="filterTrxStatus('Lunas')" id="filter-btn-lunas" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition">Lunas</button>
-                                <button onclick="filterTrxStatus('Belum Lunas')" id="filter-btn-belum" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition">Belum Lunas</button>
+                                <span class="font-bold opacity-70" data-i18n="lbl_filter">Filter:</span>
+                                <button onclick="filterTrxStatus('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white transition" data-i18n="filter_all">Semua</button>
+                                <button onclick="filterTrxStatus('Lunas')" id="filter-btn-lunas" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition" data-i18n="opt_paid">Lunas</button>
+                                <button onclick="filterTrxStatus('Belum Lunas')" id="filter-btn-belum" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition" data-i18n="opt_unpaid">Belum Lunas</button>
                             </div>
                         </div>
                         <div class="overflow-x-auto max-h-[500px]">
@@ -347,19 +497,19 @@
                                     <tr>
                                         <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleDateSorting()">
                                             <div class="flex items-center justify-between">
-                                                <span>Tgl</span>
+                                                <span data-i18n="th_date">Tgl</span>
                                                 <i id="date-sort-icon" class="fa-solid fa-sort text-[10px] opacity-60"></i>
                                             </div>
                                         </th>
-                                        <th class="p-3 border border-inherit">Pelanggan</th>
-                                        <th class="p-3 border border-inherit">Barang & Notes</th>
-                                        <th class="p-3 border border-inherit">Qty</th>
-                                        <th class="p-3 border border-inherit">Biaya Oprasional & Note</th>
-                                        <th class="p-3 border border-inherit">Total Modal</th>
-                                        <th class="p-3 border border-inherit">Total Jual</th>
-                                        <th class="p-3 border border-inherit">Status</th>
-                                        <th class="p-3 border border-inherit">Keuntungan</th>
-                                        <th class="p-3 border border-inherit text-center">Action & WhatsApp</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_customer">Pelanggan</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_item">Barang & Catatan</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_qty">Qty</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_extracost">Biaya Operasional & Catatan</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_totalmodal">Total Modal</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_totalsell">Total Jual</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_status">Status</th>
+                                        <th class="p-3 border border-inherit" data-i18n="th_profit">Keuntungan</th>
+                                        <th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi & WhatsApp</th>
                                     </tr>
                                 </thead>
                                 <tbody id="trx-table-body"></tbody>
@@ -390,11 +540,471 @@
                                         <th class="p-3 border border-inherit">Pelanggan</th>
                                         <th class="p-3 border border-inherit">Total Tagihan</th>
                                         <th class="p-3 border border-inherit">Status Pembayaran</th>
-                                        <th class="p-3 border border-inherit text-center">Action (PDF / WhatsApp / Lunasi)</th>
+                                        <th class="p-3 border border-inherit text-center">Aksi (PDF / WhatsApp / Lunasi)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="invoices-table-body"></tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- TAB: RETUR & KLAIM AGEN -->
+                <div id="tab-returns" class="tab-content hidden space-y-6">
+                    <!-- HEADER & ACTION TOOLBAR -->
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-inherit pb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-arrow-rotate-left text-amber-500"></i> Retur & Klaim Agen
+                                </h3>
+                                <p class="text-xs opacity-70 mt-0.5">Pencatatan barang rusak/kembali dari warung toko dan antrean klaim tukar guling ke supplier agen.</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="openReturnModal()" class="btn-magnetic !py-2 !px-4 flex items-center gap-2 text-xs shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Catat Retur Baru</span>
+                                </button>
+                                <button onclick="openPrintAgentClaimModal()" class="theme-input px-3.5 py-2 rounded-xl border font-semibold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm text-xs" title="Cetak Surat Jalan Klaim ke Agen">
+                                    <i class="fa-solid fa-truck-ramp-box text-amber-500"></i>
+                                    <span>Surat Jalan Agen</span>
+                                </button>
+                                <button onclick="renderReturns()" class="theme-input px-3 py-2 rounded-xl border hover:bg-slate-50 dark:hover:bg-slate-800 transition text-xs" title="Segarkan Data">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 4 KPI SUMMARY CARDS -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                            <div class="p-4 rounded-xl border theme-card bg-amber-500/5 border-amber-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-box-open text-amber-500"></i> Antrean Klaim Agen
+                                </span>
+                                <h4 class="text-xl font-bold text-amber-600 dark:text-amber-400" id="ret-kpi-pending-qty">0 pcs</h4>
+                                <p class="text-[10px] opacity-60">Barang siap ditukar ke agen</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-indigo-500/5 border-indigo-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wallet text-indigo-500"></i> Modal Tertahan di Agen
+                                </span>
+                                <h4 class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="ret-kpi-pending-cost">Rp 0</h4>
+                                <p class="text-[10px] opacity-60">Estimasi nilai klaim supplier</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-rose-500/5 border-rose-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-receipt text-rose-500"></i> Nilai Retur Toko
+                                </span>
+                                <h4 class="text-xl font-bold text-rose-600 dark:text-rose-400" id="ret-kpi-total-val">Rp 0</h4>
+                                <p class="text-[10px] opacity-60">Total potong nota pelanggan</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-emerald-500/5 border-emerald-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-500"></i> Klaim Selesai
+                                </span>
+                                <h4 class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="ret-kpi-resolved-qty">0 pcs</h4>
+                                <p class="text-[10px] opacity-60">Berhasil ditukar / dipotong</p>
+                            </div>
+                        </div>
+
+                        <!-- FILTER & SEARCH BAR -->
+                        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-2">
+                            <!-- Status Filter Buttons -->
+                            <div class="flex items-center gap-1.5 flex-wrap" id="returns-status-filters">
+                                <button onclick="setReturnStatusFilter('all')" id="ret-filter-all" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white text-xs shadow-sm">Semua Status</button>
+                                <button onclick="setReturnStatusFilter('menunggu_agen')" id="ret-filter-menunggu" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition text-xs">Menunggu Klaim Agen</button>
+                                <button onclick="setReturnStatusFilter('selesai')" id="ret-filter-selesai" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition text-xs">Klaim Selesai</button>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <select id="ret-filter-agent" onchange="renderReturns()" class="theme-input px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none">
+                                    <option value="all">Semua Agen</option>
+                                </select>
+                                <div class="relative w-full md:w-56">
+                                    <input type="text" id="ret-search" oninput="renderReturns()" placeholder="Cari toko / snack..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DATA TABLE -->
+                        <div class="overflow-x-auto max-h-[550px] border border-inherit rounded-xl">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
+                                    <tr>
+                                        <th class="p-3 border border-inherit">No. & Tanggal</th>
+                                        <th class="p-3 border border-inherit">Pelanggan / Toko</th>
+                                        <th class="p-3 border border-inherit">Produk & Agen Asal</th>
+                                        <th class="p-3 border border-inherit text-center">Qty Rusak</th>
+                                        <th class="p-3 border border-inherit">Nilai Modal / Jual</th>
+                                        <th class="p-3 border border-inherit">Alasan</th>
+                                        <th class="p-3 border border-inherit">Tindakan</th>
+                                        <th class="p-3 border border-inherit text-center">Status Klaim</th>
+                                        <th class="p-3 border border-inherit text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="returns-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: LAPORAN BISNIS & ANALITIK -->
+                <div id="tab-reports" class="tab-content hidden space-y-6">
+                    
+                    <!-- HEADER & FILTER TOOLBAR -->
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-inherit pb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-chart-pie text-indigo-600 dark:text-indigo-400"></i> Laporan Bisnis & Analitik
+                                </h3>
+                                <p class="text-xs opacity-70 mt-0.5">Rekapitulasi performa keuangan, laba rugi, penjualan, piutang, dan valuasi persediaan.</p>
+                            </div>
+                            
+                            <!-- Export Dropdown Toolbar -->
+                            <div class="flex items-center gap-2 text-xs no-print">
+                                <div class="relative inline-block text-left" id="export-dropdown-container">
+                                    <button onclick="toggleExportDropdown()" id="export-dropdown-btn" class="theme-input px-3.5 py-2 rounded-xl border font-semibold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm" title="Pilihan Ekspor Excel atau PDF">
+                                        <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i>
+                                        <span>Ekspor Laporan</span>
+                                        <i class="fa-solid fa-chevron-down text-[10px] opacity-60 transition-transform duration-200" id="export-dropdown-arrow"></i>
+                                    </button>
+
+                                    <!-- Dropdown Menu -->
+                                    <div id="export-dropdown-menu" class="hidden absolute right-0 mt-2 w-72 rounded-2xl theme-card border shadow-2xl z-[999] py-2 text-xs overflow-hidden backdrop-blur-md">
+                                        
+                                        <!-- Quick Export Active Tab -->
+                                        <div class="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider opacity-50 flex items-center justify-between">
+                                            <span>Tab Yang Sedang Aktif</span>
+                                            <span class="text-indigo-500 font-semibold" id="dropdown-active-tab-label">Laba Rugi</span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-1.5 px-2 pb-2.5 border-b border-inherit">
+                                            <button onclick="exportCurrentSubtab('excel')" class="px-2.5 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 font-semibold flex items-center justify-center gap-1.5 transition border border-transparent hover:border-emerald-200">
+                                                <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                                                <span>Tab Ini (.xlsx)</span>
+                                            </button>
+                                            <button onclick="exportCurrentSubtab('pdf')" class="px-2.5 py-2 rounded-xl hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 font-semibold flex items-center justify-center gap-1.5 transition border border-transparent hover:border-rose-200">
+                                                <i class="fa-solid fa-file-pdf text-rose-600"></i>
+                                                <span>Tab Ini (.pdf)</span>
+                                            </button>
+                                        </div>
+
+                                        <!-- Section 1: Excel Format -->
+                                        <div class="px-3.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-file-excel"></i> Format Microsoft Excel (.xlsx)
+                                        </div>
+                                        <button onclick="exportReportOption('excel', 'all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium flex items-center justify-between transition">
+                                            <span>Semua Laporan (Buku Lengkap)</span>
+                                            <span class="text-[10px] opacity-50 font-mono">4 Sheet</span>
+                                        </button>
+                                        <button onclick="exportReportOption('excel', 'pnl')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Laba Rugi Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('excel', 'sales')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Penjualan & Produk Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('excel', 'receivables')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Rekap Piutang Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('excel', 'inventory')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Valuasi Stok Saja</span>
+                                        </button>
+
+                                        <!-- Divider -->
+                                        <div class="border-t border-inherit my-1.5"></div>
+
+                                        <!-- Section 2: PDF Format -->
+                                        <div class="px-3.5 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-file-pdf"></i> Format Dokumen PDF (.pdf)
+                                        </div>
+                                        <button onclick="exportReportOption('pdf', 'all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium flex items-center justify-between transition">
+                                            <span>Laporan Eksekutif Lengkap</span>
+                                            <span class="text-[10px] opacity-50 font-mono">Formal</span>
+                                        </button>
+                                        <button onclick="exportReportOption('pdf', 'pnl')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Laba Rugi Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('pdf', 'sales')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Penjualan & Produk Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('pdf', 'receivables')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Piutang Tertunggak Saja</span>
+                                        </button>
+                                        <button onclick="exportReportOption('pdf', 'inventory')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
+                                            <span>Laporan Valuasi Stok Saja</span>
+                                        </button>
+
+                                        <!-- Divider & Print -->
+                                        <div class="border-t border-inherit mt-1.5 pt-1 px-2">
+                                            <button onclick="printReportView(); closeExportDropdown();" class="w-full px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium flex items-center gap-2 transition">
+                                                <i class="fa-solid fa-print"></i>
+                                                <span>Cetak Langsung (Printer)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button onclick="printReportView()" class="btn-magnetic !py-2 !px-3.5 flex items-center gap-1.5 shadow-sm" title="Cetak Laporan">
+                                    <i class="fa-solid fa-print"></i>
+                                    <span class="hidden sm:inline">Cetak</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter Controls -->
+                        <div class="flex flex-wrap items-center justify-between gap-3 text-xs pt-1 no-print">
+                            <!-- Preset Buttons -->
+                            <div class="flex flex-wrap items-center gap-1.5" id="report-filter-presets">
+                                <button onclick="setReportDateRange('30days')" id="btn-rep-30days" class="report-preset-btn px-3 py-1.5 rounded-lg border font-medium text-xs transition bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800">30 Hari Terakhir</button>
+                                <button onclick="setReportDateRange('this_month')" id="btn-rep-this_month" class="report-preset-btn px-3 py-1.5 rounded-lg border font-medium text-xs transition opacity-70 hover:opacity-100">Bulan Ini</button>
+                                <button onclick="setReportDateRange('last_month')" id="btn-rep-last_month" class="report-preset-btn px-3 py-1.5 rounded-lg border font-medium text-xs transition opacity-70 hover:opacity-100">Bulan Lalu</button>
+                                <button onclick="setReportDateRange('this_year')" id="btn-rep-this_year" class="report-preset-btn px-3 py-1.5 rounded-lg border font-medium text-xs transition opacity-70 hover:opacity-100">Tahun Ini</button>
+                                <button onclick="setReportDateRange('all')" id="btn-rep-all" class="report-preset-btn px-3 py-1.5 rounded-lg border font-medium text-xs transition opacity-70 hover:opacity-100">Semua Data</button>
+                            </div>
+
+                            <!-- Custom Date Range -->
+                            <div class="flex items-center gap-2">
+                                <span class="opacity-60 text-[11px]">Rentang:</span>
+                                <input type="date" id="rep-date-from" class="theme-input border rounded-lg px-2.5 py-1 text-xs outline-none" onchange="onReportCustomDateChange()">
+                                <span class="opacity-50 text-[11px]">-</span>
+                                <input type="date" id="rep-date-to" class="theme-input border rounded-lg px-2.5 py-1 text-xs outline-none" onchange="onReportCustomDateChange()">
+                            </div>
+                        </div>
+
+                        <!-- Subtab Navigation (Clean Pills) -->
+                        <div class="flex items-center gap-2 border-t border-inherit pt-3 no-print overflow-x-auto">
+                            <button onclick="switchReportSubtab('pnl')" id="rep-sub-btn-pnl" class="rep-sub-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                                <i class="fa-solid fa-scale-balanced"></i> Laba Rugi
+                            </button>
+                            <button onclick="switchReportSubtab('sales')" id="rep-sub-btn-sales" class="rep-sub-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition opacity-70 hover:opacity-100 border border-transparent">
+                                <i class="fa-solid fa-arrow-trend-up"></i> Analisis Penjualan
+                            </button>
+                            <button onclick="switchReportSubtab('receivables')" id="rep-sub-btn-receivables" class="rep-sub-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition opacity-70 hover:opacity-100 border border-transparent">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Rekap Piutang
+                            </button>
+                            <button onclick="switchReportSubtab('inventory')" id="rep-sub-btn-inventory" class="rep-sub-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition opacity-70 hover:opacity-100 border border-transparent">
+                                <i class="fa-solid fa-boxes-stacked"></i> Valuasi Stok
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB 1: LABA RUGI (P&L) -->
+                    <div id="rep-subtab-pnl" class="rep-subtab-panel space-y-6">
+                        <!-- 4 Stat Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-2">
+                                <div class="flex justify-between items-center text-xs opacity-70">
+                                    <span>Total Pendapatan</span>
+                                    <i class="fa-solid fa-receipt text-indigo-500"></i>
+                                </div>
+                                <div class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="rep-pnl-revenue">Rp 0</div>
+                                <div class="text-[11px] opacity-60" id="rep-pnl-revenue-sub">0 transaksi</div>
+                            </div>
+
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-2">
+                                <div class="flex justify-between items-center text-xs opacity-70">
+                                    <span>Harga Pokok Penjualan (HPP)</span>
+                                    <i class="fa-solid fa-box text-amber-500"></i>
+                                </div>
+                                <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="rep-pnl-cogs">Rp 0</div>
+                                <div class="text-[11px] opacity-60">Modal produk & kemasan</div>
+                            </div>
+
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-2">
+                                <div class="flex justify-between items-center text-xs opacity-70">
+                                    <span>Laba Kotor (Gross)</span>
+                                    <i class="fa-solid fa-coins text-emerald-500"></i>
+                                </div>
+                                <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="rep-pnl-gross">Rp 0</div>
+                                <div class="text-[11px] opacity-60" id="rep-pnl-gross-margin">Margin: 0%</div>
+                            </div>
+
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-2">
+                                <div class="flex justify-between items-center text-xs opacity-70">
+                                    <span>Laba Bersih (Net Profit)</span>
+                                    <i class="fa-solid fa-wallet text-emerald-500"></i>
+                                </div>
+                                <div class="text-xl font-bold" id="rep-pnl-net">Rp 0</div>
+                                <div class="text-[11px] opacity-60" id="rep-pnl-net-margin">Margin Bersih: 0%</div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Financial Statement Table -->
+                        <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                                <h4 class="text-sm font-bold">Rincian Laporan Laba Rugi Komprehensif</h4>
+                                <span class="text-xs opacity-60 font-mono" id="rep-pnl-period-label">Periode: -</span>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left border-collapse theme-table">
+                                    <thead>
+                                        <tr class="border-b border-inherit font-semibold text-slate-500">
+                                            <th class="p-3">Pos Keuangan</th>
+                                            <th class="p-3 text-right">Nominal (Rp)</th>
+                                            <th class="p-3 text-right">Rasio (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-pnl-statement-body" class="divide-y divide-inherit"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB 2: ANALISIS PENJUALAN -->
+                    <div id="rep-subtab-sales" class="rep-subtab-panel hidden space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Total Volume Terjual</span>
+                                <div class="text-xl font-bold text-indigo-600" id="rep-sales-volume">0 pcs</div>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Rata-rata Transaksi (AOV)</span>
+                                <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="rep-sales-aov">Rp 0</div>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Snack Terlaris (Volume)</span>
+                                <div class="text-xl font-bold text-emerald-600 truncate" id="rep-sales-top-product">-</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Top Products Table -->
+                            <div class="theme-card rounded-2xl border shadow-sm p-5 space-y-3">
+                                <div class="flex justify-between items-center border-b border-inherit pb-2">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider opacity-80">Peringkat Produk Terlaris</h4>
+                                    <span class="text-[11px] opacity-60">Berdasarkan Qty</span>
+                                </div>
+                                <div class="overflow-x-auto max-h-[400px]">
+                                    <table class="w-full text-xs text-left border-collapse theme-table">
+                                        <thead class="sticky top-0">
+                                            <tr class="border-b border-inherit">
+                                                <th class="p-2.5">Produk</th>
+                                                <th class="p-2.5 text-center">Terjual</th>
+                                                <th class="p-2.5 text-right">Total Omzet</th>
+                                                <th class="p-2.5 text-right">Margin Laba</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rep-top-products-body" class="divide-y divide-inherit"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Customer Sales Recap -->
+                            <div class="theme-card rounded-2xl border shadow-sm p-5 space-y-3">
+                                <div class="flex justify-between items-center border-b border-inherit pb-2">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider opacity-80">Rekap Penjualan per Pelanggan</h4>
+                                    <span class="text-[11px] opacity-60">Kontribusi Omzet</span>
+                                </div>
+                                <div class="overflow-x-auto max-h-[400px]">
+                                    <table class="w-full text-xs text-left border-collapse theme-table">
+                                        <thead class="sticky top-0">
+                                            <tr class="border-b border-inherit">
+                                                <th class="p-2.5">Pelanggan</th>
+                                                <th class="p-2.5 text-center">Transaksi</th>
+                                                <th class="p-2.5 text-right">Total Belanja</th>
+                                                <th class="p-2.5 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rep-top-customers-body" class="divide-y divide-inherit"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB 3: REKAP PIUTANG (ACCOUNTS RECEIVABLE) -->
+                    <div id="rep-subtab-receivables" class="rep-subtab-panel hidden space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Total Piutang Tertunggak</span>
+                                <div class="text-xl font-bold text-rose-500" id="rep-rec-total">Rp 0</div>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Pelanggan Berpiutang</span>
+                                <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="rep-rec-cust-count">0 Toko</div>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Invoice Belum Lunas</span>
+                                <div class="text-xl font-bold text-amber-500" id="rep-rec-inv-count">0 Nota</div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card rounded-2xl border shadow-sm p-5 space-y-3">
+                            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                                <div>
+                                    <h4 class="text-sm font-bold">Daftar Tagihan Piutang Belum Terbayar</h4>
+                                    <p class="text-xs opacity-60">Hubungi toko mitra untuk konfirmasi pelunasan tagihan tempo.</p>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto max-h-[450px]">
+                                <table class="w-full text-xs text-left border-collapse theme-table">
+                                    <thead class="sticky top-0">
+                                        <tr class="border-b border-inherit">
+                                            <th class="p-3">Nama Pelanggan</th>
+                                            <th class="p-3">No. Kontak</th>
+                                            <th class="p-3 text-center">Jumlah Nota</th>
+                                            <th class="p-3 text-right">Total Tagihan</th>
+                                            <th class="p-3">Transaksi Terakhir</th>
+                                            <th class="p-3 text-center">Aksi Reminder</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-receivables-body" class="divide-y divide-inherit"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAB 4: VALUASI STOK GUDANG -->
+                    <div id="rep-subtab-inventory" class="rep-subtab-panel hidden space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Nilai Aset Modal Stok</span>
+                                <div class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="rep-inv-valuation">Rp 0</div>
+                                <span class="text-[11px] opacity-60">Uang mengendap di barang</span>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Total Sisa Stok</span>
+                                <div class="text-xl font-bold text-slate-800 dark:text-slate-100" id="rep-inv-total-qty">0 pcs</div>
+                                <span class="text-[11px] opacity-60">Di gudang repack</span>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Potensi Nilai Jual</span>
+                                <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="rep-inv-potential-rev">Rp 0</div>
+                                <span class="text-[11px] opacity-60">Estimasi omzet stok</span>
+                            </div>
+                            <div class="theme-card p-5 rounded-2xl border shadow-sm space-y-1">
+                                <span class="text-xs opacity-70">Batch Stok Menipis</span>
+                                <div class="text-xl font-bold text-amber-500" id="rep-inv-low-count">0 Batch</div>
+                                <span class="text-[11px] opacity-60">Sisa &lt; 10 pcs</span>
+                            </div>
+                        </div>
+
+                        <div class="theme-card rounded-2xl border shadow-sm p-5 space-y-3">
+                            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                                <h4 class="text-sm font-bold">Rincian Stok & Valuasi per Batch Repack</h4>
+                                <span class="text-xs opacity-60" id="rep-inv-batch-count">0 batch terdaftar</span>
+                            </div>
+
+                            <div class="overflow-x-auto max-h-[450px]">
+                                <table class="w-full text-xs text-left border-collapse theme-table">
+                                    <thead class="sticky top-0">
+                                        <tr class="border-b border-inherit">
+                                            <th class="p-3">Batch ID & Tanggal</th>
+                                            <th class="p-3">Nama Produk</th>
+                                            <th class="p-3 text-right">Modal / Pcs</th>
+                                            <th class="p-3 text-right">Target Jual</th>
+                                            <th class="p-3 text-center">Sisa Qty</th>
+                                            <th class="p-3 text-right">Nilai Aset Modal</th>
+                                            <th class="p-3 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-inventory-body" class="divide-y divide-inherit"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -428,7 +1038,7 @@
                         <h3 class="font-bold text-base"><i class="fa-solid fa-boxes-packing text-emerald-500 mr-2"></i>Gudang Repack</h3>
                         <div class="overflow-x-auto max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
-                                <thead class="sticky top-0"><tr><th class="p-3 border border-inherit">ID Batch</th><th class="p-3 border border-inherit">Nama Barang Repack</th><th class="p-3 border border-inherit">Modal HPP /Pcs</th><th class="p-3 border border-inherit">Harga Jual /Pcs</th><th class="p-3 border border-inherit text-center">Stok Awal</th><th class="p-3 border border-inherit text-center">Sisa Stok</th><th class="p-3 border border-inherit text-center">Action</th></tr></thead>
+                                <thead class="sticky top-0"><tr><th class="p-3 border border-inherit">ID Batch</th><th class="p-3 border border-inherit">Nama Barang Repack</th><th class="p-3 border border-inherit">Modal HPP /Pcs</th><th class="p-3 border border-inherit">Harga Jual /Pcs</th><th class="p-3 border border-inherit text-center">Stok Awal</th><th class="p-3 border border-inherit text-center">Sisa Stok</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr></thead>
                                 <tbody id="repack-table-body"></tbody>
                             </table>
                         </div>
@@ -458,7 +1068,7 @@
                         <div class="overflow-x-auto max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="master-table-body"></tbody>
                             </table>
@@ -482,7 +1092,7 @@
                         <div class="overflow-x-auto max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="cust-table-body"></tbody>
                             </table>
@@ -501,11 +1111,11 @@
                     </div>
                     
                     <div class="theme-card rounded-2xl border shadow-sm p-6">
-                        <h3 class="text-base font-bold mb-4">Daftar Agent</h3>
+                        <h3 class="text-base font-bold mb-4">Daftar Agen</h3>
                         <div class="overflow-x-auto max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">ID Agen</th><th class="p-3 border border-inherit">Nama Agen</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                    <tr><th class="p-3 border border-inherit">ID Agen</th><th class="p-3 border border-inherit">Nama Agen</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="agent-table-body"></tbody>
                             </table>
@@ -517,11 +1127,31 @@
                 <div id="tab-users" class="tab-content hidden space-y-6">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
-                            <h3 class="text-base font-bold mb-2"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i>Tambah Akun Rekan (Role: View)</h3>
+                            <h3 class="text-base font-bold mb-1"><i class="fa-solid fa-user-gear text-indigo-500 mr-2"></i>Daftarkan Pengguna Baru</h3>
+                            <p class="text-xs opacity-70 mb-2">Tambahkan akun staf rekap atau rekan kerja dengan pembatasan hak akses yang aman.</p>
                             <form id="user-form" class="space-y-3 text-sm" novalidate>
-                                <div><label class="block text-[11px] font-bold opacity-70 mb-1">Username <span class="text-rose-500">*</span></label><input type="text" id="u-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                                <div><label class="block text-[11px] font-bold opacity-70 mb-1">Password <span class="text-rose-500">*</span></label><input type="password" id="u-pass" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                                <div><button type="submit" class="btn-magnetic w-full">Buat Akun View</button></div>
+                                <div>
+                                    <label class="block text-[11px] font-bold opacity-70 mb-1">Username <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="u-name" required placeholder="misal: kasir_siti" class="theme-input w-full border rounded-xl p-2.5 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold opacity-70 mb-1">Password <span class="text-rose-500">*</span></label>
+                                    <input type="password" id="u-pass" required placeholder="Minimal 6 karakter" class="theme-input w-full border rounded-xl p-2.5 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold opacity-70 mb-1">Peran / Hak Akses (Role) <span class="text-rose-500">*</span></label>
+                                    <select id="u-role" class="theme-input w-full border rounded-xl p-2.5 outline-none font-semibold text-xs">
+                                        <option value="staff_rekap">Staff Rekap / Kasir (Bisa Input Penjualan, Laba & Modal Dirahasiakan)</option>
+                                        <option value="super_admin">Super Admin / Owner (Akses Penuh 100%)</option>
+                                        <option value="view">Viewer (Hanya Lihat / Read-Only)</option>
+                                    </select>
+                                    <p class="text-[10px] opacity-60 mt-1">Staff Rekap tidak bisa menghapus transaksi atau melihat laba bersih & harga kulakan modal.</p>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5 py-3">
+                                        <i class="fa-solid fa-user-plus"></i> Simpan Akun Pengguna
+                                    </button>
+                                </div>
                             </form>
                         </div>
                         
@@ -545,7 +1175,7 @@
                         <div class="overflow-x-auto max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Username</th><th class="p-3 border border-inherit">Role</th><th class="p-3 border border-inherit text-center">Action</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Username</th><th class="p-3 border border-inherit">Role</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="user-table-body"></tbody>
                             </table>
@@ -704,6 +1334,507 @@
         </div>
     </div>
 
+
+    <!-- MODAL CATAT RETUR BARU -->
+    <div id="modal-return" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border my-8">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Catat Retur Barang Baru</h3>
+                        <p class="text-[11px] opacity-70">Barang rusak/kembali dari warung toko</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeReturnModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="return-form" onsubmit="saveReturnRecord(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="ret-ref-trx-id">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Tanggal Retur <span class="text-rose-500">*</span></label>
+                        <input type="date" id="ret-date" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Pelanggan / Toko <span class="text-rose-500">*</span></label>
+                        <input list="ret-cust-list" id="ret-customer" required placeholder="Pilih / ketik nama toko" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                        <datalist id="ret-cust-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Agen Asal Barang <span class="text-rose-500">*</span></label>
+                        <select id="ret-agent" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-semibold">
+                            <option value="" disabled selected>Pilih Agen</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Nama Produk Snack <span class="text-rose-500">*</span></label>
+                        <input list="ret-master-list" id="ret-product" onchange="onReturnProductSelect()" required placeholder="Pilih / ketik produk" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                        <datalist id="ret-master-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Qty Rusak (Pcs) <span class="text-rose-500">*</span></label>
+                        <input type="number" id="ret-qty" min="1" value="1" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-bold text-center">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Harga Beli/Modal (Pcs)</label>
+                        <input type="text" id="ret-buy" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Harga Jual Toko (Pcs)</label>
+                        <input type="text" id="ret-sell" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold mb-1">Alasan Kerusakan <span class="text-rose-500">*</span></label>
+                    <select id="ret-reason" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                        <option value="Kemasan Bocor / Angin Masuk">Kemasan Bocor / Angin Masuk</option>
+                        <option value="Melempem / Rusak Rasa">Melempem / Rusak Rasa</option>
+                        <option value="Kedaluwarsa / Expired">Kedaluwarsa / Expired</option>
+                        <option value="Tidak Laku / Toko Minta Tarik">Tidak Laku / Toko Minta Tarik</option>
+                        <option value="Lainnya">Lainnya</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold mb-1">Solusi / Tindakan Penyesuaian <span class="text-rose-500">*</span></label>
+                    <div class="space-y-1.5 p-2.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30">
+                        <label class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition">
+                            <input type="radio" name="ret-action" value="tukar_guling" checked class="mt-0.5 text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">Tukar Guling Agen (Ganti Barang Baru)</span>
+                                <p class="text-[10px] opacity-60">Barang diganti fisik baru saat ke agen. Saldo uang dan nota toko tetap.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition">
+                            <input type="radio" name="ret-action" value="potong_tagihan" class="mt-0.5 text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">Potong Tagihan Toko & Klaim Agen</span>
+                                <p class="text-[10px] opacity-60">Otomatis buat baris minus di Buku Transaksi & kurangi sisa tagihan toko.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition">
+                            <input type="radio" name="ret-action" value="beban_rusak" class="mt-0.5 text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-slate-200">Agen Tolak / Beban Kerugian Usaha</span>
+                                <p class="text-[10px] opacity-60">Toko tidak bayar, nilai modal dicatat ke Beban Operasional di Laba Rugi.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold mb-1">Catatan Tambahan</label>
+                    <input type="text" id="ret-notes" placeholder="Opsional, misal: nota TRX-202610-001" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-inherit">
+                    <button type="button" onclick="closeReturnModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Simpan & Proses Retur</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CETAK SURAT JALAN KLAIM KE AGEN -->
+    <div id="modal-print-agent-claim" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4">
+        <div class="theme-card rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 border">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-truck-ramp-box text-amber-500 text-lg"></i>
+                    <div>
+                        <h3 class="text-base font-bold">Surat Jalan Klaim Agen</h3>
+                        <p class="text-[11px] opacity-70">Cetak tanda terima barang retur yang dibawa ke agen</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closePrintAgentClaimModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold mb-1">Pilih Supplier / Agen <span class="text-rose-500">*</span></label>
+                    <select id="claim-print-agent" onchange="previewAgentClaimItems()" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-semibold">
+                        <option value="" disabled selected>Pilih Agen</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Nama Driver / Pembawa Barang</label>
+                    <input type="text" id="claim-print-driver" placeholder="Nama sales / kurir" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                </div>
+
+                <div class="p-3 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5">
+                    <span class="text-[11px] font-bold block text-slate-800 dark:text-slate-200">Daftar Barang Siap Klaim:</span>
+                    <div id="claim-preview-list" class="text-[11px] opacity-80 max-h-36 overflow-y-auto space-y-1">
+                        Pilih agen terlebih dahulu.
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2 border-t border-inherit">
+                <button type="button" onclick="closePrintAgentClaimModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                <button type="button" onclick="generateAgentClaimPDF()" class="btn-magnetic bg-amber-600 hover:bg-amber-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Cetak Surat Jalan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- PWA 1-KLIK FLOATING INSTALL BANNER -->
+    <div id="pwa-install-banner" class="hidden fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-[9999] theme-card p-4 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-300">
+        <div class="flex items-start gap-3">
+            <img src="icon-192.png" class="w-12 h-12 rounded-xl object-contain shadow-sm border p-1 bg-white shrink-0" alt="SnackLoop Logo">
+            <div class="flex-grow">
+                <div class="flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">PWA Ready</span>
+                    <h4 class="text-xs font-bold text-slate-900 dark:text-white">Pasang SnackLoop ERP</h4>
+                </div>
+                <p class="text-[11px] opacity-70 leading-snug mt-1">Akses instan dari Layar Utama HP / Laptop tanpa buka browser. Bekerja offline!</p>
+            </div>
+            <button type="button" onclick="dismissInstallBanner()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs p-1" title="Tutup">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="flex items-center justify-end gap-2 mt-3 pt-2.5 border-t border-inherit">
+            <button type="button" onclick="dismissInstallBanner()" class="px-3 py-1.5 text-xs theme-input border rounded-xl font-semibold opacity-75 hover:opacity-100">Nanti Saja</button>
+            <button type="button" onclick="triggerPwaInstall()" class="px-3.5 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud-arrow-down"></i>
+                <span>Pasang Sekarang</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL PANDUAN INSTALASI PWA (ANDROID, IOS, PC) -->
+    <div id="modal-install-guide" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 border my-8">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <img src="icon-192.png" class="w-9 h-9 rounded-xl object-contain border p-0.5 bg-white shadow-sm" alt="Logo">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pasang SnackLoop ke Layar Utama</h3>
+                        <p class="text-[10px] opacity-70">Akses cepat 1-klik & bekerja offline</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeInstallGuideModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Tab Pemilihan Perangkat -->
+            <div class="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900/50 text-[11px] font-semibold text-center border border-inherit">
+                <button type="button" onclick="switchInstallGuideTab('android')" id="tab-btn-inst-android" class="py-1.5 rounded-lg transition bg-indigo-600 text-white shadow-sm font-bold">
+                    <i class="fa-brands fa-android mr-1"></i> Android
+                </button>
+                <button type="button" onclick="switchInstallGuideTab('ios')" id="tab-btn-inst-ios" class="py-1.5 rounded-lg transition opacity-70 hover:opacity-100">
+                    <i class="fa-brands fa-apple mr-1"></i> iPhone/iPad
+                </button>
+                <button type="button" onclick="switchInstallGuideTab('pc')" id="tab-btn-inst-pc" class="py-1.5 rounded-lg transition opacity-70 hover:opacity-100">
+                    <i class="fa-solid fa-desktop mr-1"></i> Laptop/PC
+                </button>
+            </div>
+
+            <!-- PANEL 1: ANDROID -->
+            <div id="panel-inst-android" class="space-y-3 text-xs">
+                <p class="opacity-80">Panduan pasang di HP Android via Google Chrome atau Samsung Internet:</p>
+                <div class="space-y-2.5 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl border border-inherit">
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                        <div>
+                            <span>Ketuk tombol <strong>Menu Titik Tiga (⋮)</strong> di pojok kanan atas browser.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                        <div>
+                            <span>Pilih opsi <strong>"Pasang Aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                        <div>
+                            <span>Ketuk <strong>Install / Pasang</strong>. Ikon SnackLoop akan otomatis muncul di home screen Anda!</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 2: iOS -->
+            <div id="panel-inst-ios" class="hidden space-y-3 text-xs">
+                <p class="opacity-80">Panduan pasang di iPhone / iPad via browser Safari:</p>
+                <div class="space-y-2.5 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl border border-inherit">
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                        <div>
+                            <span>Ketuk tombol <strong>Bagikan (Share)</strong> di bar bawah Safari:</span>
+                            <div class="mt-1 text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                                <span>Ikon Share</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                        <div>
+                            <span>Gulir ke bawah dan ketuk <strong>"Tambahkan ke Layar Utama"</strong> (Add to Home Screen).</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                        <div>
+                            <span>Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL 3: PC / LAPTOP -->
+            <div id="panel-inst-pc" class="hidden space-y-3 text-xs">
+                <p class="opacity-80">Panduan pasang di Windows / Mac via Google Chrome atau Microsoft Edge:</p>
+                <div class="space-y-2.5 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl border border-inherit">
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                        <div>
+                            <span>Lihat ke <strong>Bilah Alamat URL (Omnibar)</strong> di bagian kanan atas browser Anda.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                        <div>
+                            <span>Klik ikon <strong>Pasang / Komputer (Install app)</strong> <i class="fa-solid fa-desktop text-indigo-500"></i> atau ikon panah ke bawah.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                        <div>
+                            <span>Klik tombol <strong>Install</strong>. SnackLoop akan terbuka di jendela mandiri layaknya software desktop!</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-inherit flex justify-end">
+                <button type="button" onclick="closeInstallGuideModal()" class="w-full btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 text-xs font-bold">
+                    Tutup Panduan
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL PENGATURAN SISTEM & PROFIL USAHA -->
+    <div id="modal-settings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto" onclick="if(event.target === this) closeSettingsModal()">
+        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border my-8">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-gear"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Pengaturan Sistem</h3>
+                        <p class="text-[11px] opacity-70">Profil usaha, rekening pembayaran nota, dan pencadangan</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Tab Navigasi Pengaturan -->
+            <div class="flex border-b border-inherit gap-2 text-xs">
+                <button type="button" onclick="switchSettingsTab('profile')" id="set-tab-btn-profile" class="px-3 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-store"></i> <span data-i18n="tab_profile">Profil & Nota</span>
+                </button>
+                <button type="button" onclick="switchSettingsTab('backup')" id="set-tab-btn-backup" class="px-3 py-2 font-semibold opacity-70 hover:opacity-100 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-database"></i> <span data-i18n="tab_backup">Cadangan Data</span>
+                </button>
+                <button type="button" onclick="switchSettingsTab('app')" id="set-tab-btn-app" class="px-3 py-2 font-semibold opacity-70 hover:opacity-100 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i> <span data-i18n="tab_preferences">Preferensi Sistem</span>
+                </button>
+            </div>
+
+            <!-- FORM PENGATURAN -->
+            <form id="settings-form" onsubmit="saveAppSettings(event)" class="space-y-3.5 text-xs">
+                
+                <!-- SUB-TAB 1: PROFIL & NOTA -->
+                <div id="set-panel-profile" class="space-y-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Nama Usaha / Brand <span class="text-rose-500">*</span></label>
+                        <input type="text" id="set-biz-name" required placeholder="Contoh: SnackLoop ERP" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-semibold">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Tagline / Slogan Usaha</label>
+                        <input type="text" id="set-biz-tagline" placeholder="Contoh: Sistem Distribusi & Repack Snack" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">No. WhatsApp Admin / CS</label>
+                            <input type="text" id="set-biz-phone" placeholder="Contoh: 628123456789" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                            <span class="text-[10px] opacity-60">Awali dengan 62 (tanpa tanda +)</span>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Kota / Domisili Usaha</label>
+                            <input type="text" id="set-biz-city" placeholder="Contoh: Jakarta" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Rekening Pembayaran Bank (Tampil di Nota & WA)</label>
+                        <input type="text" id="set-biz-bank" placeholder="Contoh: BCA 12345678 a/n SnackLoop" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                        <span class="text-[10px] opacity-60">Otomatis dicantumkan saat kirim nota ke WhatsApp & invoice PDF</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Alamat Gudang / Catatan Kaki Nota</label>
+                        <input type="text" id="set-biz-address" placeholder="Contoh: Jl. Industri No. 88, Gudang A" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 2: CADANGAN DATA -->
+                <div id="set-panel-backup" class="hidden space-y-3">
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i> Unduh File Cadangan (JSON)
+                        </h4>
+                        <p class="text-[11px] opacity-70">Simpan salinan seluruh transaksi, data master, pelanggan, agen, gudang repack, dan catatan retur ke komputer/HP Anda.</p>
+                        <button type="button" onclick="backupDataJSON()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white w-full !py-2 text-xs flex items-center justify-center gap-1.5 font-semibold">
+                            <i class="fa-solid fa-download"></i> <span>Download Backup Database (.json)</span>
+                        </button>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i> Pulihkan Data dari File Cadangan
+                        </h4>
+                        <p class="text-[11px] opacity-70">Pulihkan database jika Anda berganti perangkat atau ingin me-restore data lama.</p>
+                        <label class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white w-full !py-2 text-xs flex items-center justify-center gap-1.5 font-semibold cursor-pointer">
+                            <i class="fa-solid fa-upload"></i> <span>Pilih File Backup (.json)</span>
+                            <input type="file" id="set-restore-file" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
+                        </label>
+                    </div>
+
+                    <div class="p-3 rounded-xl border border-rose-200 dark:border-rose-950/60 bg-rose-50/40 dark:bg-rose-950/20 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-rose-600 dark:text-rose-400 text-xs">Bersihkan Cache Offline</span>
+                            <button type="button" onclick="clearLocalAppCache()" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition">Bersihkan</button>
+                        </div>
+                        <p class="text-[10px] opacity-70">Hanya membersihkan cache memori browser jika web terasa berat, tidak menghapus akun Anda di cloud.</p>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 3: PREFERENSI SISTEM -->
+                <div id="set-panel-app" class="hidden space-y-4">
+                    <!-- 1. TEMA TAMPILAN (DARK / LIGHT MODE) -->
+                    <div class="space-y-1.5">
+                        <label class="block font-semibold" data-i18n="set_theme_label">Tema Tampilan (Theme)</label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <button type="button" onclick="setAppTheme('light')" id="theme-btn-light" class="p-2.5 rounded-xl border flex items-center justify-center gap-2 font-semibold transition hover:border-indigo-400">
+                                <span class="material-symbols-outlined text-amber-500 text-sm">light_mode</span>
+                                <span data-i18n="theme_light">Mode Terang</span>
+                            </button>
+                            <button type="button" onclick="setAppTheme('dark')" id="theme-btn-dark" class="p-2.5 rounded-xl border flex items-center justify-center gap-2 font-semibold transition hover:border-indigo-400">
+                                <span class="material-symbols-outlined text-indigo-400 text-sm">dark_mode</span>
+                                <span data-i18n="theme_dark">Mode Gelap</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. PILIHAN BAHASA (INDONESIA / ENGLISH) -->
+                    <div class="space-y-1.5">
+                        <label class="block font-semibold" data-i18n="set_lang_label">Bahasa Aplikasi (Language)</label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <button type="button" onclick="setAppLanguage('id')" id="lang-btn-id" class="p-2.5 rounded-xl border flex items-center justify-center gap-2 font-semibold transition hover:border-indigo-400">
+                                <span class="text-base">🇮🇩</span>
+                                <span>Bahasa Indonesia</span>
+                            </button>
+                            <button type="button" onclick="setAppLanguage('en')" id="lang-btn-en" class="p-2.5 rounded-xl border flex items-center justify-center gap-2 font-semibold transition hover:border-indigo-400">
+                                <span class="text-base">🇬🇧</span>
+                                <span>English</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. FORMAT NOTA -->
+                    <div class="space-y-2">
+                        <label class="block font-semibold" data-i18n="set_print_label">Ukuran Kertas & Format Nota Cetak</label>
+                        <select id="set-print-format" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-semibold">
+                            <option value="a4">Dokumen Resmi A4 (PDF Standar Kantor)</option>
+                            <option value="thermal58">Struk Kasir Thermal 58mm (Printer Bluetooth Mobile / Sales Motoris)</option>
+                            <option value="thermal80">Struk Kasir Thermal 80mm (Printer Kasir Toko Sedang)</option>
+                        </select>
+                        <p class="text-[10px] opacity-70">
+                            Pilih <strong>58mm</strong> jika sales lapangan menggunakan printer mini thermal bluetooth baterai. Pilih <strong>80mm</strong> untuk printer kasir meja toko.
+                        </p>
+                        <div class="pt-1">
+                            <button type="button" onclick="testThermalPrintFromSettings()" class="px-3 py-1.5 rounded-lg border theme-input hover:bg-slate-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5 transition text-xs shadow-sm">
+                                <i class="fa-solid fa-print"></i>
+                                <span>Tes Cetak Struk Contoh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. INFO APLIKASI -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50 dark:bg-slate-900/40 space-y-1.5 text-xs">
+                        <span class="font-bold block text-slate-800 dark:text-slate-200">Informasi Aplikasi & Lisensi:</span>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] opacity-80 pt-1 font-mono">
+                            <div>Versi Sistem: <strong>v2.5 (Enterprise)</strong></div>
+                            <div>PWA Offline: <strong class="text-emerald-500">Aktif & Siap</strong></div>
+                            <div>Database: <strong>Supabase + Local Outbox</strong></div>
+                            <div>Penyimpanan: <strong>Indexed LocalStorage</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTION BUTTONS -->
+                <div class="flex justify-between items-center pt-3 border-t border-inherit">
+                    <button type="button" onclick="resetAppSettingsToDefault()" class="text-[11px] text-rose-500 hover:underline">
+                        Reset Default
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Tutup</button>
+                        <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>Simpan Pengaturan</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => console.log('[PWA] Service Worker registered, scope:', reg.scope))
+                    .catch((err) => console.warn('[PWA] Service Worker registration failed:', err));
+            });
+        }
+    </script>
+
+    <!-- OFFSCREEN PDF REPORT RENDER CONTAINER -->
+    <div id="report-pdf-render-area" style="position: fixed; left: -9999px; top: 0; width: 794px; background: #ffffff; color: #0f172a; padding: 36px; font-family: 'Poppins', sans-serif;"></div>
+
 </body>
 </html>

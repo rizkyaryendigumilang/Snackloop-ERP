@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SnackLoop ERP</string>
+    <string name="title_activity_main">SnackLoop ERP</string>
+    <string name="package_name">com.snackloop.erp</string>
+    <string name="custom_url_scheme">com.snackloop.erp</string>
+</resources>

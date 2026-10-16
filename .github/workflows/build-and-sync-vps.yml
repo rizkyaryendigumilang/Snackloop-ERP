@@ -1,0 +1,165 @@
+name: Build Mobile Apps (APK & IPA) and Sync to VPS
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # Job 1: Build Android APK
+  # ==========================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x android/gradlew
+
+      - name: Compile Android APK (assembleDebug)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+          cd ..
+
+      - name: Prepare APK Output
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk app-latest.apk
+          echo "Android APK created successfully: app-latest.apk"
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-latest-android-apk
+          path: app-latest.apk
+          retention-days: 14
+
+      - name: Deploy APK to VPS via SCP
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_TARGET_DIR: ${{ secrets.VPS_TARGET_DIR }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "⚠️ VPS Secrets (VPS_HOST / VPS_SSH_KEY) belum diisi di repository secrets."
+            echo "File app-latest.apk tetap tersedia di tab GitHub Actions Artifacts!"
+          else
+            echo "Menghubungkan ke VPS $VPS_HOST via SCP..."
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            echo "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            PORT="${VPS_SSH_PORT:-22}"
+            ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p ${VPS_TARGET_DIR}"
+            scp -P "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new app-latest.apk "${VPS_USERNAME}@${VPS_HOST}:${VPS_TARGET_DIR}/app-latest.apk"
+            echo "✅ Sukses mengirim app-latest.apk ke VPS: ${VPS_TARGET_DIR}/app-latest.apk"
+          fi
+
+  # ==========================================
+  # Job 2: Build iOS IPA
+  # ==========================================
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Archive Xcode Project (Unsigned)
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+          cd ../..
+
+      - name: Package Payload into unsigned IPA
+        run: |
+          cd ios/App
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -r -y ../../app-latest.ipa Payload
+          cd ../..
+          echo "iOS IPA created successfully: app-latest.ipa"
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-latest-ios-ipa
+          path: app-latest.ipa
+          retention-days: 14
+
+      - name: Deploy IPA to VPS via SCP
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_TARGET_DIR: ${{ secrets.VPS_TARGET_DIR }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "⚠️ VPS Secrets (VPS_HOST / VPS_SSH_KEY) belum diisi di repository secrets."
+            echo "File app-latest.ipa tetap tersedia di tab GitHub Actions Artifacts!"
+          else
+            echo "Menghubungkan ke VPS $VPS_HOST via SCP..."
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            echo "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            PORT="${VPS_SSH_PORT:-22}"
+            ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p ${VPS_TARGET_DIR}"
+            scp -P "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new app-latest.ipa "${VPS_USERNAME}@${VPS_HOST}:${VPS_TARGET_DIR}/app-latest.ipa"
+            echo "✅ Sukses mengirim app-latest.ipa ke VPS: ${VPS_TARGET_DIR}/app-latest.ipa"
+          fi

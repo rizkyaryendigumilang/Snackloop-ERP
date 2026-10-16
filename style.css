@@ -232,3 +232,67 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 #month-tabs-container button span:hover i {
   transform: scale(1.2);
 }
+
+/* ==================== 8. MOBILE PERFORMANCE & TOUCH OPTIMIZATION (1 & 5) ==================== */
+html, body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Menghilangkan jeda sentuh 300ms dan efek abu-abu saat tombol diketuk */
+button, a, input, select, textarea, [role="button"], .navbar__link, .btn-magnetic {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Guliran momentum 60fps mulus pada tabel dan modal */
+.overflow-x-auto, .overflow-y-auto, .theme-table, .tab-content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Mencegah bug auto-zoom iOS Safari saat mengetik pada input */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Ukuran sentuhan minimal ramah jari di layar HP */
+  button, input, select {
+    min-height: 38px;
+  }
+}
+
+/* ==================== 9. GPU HARDWARE ACCELERATION & LAYOUT CONTAINMENT ==================== */
+/* Mengalihkan rendering animasi dan popup ke GPU thread untuk kestabilan 60-120fps */
+.btn-magnetic,
+.navbar__link,
+.theme-card,
+#toast-container > div,
+#login-screen > div,
+#modal-forgot-password > div,
+#modal-reset-password > div,
+#modal-settings > div,
+#modal-install-guide > div {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Mencegah browser merender tab yang tidak aktif, menghemat RAM dan mencegah lag */
+.tab-content.hidden {
+  display: none !important;
+  content-visibility: hidden;
+}
+
+/* Mengisolasi layout dan paint per tab agar perubahan DOM tidak memicu reflow global */
+.tab-content {
+  contain: layout style;
+}
+
+.theme-table {
+  contain: paint;
+}
