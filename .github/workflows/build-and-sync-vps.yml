@@ -61,30 +61,9 @@ jobs:
           path: app-latest.apk
           retention-days: 14
 
-      - name: Deploy APK to VPS via SCP
-        if: false
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_TARGET_DIR: ${{ secrets.VPS_TARGET_DIR }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+      - name: Mobile Artifact Ready Notice
         run: |
-          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
-            echo "⚠️ VPS Secrets (VPS_HOST / VPS_SSH_KEY) belum diisi di repository secrets."
-            echo "File app-latest.apk tetap tersedia di tab GitHub Actions Artifacts!"
-          else
-            echo "Menghubungkan ke VPS $VPS_HOST via SCP..."
-            mkdir -p ~/.ssh
-            chmod 700 ~/.ssh
-            echo "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            PORT="${VPS_SSH_PORT:-22}"
-            ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p ${VPS_TARGET_DIR}"
-            scp -P "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new app-latest.apk "${VPS_USERNAME}@${VPS_HOST}:${VPS_TARGET_DIR}/app-latest.apk"
-            echo "✅ Sukses mengirim app-latest.apk ke VPS: ${VPS_TARGET_DIR}/app-latest.apk"
-          fi
+          echo "Android APK compiled successfully. The APK artifact is ready for download in GitHub Actions Artifacts."
 
   # ==========================================
   # Job 2: Build iOS IPA
@@ -143,27 +122,6 @@ jobs:
           path: app-latest.ipa
           retention-days: 14
 
-      - name: Deploy IPA to VPS via SCP
-        if: false
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_TARGET_DIR: ${{ secrets.VPS_TARGET_DIR }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+      - name: Mobile Artifact Ready Notice
         run: |
-          if [ -z "$VPS_HOST" ] || [ -z "$VPS_SSH_KEY" ]; then
-            echo "⚠️ VPS Secrets (VPS_HOST / VPS_SSH_KEY) belum diisi di repository secrets."
-            echo "File app-latest.ipa tetap tersedia di tab GitHub Actions Artifacts!"
-          else
-            echo "Menghubungkan ke VPS $VPS_HOST via SCP..."
-            mkdir -p ~/.ssh
-            chmod 700 ~/.ssh
-            echo "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            PORT="${VPS_SSH_PORT:-22}"
-            ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-            ssh -p "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new "${VPS_USERNAME}@${VPS_HOST}" "mkdir -p ${VPS_TARGET_DIR}"
-            scp -P "$PORT" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new app-latest.ipa "${VPS_USERNAME}@${VPS_HOST}:${VPS_TARGET_DIR}/app-latest.ipa"
-            echo "✅ Sukses mengirim app-latest.ipa ke VPS: ${VPS_TARGET_DIR}/app-latest.ipa"
-          fi
+          echo "iOS IPA archive created successfully. The IPA artifact is ready for download in GitHub Actions Artifacts."
