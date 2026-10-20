@@ -79,15 +79,28 @@ runTest('Verify native Android and iOS wrapper directories', () => {
   if (!fs.existsSync(iosProject)) throw new Error('Missing iOS Xcode project');
 });
 
-// 6. Build Output Verification
-runTest('Verify npm run build generates complete dist/ artifacts', () => {
-  execSync('node scripts/build.js', { cwd: rootDir, stdio: 'pipe' });
-  const requiredDistFiles = ['index.html', 'script.js', 'style.css', 'sw.js', 'manifest.json'];
-  for (const file of requiredDistFiles) {
-    const p = path.join(distDir, file);
-    if (!fs.existsSync(p)) throw new Error(`dist/${file} missing after build`);
-    if (fs.statSync(p).size === 0) throw new Error(`dist/${file} is empty`);
+const { validateAssets } = require('./validate-assets');
+
+// 6. HTML and Manifest Referenced Assets Integrity (Root)
+runTest('Verify all local assets referenced in HTML and Manifest exist (Root)', () => {
+  const result = validateAssets(rootDir);
+  if (result.errors.length > 0) {
+    throw new Error(result.errors.join('; '));
   }
+});
+
+// 7. Build Output & Dist Assets Verification
+runTest('Verify npm run build generates complete dist/ artifacts and valid assets', () => {
+  execSync('node scripts/build.js', { cwd: rootDir, stdio: 'pipe' });
+  const result = validateAssets(distDir);
+  if (result.errors.length > 0) {
+    throw new Error(`In dist: ${result.errors.join('; ')}`);
+  }
+});
+
+// 8. Deployment & Rollback Failure Scenarios Simulation
+runTest('Verify deployment & rollback failure scenarios (7 scenarios)', () => {
+  execSync('node scripts/test-deploy-simulation.js', { cwd: rootDir, stdio: 'pipe' });
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
