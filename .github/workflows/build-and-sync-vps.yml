@@ -1,11 +1,28 @@
-name: Build Mobile Apps (APK & IPA) and Sync to VPS
+name: Build Mobile Apps (Android APK & iOS IPA)
 
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - ".github/workflows/**"
+    paths:
+      - 'index.html'
+      - 'script.js'
+      - 'style.css'
+      - 'sw.js'
+      - 'manifest.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/**'
+      - 'android/**'
+      - 'ios/**'
+      - 'icons/**'
+      - '*.png'
+      - '*.svg'
+      - '.github/workflows/build-and-sync-vps.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   # ==========================================
@@ -32,7 +49,10 @@ jobs:
           java-version: '21'
 
       - name: Install Dependencies
-        run: npm ci || npm install
+        run: npm ci
+
+      - name: Run automated test suite
+        run: npm test
 
       - name: Build Web Application
         run: npm run build
@@ -51,19 +71,23 @@ jobs:
 
       - name: Prepare APK Output
         run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk snackloop-android-debug.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk app-latest.apk
-          echo "Android APK created successfully: app-latest.apk"
+          echo "Android Debug APK ready: snackloop-android-debug.apk"
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-latest-android-apk
-          path: app-latest.apk
+          name: snackloop-android-debug-apk
+          path: snackloop-android-debug.apk
           retention-days: 14
 
-      - name: Mobile Artifact Ready Notice
+      - name: Mobile Artifact Summary
         run: |
-          echo "Android APK compiled successfully. The APK artifact is ready for download in GitHub Actions Artifacts."
+          echo "### Android APK Build Status :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package Name / App ID**: com.snackloop.erp" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Type**: Debug APK (ready to sideload and test on Android devices)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Name**: \`snackloop-android-debug-apk\`" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================
   # Job 2: Build iOS IPA
@@ -83,7 +107,10 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci || npm install
+        run: npm ci
+
+      - name: Run automated test suite
+        run: npm test
 
       - name: Build Web Application
         run: npm run build
@@ -111,17 +138,22 @@ jobs:
           rm -rf Payload
           mkdir -p Payload
           cp -R build/App.xcarchive/Products/Applications/App.app Payload/
-          zip -r -y ../../app-latest.ipa Payload
+          zip -r -y ../../snackloop-ios-unsigned.ipa Payload
+          cp ../../snackloop-ios-unsigned.ipa ../../app-latest.ipa
           cd ../..
-          echo "iOS IPA created successfully: app-latest.ipa"
+          echo "iOS IPA created successfully: snackloop-ios-unsigned.ipa"
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-latest-ios-ipa
-          path: app-latest.ipa
+          name: snackloop-ios-unsigned-ipa
+          path: snackloop-ios-unsigned.ipa
           retention-days: 14
 
-      - name: Mobile Artifact Ready Notice
+      - name: Mobile Artifact Summary
         run: |
-          echo "iOS IPA archive created successfully. The IPA artifact is ready for download in GitHub Actions Artifacts."
+          echo "### iOS IPA Build Status :apple:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bundle Identifier**: com.snackloop.erp" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signing Status**: Unsigned archive (packaged for sideload testing with AltStore / Sideloadly)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Name**: \`snackloop-ios-unsigned-ipa\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prerequisites for TestFlight / Enterprise distribution**: Apple Developer Program account, distribution certificate (.p12), and mobile provisioning profile." >> $GITHUB_STEP_SUMMARY

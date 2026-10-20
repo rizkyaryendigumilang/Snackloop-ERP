@@ -19,7 +19,9 @@ const EXCLUDED = new Set([
   'package-lock.json',
   'capacitor.config.json',
   'capacitor.config.ts',
-  'capacitor.config.js'
+  'capacitor.config.js',
+  'Customer',
+  'Data Penjualan'
 ]);
 
 function build() {
