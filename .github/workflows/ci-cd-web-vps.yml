@@ -86,7 +86,7 @@ jobs:
 
   deploy-production:
     name: Deploy web to production VPS
-    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy == true)) }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -103,21 +103,16 @@ jobs:
           VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          test -n "$VPS_HOST" || { echo "Missing secret VPS_HOST"; exit 1; }
-          test -n "$VPS_USER" || { echo "Missing secret VPS_USERNAME"; exit 1; }
-          test -n "$VPS_KEY" || { echo "Missing secret VPS_SSH_KEY"; exit 1; }
+          test -n "$VPS_HOST" || { echo "Missing required secret VPS_HOST"; exit 1; }
+          test -n "$VPS_USER" || { echo "Missing required secret VPS_USERNAME"; exit 1; }
+          test -n "$VPS_KEY" || { echo "Missing required secret VPS_SSH_KEY"; exit 1; }
+          test -n "$VPS_SSH_KNOWN_HOSTS" || { echo "Missing required secret VPS_SSH_KNOWN_HOSTS (verified host key required)"; exit 1; }
           [[ "$VPS_PORT" =~ ^[0-9]+$ ]] && ((VPS_PORT > 0 && VPS_PORT < 65536)) || { echo "Invalid VPS_PORT"; exit 1; }
           
           install -d -m 700 "$HOME/.ssh"
           printf '%s\n' "$VPS_KEY" | tr -d '\r' > "$HOME/.ssh/id_deploy"
           chmod 600 "$HOME/.ssh/id_deploy"
-
-          if [ -n "$VPS_SSH_KNOWN_HOSTS" ]; then
-            printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          else
-            echo "⚠️ Secret VPS_SSH_KNOWN_HOSTS not provided. Discovering host key via ssh-keyscan..."
-            ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null || true
-          fi
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
       - name: Upload validated bundle
@@ -141,24 +136,55 @@ jobs:
           slug="$2"
           release="$3"
           [[ "$release" =~ ^[0-9a-f]{40}$ ]] || exit 1
-          mkdir -p "$live"
+
+          # 1. Pastikan direktori deployment ada dan dapat diakses user
+          if [ ! -d "$live" ]; then
+            mkdir -p "$live" 2>/dev/null || sudo mkdir -p "$live"
+            sudo chown -R "$USER:$USER" "$live" 2>/dev/null || true
+          fi
           test -d "$live" && test ! -L "$live" || { echo "Target must be an existing real directory: $live"; exit 1; }
+
           parent="$HOME/.deploy-$slug"
           stage="$parent/stage-$release"
           backup="$parent/backup-$release.tar.gz"
           mkdir -p "$parent"
-          test ! -e "$stage" && test ! -e "$backup"
-          mkdir "$stage"
-          trap 'status=$?; if [ "$status" -ne 0 ] && [ -s "$backup" ]; then mkdir -p "$stage/restore"; tar -xzf "$backup" -C "$stage/restore"; rsync -a --delete "$stage/restore/" "$live/"; fi; rm -rf "$stage"; exit "$status"' ERR
+
+          # Bersihkan staging lama jika ada
+          rm -rf "$stage"
+          mkdir -p "$stage"
+
+          # 2. Trap Rollback Otomatis jika terjadi kegagalan unpacking, verifikasi, atau rsync
+          trap 'status=$?; if [ "$status" -ne 0 ] && [ -s "$backup" ]; then echo "⚠️ Error encountered during deployment. Rolling back to previous release..."; mkdir -p "$stage/restore"; tar -xzf "$backup" -C "$stage/restore"; rsync -a --delete "$stage/restore/" "$live/"; echo "✅ Rollback completed successfully from $backup"; fi; rm -rf "$stage"; exit "$status"' ERR
+
+          # 3. Unpack bundle ke staging terisolasi
           tar -xzf "$HOME/web-dist-$release.tar.gz" -C "$stage"
-          test -s "$stage/index.html"
-          tar -czf "$backup" -C "$live" .
+          test -s "$stage/index.html" || { echo "Validation error: index.html missing or empty in new release"; exit 1; }
+
+          # 4. Buat backup rilis aktif sebelum menimpa (jika direktori tidak kosong)
+          if [ -n "$(ls -A "$live" 2>/dev/null)" ]; then
+            echo "Creating backup of current live release into $backup..."
+            tar -czf "$backup" -C "$live" .
+            test -s "$backup" || { echo "Failed to create backup archive"; exit 1; }
+          else
+            echo "Target $live is currently empty; skipping backup creation for fresh install."
+          fi
+
+          # 5. Sinkronisasi staging ke live secara atomik
           rsync -a --delete "$stage/" "$live/"
-          test -s "$live/index.html"
+
+          # 6. Verifikasi integritas rilis di direktori live
+          test -s "$live/index.html" || { echo "Deployment verification failed: index.html missing"; exit 1; }
+          test -s "$live/script.js" || { echo "Deployment verification failed: script.js missing"; exit 1; }
+
+          # 7. Bersihkan file sementara, PERTAHANKAN arsip backup untuk rollback manual
           rm -f "$HOME/web-dist-$release.tar.gz"
           rm -rf "$stage"
           trap - ERR
-          echo "Deployment successful to $live; rollback archive: $backup"
+
+          echo "✅ Deployment successful to $live."
+          if [ -s "$backup" ]; then
+            echo "📦 Rollback archive retained at: $backup"
+          fi
           REMOTE
 
       - name: Verify production deployment health check
