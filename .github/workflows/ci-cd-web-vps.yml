@@ -38,10 +38,10 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: 'Deploy to VPS after validation; leave false for build-only checks'
+        description: 'Deploy to VPS after validation (check to deploy, uncheck for build-only)'
         required: true
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -86,7 +86,7 @@ jobs:
 
   deploy-production:
     name: Deploy web to production VPS
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.deploy == true || inputs.deploy == 'true') }}
     needs: build
     runs-on: ubuntu-latest
     steps:
