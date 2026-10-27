@@ -22,6 +22,8 @@ const EXCLUDED = new Set([
   'capacitor.config.json',
   'capacitor.config.ts',
   'capacitor.config.js',
+  'vercel.json',
+  '.vercelignore',
   'Customer',
   'Data Penjualan'
 ]);
