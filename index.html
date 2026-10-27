@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <title>SnackLoop ERP</title>
     <!-- PWA & App Icons -->
     <link rel="manifest" href="manifest.json">
@@ -10,26 +10,25 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="shortcut icon" href="favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+    <meta name="color-scheme" content="light dark">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="SnackLoop">
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS (Offline-First Local Standalone Engine) -->
+    <script src="vendor/tailwind.min.js"></script>
+    <!-- FontAwesome (Offline-Ready Local Icons & Webfonts) -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts & Material Symbols -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <!-- Feather Icons CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SUPABASE SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- html2pdf & SheetJS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Core UI & Processing Engines (Offline-First Local Vendors) -->
+    <script src="vendor/feather.min.js"></script>
+    <script src="vendor/chart.min.js"></script>
+    <script src="vendor/supabase.min.js"></script>
+    <script src="vendor/html2pdf.bundle.min.js"></script>
+    <script src="vendor/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-white min-h-screen text-slate-800">
@@ -50,7 +49,7 @@
             <form id="login-form" class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs font-bold opacity-70 mb-1">Username <span class="text-rose-500">*</span></label>
-                    <input type="text" id="login-username" placeholder="admin_kiky atau staff1" class="w-full text-sm theme-input border-2 rounded-xl p-3 outline-none" required>
+                    <input type="text" id="login-username" placeholder="Masukkan Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" class="w-full text-sm theme-input border-2 rounded-xl p-3 outline-none" required>
                 </div>
                 <div>
                     <div class="flex items-center justify-between mb-1">
@@ -92,7 +91,7 @@
                 <div>
                     <label class="block text-xs font-bold opacity-70 mb-1">Email / Username <span class="text-rose-500">*</span></label>
                     <div class="relative">
-                        <input type="text" id="forgot-identifier" placeholder="contoh: admin@snackloop.com atau username" class="w-full text-sm theme-input border rounded-xl p-3 pl-10 outline-none" required>
+                        <input type="text" id="forgot-identifier" placeholder="Email atau Username Anda" class="w-full text-sm theme-input border rounded-xl p-3 pl-10 outline-none" required>
                         <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
                     </div>
                 </div>
@@ -186,6 +185,11 @@
                         <i data-feather="rotate-ccw"></i><span data-i18n="nav_returns">Retur & Klaim Agen</span>
                     </a>
                 </li>
+                <li class="navbar__item">
+                    <a href="#" onclick="switchTab('jastip')" id="btn-jastip" class="navbar__link">
+                        <i data-feather="shopping-bag"></i><span data-i18n="nav_jastip">Jastip</span>
+                    </a>
+                </li>
                 <li class="navbar__item" id="nav-item-reports">
                     <a href="#" onclick="switchTab('reports')" id="btn-reports" class="navbar__link">
                         <i data-feather="bar-chart-2"></i><span data-i18n="nav_reports">Laporan Bisnis</span>
@@ -219,11 +223,6 @@
                 <li class="navbar__item" id="nav-item-settings">
                     <a href="#" onclick="openSettingsModal('app')" id="btn-settings" class="navbar__link" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
                         <i data-feather="settings"></i><span data-i18n="nav_settings">Pengaturan</span>
-                    </a>
-                </li>
-                <li class="navbar__item" id="nav-item-install-pwa">
-                    <a href="#" onclick="triggerPwaInstall()" class="navbar__link text-indigo-600 dark:text-indigo-400 font-semibold" title="Pasang ke Layar Utama" data-i18n-title="nav_install">
-                        <i data-feather="download"></i><span data-i18n="nav_install">Pasang App</span>
                     </a>
                 </li>
                 <li class="navbar__item">
@@ -443,7 +442,7 @@
                                 </select>
                             </div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">2. Produk / Batch <span class="text-rose-500">*</span></label><select id="t-product" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="fillProductData()" required><option value="" disabled selected> Pilih Sumber Dulu </option></select></div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Qty <span class="text-rose-500">*</span></label><input type="number" id="t-qty" value="1" min="1" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Qty <span class="text-rose-500">*</span></label><input type="number" inputmode="numeric" id="t-qty" value="1" min="1" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             
                             <div>
                                 <label class="block text-[11px] font-bold text-amber-500 mb-1">Biaya Tambahan / Ongkir </label>
@@ -645,6 +644,144 @@
                                     </tr>
                                 </thead>
                                 <tbody id="returns-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: JASTIP & PERSONAL SHOPPER -->
+                <div id="tab-jastip" class="tab-content hidden space-y-6">
+                    <!-- HEADER & ACTION TOOLBAR -->
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-inherit pb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-plane-departure text-indigo-600 dark:text-indigo-400"></i> Jastip & Personal Shopper
+                                </h3>
+                                <p class="text-xs opacity-70 mt-0.5">Manajemen alur pesanan jastip valas, DP order, landed cost bea cukai, struk & proteksi laba.</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                <!-- 1. Primary Action -->
+                                <button onclick="openJastipOrderModal()" class="btn-magnetic !py-2 !px-4 flex items-center gap-2 text-xs shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shrink-0">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>+ Buat Order</span>
+                                </button>
+
+                                <!-- 2. Operational Tools (Segmented Pill) -->
+                                <div class="inline-flex rounded-xl p-1 border border-inherit bg-slate-100/70 dark:bg-slate-800/70 backdrop-blur-sm text-xs font-semibold shrink-0">
+                                    <button onclick="openJastipChecklistModal()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 transition flex items-center gap-1.5" title="Mode Belanja Toko Lapangan">
+                                        <i class="fa-solid fa-list-check"></i>
+                                        <span class="hidden sm:inline">Mode Toko</span>
+                                    </button>
+                                    <button onclick="openJastipCustomsModal()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 transition flex items-center gap-1.5" title="Packing List Pabean Bea Cukai USD 500">
+                                        <i class="fa-solid fa-passport"></i>
+                                        <span class="hidden sm:inline">Pabean</span>
+                                    </button>
+                                    <button onclick="openJastipCalculatorModal()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 transition flex items-center gap-1.5" title="Kalkulator Landed Cost">
+                                        <i class="fa-solid fa-calculator"></i>
+                                        <span class="hidden sm:inline">Kalkulator</span>
+                                    </button>
+                                </div>
+
+                                <!-- 3. Data & Utilities Dropdown -->
+                                <div class="relative inline-block text-left shrink-0">
+                                    <button id="btn-jastip-more" onclick="toggleJastipMoreMenu(event)" class="theme-input px-3 py-2 rounded-xl border font-semibold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-xs shadow-sm" title="Opsi Kelola Data & Cadangan">
+                                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                                        <span class="hidden md:inline">Kelola</span>
+                                    </button>
+                                    <div id="jastip-more-dropdown" class="hidden absolute right-0 mt-2 w-48 rounded-xl shadow-xl border border-inherit theme-card py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+                                        <button type="button" onclick="exportJastipExcel(); toggleJastipMoreMenu();" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold transition">
+                                            <i class="fa-solid fa-file-excel w-4 text-center"></i>
+                                            <span>Unduh Rekap Excel</span>
+                                        </button>
+                                        <button type="button" onclick="exportJastipJSON(); toggleJastipMoreMenu();" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold transition">
+                                            <i class="fa-solid fa-download w-4 text-center"></i>
+                                            <span>Cadangkan JSON</span>
+                                        </button>
+                                        <label class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer transition">
+                                            <i class="fa-solid fa-upload w-4 text-center"></i>
+                                            <span>Pulihkan JSON</span>
+                                            <input type="file" accept=".json" onchange="importJastipJSON(event); toggleJastipMoreMenu();" class="hidden">
+                                        </label>
+                                        <div class="border-t border-inherit my-1"></div>
+                                        <button type="button" onclick="renderJastip(); toggleJastipMoreMenu();" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 opacity-80 hover:opacity-100 transition">
+                                            <i class="fa-solid fa-rotate w-4 text-center"></i>
+                                            <span>Segarkan Tampilan</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4 KPI SUMMARY CARDS -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                            <div class="p-4 rounded-xl border theme-card bg-indigo-500/5 border-indigo-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-basket-shopping text-indigo-500"></i> Total Pesanan
+                                </span>
+                                <h4 class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="jastip-stat-orders">0 Pesanan</h4>
+                                <p class="text-[10px] opacity-60">Seluruh antrean order</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-amber-500/5 border-amber-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-shield-halved text-amber-500"></i> DP Terkumpul
+                                </span>
+                                <h4 class="text-xl font-bold text-amber-600 dark:text-amber-400" id="jastip-stat-dp">Rp 0</h4>
+                                <p class="text-[10px] opacity-60">Amankan cash flow modal</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-blue-500/5 border-blue-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-receipt text-blue-500"></i> Estimasi Omzet
+                                </span>
+                                <h4 class="text-xl font-bold text-blue-600 dark:text-blue-400" id="jastip-stat-turnover">Rp 0</h4>
+                                <p class="text-[10px] opacity-60">Total nilai jual katalog</p>
+                            </div>
+                            <div class="p-4 rounded-xl border theme-card bg-emerald-500/5 border-emerald-500/20 space-y-1">
+                                <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Estimasi Laba Bersih
+                                </span>
+                                <h4 class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="jastip-stat-profit">Rp 0</h4>
+                                <p class="text-[10px] opacity-60">Fee jastip + profit selisih kurs</p>
+                            </div>
+                        </div>
+
+                        <!-- FILTER & SEARCH BAR -->
+                        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-2">
+                            <!-- Status Filter Buttons -->
+                            <div class="flex items-center gap-1.5 flex-wrap" id="jastip-status-filters">
+                                <button onclick="setJastipFilter('all')" id="jastip-filter-all" class="px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white shadow-sm">Semua</button>
+                                <button onclick="setJastipFilter('pre_order')" id="jastip-filter-pre_order" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Pre-Order (DP)</button>
+                                <button onclick="setJastipFilter('purchasing')" id="jastip-filter-purchasing" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Sedang Dibeli</button>
+                                <button onclick="setJastipFilter('transit')" id="jastip-filter-transit" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Transit / Pabean</button>
+                                <button onclick="setJastipFilter('ready_dispatch')" id="jastip-filter-ready_dispatch" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Siap Kirim / Pelunasan</button>
+                                <button onclick="setJastipFilter('completed')" id="jastip-filter-completed" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Selesai</button>
+                                <button onclick="setJastipFilter('out_of_stock')" id="jastip-filter-out_of_stock" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border text-rose-600 dark:text-rose-400">Stok Kosong</button>
+                                <button onclick="setJastipFilter('refunded')" id="jastip-filter-refunded" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border text-slate-500">DP Refund</button>
+                            </div>
+
+                            <!-- Search Input -->
+                            <div class="relative min-w-[240px]">
+                                <input type="text" id="jastip-search-input" oninput="onJastipSearch(event)" placeholder="Cari ID, pemesan, barang, valas..." class="w-full text-xs theme-input border rounded-xl py-2 pl-8 pr-3 outline-none">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <!-- TABEL ORDER JASTIP -->
+                        <div class="overflow-x-auto rounded-xl border border-inherit">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-semibold border-b border-inherit">
+                                        <th class="p-3 border border-inherit">ID / Tanggal</th>
+                                        <th class="p-3 border border-inherit">Pemesan & Alamat</th>
+                                        <th class="p-3 border border-inherit">Barang & Varian</th>
+                                        <th class="p-3 border border-inherit">Harga Beli Toko & Kurs</th>
+                                        <th class="p-3 border border-inherit">Total Jual & DP</th>
+                                        <th class="p-3 border border-inherit">Laba Bersih</th>
+                                        <th class="p-3 border border-inherit">Status Tahapan</th>
+                                        <th class="p-3 border border-inherit text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jastip-table-body"></tbody>
                             </table>
                         </div>
                     </div>
@@ -1497,9 +1634,500 @@
         </div>
     </div>
 
+    <!-- MODAL KALKULATOR LANDED COST & SIMULATOR VALAS JASTIP -->
+    <div id="modal-jastip-calculator" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4 border my-8">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Kalkulator Landed Cost & Hidden Profit Valas</h3>
+                        <p class="text-[11px] opacity-70">Simulasi kurs riil vs buffer, tax refund turis, bea cukai & margin jastip</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeJastipCalculatorModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
 
-    <!-- PWA 1-KLIK FLOATING INSTALL BANNER -->
-    <div id="pwa-install-banner" class="hidden fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-[9999] theme-card p-4 rounded-2xl border shadow-2xl backdrop-blur-md transition-all duration-300">
+            <div class="space-y-4 text-xs">
+                <!-- Country & Base Price -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Mata Uang / Negara</label>
+                        <select id="calc-currency" onchange="onJastipCalcCurrencyChange()" class="w-full theme-input border rounded-xl p-2.5 outline-none font-medium">
+                            <option value="JPY" selected>🇯🇵 JPY (Yen Jepang)</option>
+                            <option value="SGD">🇸🇬 SGD (Dolar Singapura)</option>
+                            <option value="KRW">🇰🇷 KRW (Won Korea)</option>
+                            <option value="THB">🇹🇭 THB (Baht Thailand)</option>
+                            <option value="MYR">🇲🇾 MYR (Ringgit Malaysia)</option>
+                            <option value="USD">🇺🇸 USD (Dolar AS)</option>
+                            <option value="IDR">🇮🇩 IDR (Domestik/Lokal)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Harga Beli Toko (Valas)</label>
+                        <input type="number" id="calc-price-valas" oninput="calculateJastipSimulator()" value="1200" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Kuantitas (Pcs)</label>
+                        <input type="number" id="calc-qty" oninput="calculateJastipSimulator()" value="1" min="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Currency Rates: Real vs Buffer -->
+                <div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-inherit">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600 dark:text-slate-400">
+                            Kurs Riil Kartu Kredit / Kas (IDR)
+                        </label>
+                        <input type="number" id="calc-real-rate" oninput="calculateJastipSimulator()" value="105" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold">
+                        <span class="text-[10px] opacity-60">Biaya modal sebenarnya yang terdebet</span>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-indigo-600 dark:text-indigo-400">
+                            Kurs Katalog Buffer (Jual ke Pembeli)
+                        </label>
+                        <input type="number" id="calc-catalog-rate" oninput="calculateJastipSimulator()" value="116" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                        <span class="text-[10px] opacity-60">Buffer kurs amankan dari fluktuasi & admin bank</span>
+                    </div>
+                </div>
+
+                <!-- Taxes & Tax Refund -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Pajak Toko Asal (%)</label>
+                        <input type="number" id="calc-tax-shop" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-emerald-600 dark:text-emerald-400">Tax Refund Turis (%)</label>
+                        <input type="number" id="calc-tax-refund" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                        <span class="text-[9px] opacity-60 block">Hidden profit diklaim di bandara</span>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Biaya Packing / Ops (Rp)</label>
+                        <input type="number" id="calc-ops-cost" oninput="calculateJastipSimulator()" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Logistics & Customs & Fee -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1">Logistik / Bagasi per item (Rp)</label>
+                        <input type="number" id="calc-logistics-cost" oninput="calculateJastipSimulator()" value="20000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Bea Cukai / Pabean per item (Rp)</label>
+                        <input type="number" id="calc-customs-cost" oninput="calculateJastipSimulator()" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <span class="text-[9px] opacity-60 block">Bebas jika hand carry &lt; USD 500</span>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="font-semibold">Fee Jastip (Laba Jasa)</label>
+                            <select id="calc-fee-type" onchange="calculateJastipSimulator()" class="theme-input border rounded text-[10px] px-1 py-0.5">
+                                <option value="flat">Nominal (Rp)</option>
+                                <option value="percent">Persentase (%)</option>
+                            </select>
+                        </div>
+                        <input type="number" id="calc-fee-amount" oninput="calculateJastipSimulator()" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Result Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                    <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-inherit">
+                        <span class="text-[10px] opacity-70 block">Landed Cost Riil / Item:</span>
+                        <span id="calc-out-landed" class="text-sm font-bold font-mono">Rp 0</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+                        <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold block">Harga Jual Rekomendasi:</span>
+                        <span id="calc-out-price" class="text-sm font-bold text-indigo-600 dark:text-indigo-400 font-mono">Rp 0</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">Laba Bersih / Item:</span>
+                        <span id="calc-out-profit" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">+Rp 0</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">Total Laba (Semua Qty):</span>
+                        <span id="calc-out-total-profit" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">+Rp 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-inherit">
+                <button type="button" onclick="copyJastipBroadcastTemplate()" class="btn-magnetic !py-2 !px-3.5 flex items-center gap-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Salin Format Broadcast Promo</span>
+                </button>
+                <button type="button" onclick="closeJastipCalculatorModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ORDER JASTIP (INTAKE / EDIT) -->
+    <div id="modal-jastip-order" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-shopping-bag"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold" id="jastip-modal-title">Buat Pesanan Jastip Baru</h3>
+                        <p class="text-[11px] opacity-70">Pencatatan order intake baku, struktur kurs, DP & pabean</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="jastip-generated-code" class="px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">JST-NEW</span>
+                    <button type="button" onclick="closeJastipOrderModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <form id="jastip-order-form" onsubmit="saveJastipOrder(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="jastip-order-id">
+
+                <!-- SECTION 1: DATA PEMESAN & PENGIRIMAN -->
+                <div class="p-3.5 rounded-xl border border-inherit space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user text-indigo-500"></i>
+                        <span>1. Data Pemesan & Kurir Last-Mile</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Nama Pemesan <span class="text-rose-500">*</span></label>
+                            <input type="text" id="jastip-cust-name" placeholder="Contoh: Kak Sarah" class="w-full theme-input border rounded-xl p-2.5 outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">No. WhatsApp <span class="text-rose-500">*</span></label>
+                            <input type="text" id="jastip-cust-phone" placeholder="Contoh: 08123456789 atau 6281234..." class="w-full theme-input border rounded-xl p-2.5 outline-none" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold mb-1">Alamat Lengkap Pengiriman</label>
+                            <input type="text" id="jastip-cust-address" placeholder="Jalan, No Rumah, Kelurahan, Kota, Kode Pos" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Kurir Pengiriman</label>
+                            <select id="jastip-courier" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                                <option value="JNE REG">JNE Regular</option>
+                                <option value="JNE YES">JNE YES (1 Hari)</option>
+                                <option value="J&T Express">J&T Express</option>
+                                <option value="SiCepat">SiCepat REG/BEST</option>
+                                <option value="Gojek Instant">Gojek Instant</option>
+                                <option value="GrabExpress">GrabExpress</option>
+                                <option value="Ambil Sendiri">Ambil Sendiri / Pick Up</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">No. Resi Pengiriman</label>
+                            <input type="text" id="jastip-tracking-number" placeholder="Contoh: JP882910..." class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: DATA BARANG & SOURCING -->
+                <div class="p-3.5 rounded-xl border border-inherit space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-box text-blue-500"></i>
+                        <span>2. Rincian Barang & Asal Toko</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block font-semibold mb-1">Nama Barang Titipan <span class="text-rose-500">*</span></label>
+                            <input type="text" id="jastip-item-name" placeholder="Contoh: Tokyo Banana Edisi Spesial" class="w-full theme-input border rounded-xl p-2.5 outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Varian / Size / Rasa</label>
+                            <input type="text" id="jastip-item-variant" placeholder="Contoh: Box 8 pcs / Matcha" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Mata Uang</label>
+                            <select id="jastip-currency" onchange="onJastipFormCurrencyChange()" class="w-full theme-input border rounded-xl p-2.5 outline-none font-medium">
+                                <option value="JPY">🇯🇵 JPY</option>
+                                <option value="SGD">🇸🇬 SGD</option>
+                                <option value="KRW">🇰🇷 KRW</option>
+                                <option value="THB">🇹🇭 THB</option>
+                                <option value="MYR">🇲🇾 MYR</option>
+                                <option value="USD">🇺🇸 USD</option>
+                                <option value="IDR">🇮🇩 IDR</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Harga Beli Valas <span class="text-rose-500">*</span></label>
+                            <input type="number" id="jastip-price-valas" step="any" placeholder="1180" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Qty (Pcs) <span class="text-rose-500">*</span></label>
+                            <input type="number" id="jastip-item-qty" min="1" value="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Tax Refund (%)</label>
+                            <input type="number" id="jastip-tax-refund" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Kurs Riil Kas/CC (IDR)</label>
+                            <input type="number" id="jastip-real-rate" step="any" value="105" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1 text-indigo-600 dark:text-indigo-400">Kurs Jual Buffer (IDR)</label>
+                            <input type="number" id="jastip-catalog-rate" step="any" value="116" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Pajak Toko Asal (%)</label>
+                            <input type="number" id="jastip-tax-percent" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: BIAYA OPERASIONAL, LOGISTIK & MARGIN -->
+                <div class="p-3.5 rounded-xl border border-inherit space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-coins text-amber-500"></i>
+                        <span>3. Struktur Biaya, Margin & Down Payment (DP)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Biaya Ops / Packing (Rp)</label>
+                            <input type="number" id="jastip-ops-cost" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Logistik / Bagasi / item (Rp)</label>
+                            <input type="number" id="jastip-logistics-cost" value="25000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Bea Cukai / item (Rp)</label>
+                            <input type="number" id="jastip-customs-cost" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Fee Jastip per Item (Rp)</label>
+                            <input type="number" id="jastip-fee-amount" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1 text-amber-600 dark:text-amber-400">DP Diterima (Rp) <span class="text-rose-500">*</span></label>
+                            <input type="number" id="jastip-dp-amount" placeholder="Min. 50% estimasi harga" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold" required>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Status Tahapan Alur</label>
+                            <select id="jastip-status" class="w-full theme-input border rounded-xl p-2.5 outline-none font-medium">
+                                <option value="pre_order">1. Pre-Order (Menunggu Belanja)</option>
+                                <option value="purchasing">2. Sedang Dibeli di Toko</option>
+                                <option value="transit">3. Transit / Pengiriman / Pabean</option>
+                                <option value="ready_dispatch">4. Tiba di Gudang / Siap Kirim</option>
+                                <option value="completed">5. Pesanan Selesai</option>
+                                <option value="out_of_stock">6. Stok Toko Habis / Kosong</option>
+                                <option value="refunded">7. DP Sudah Dikembalikan (Refund)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: QC AWAL & DOKUMENTASI STRUK -->
+                <div class="p-3.5 rounded-xl border border-inherit space-y-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-receipt text-emerald-500"></i>
+                        <span>4. Dokumentasi Nota & Quality Control (QC)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Nomor Struk / Nota Toko</label>
+                            <input type="text" id="jastip-receipt-note" placeholder="Contoh: Nota Donki #123 (Bukti Pajak & Tax Refund)" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Foto Struk / Nota Toko (Kamera / File)</label>
+                            <input type="file" id="jastip-receipt-file" accept="image/*" capture="environment" onchange="handleJastipReceiptUpload(event)" class="w-full text-xs theme-input border rounded-xl p-2 outline-none">
+                            <div id="jastip-receipt-preview-container" class="hidden mt-2 flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border">
+                                <img id="jastip-receipt-img" src="" class="h-12 w-12 object-cover rounded border" alt="Struk">
+                                <span class="text-[10px] opacity-70 flex-grow">Foto struk tersimpan</span>
+                                <button type="button" onclick="removeJastipReceiptPhoto()" class="text-xs text-rose-500 font-semibold hover:underline">Hapus Foto</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold mb-1">Catatan QC & Expired Date</label>
+                            <input type="text" id="jastip-exp-note" placeholder="Contoh: Kondisi segel mulus, Exp Feb 2027" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">Catatan Tambahan Customer</label>
+                            <input type="text" id="jastip-notes" placeholder="Contoh: Minta kantong kresek/paper bag toko asli" class="w-full theme-input border rounded-xl p-2.5 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-inherit">
+                    <button type="button" onclick="closeJastipOrderModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan Pesanan Jastip</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL MODE BELANJA CEPAT DI LAPANGAN (IN-STORE CHECKLIST) -->
+    <div id="modal-jastip-checklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-inherit pb-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Mode Belanja Cepat Lapangan</h3>
+                        <p class="text-[11px] opacity-70">Checklist belanja instan per toko saat berkeliling di luar negeri</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeJastipChecklistModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Progress Bar Belanja -->
+            <div class="space-y-1.5 shrink-0 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-inherit">
+                <div class="flex justify-between text-xs font-semibold">
+                    <span>Progress Belanjaan Toko</span>
+                    <span id="jastip-checklist-progress-text" class="text-indigo-600 dark:text-indigo-400 font-mono">0 dari 0 barang</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div id="jastip-checklist-progress-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Quick Search di Toko -->
+            <div class="relative shrink-0">
+                <input type="text" id="jastip-checklist-search" oninput="onJastipChecklistSearch(event)" placeholder="Cari nama barang atau varian di toko..." class="w-full text-xs theme-input border rounded-xl py-2.5 pl-8 pr-3 outline-none">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+            </div>
+
+            <!-- Checklist Items Grouped by Origin -->
+            <div id="jastip-checklist-container" class="space-y-4 overflow-y-auto flex-grow pr-1"></div>
+
+            <div class="flex justify-end pt-3 border-t border-inherit shrink-0">
+                <button type="button" onclick="closeJastipChecklistModal()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-5 !text-xs font-semibold">
+                    Selesai Belanja
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PACKING LIST & KELAIKAN PABEAN BEA CUKAI (USD 500) -->
+    <div id="modal-jastip-customs" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-inherit pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-passport"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold">Kalkulasi Pabean & Packing List Bandara (E-CD)</h3>
+                        <p class="text-[11px] opacity-70">Simulasi batas pembebasan bea masuk penumpang USD 500 (Jalur Hijau vs Merah)</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeJastipCustomsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Status Kelayakan Bebas Pajak USD 500 -->
+            <div id="customs-status-badge"></div>
+
+            <!-- Rangkuman Total Nilai Koper -->
+            <div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-inherit">
+                <div>
+                    <span class="text-[11px] opacity-70 block">Total Estimasi Nilai Bawaan:</span>
+                    <h4 class="text-xl font-bold font-mono text-indigo-600 dark:text-indigo-400" id="customs-total-usd">$0</h4>
+                </div>
+                <div>
+                    <span class="text-[11px] opacity-70 block">Fasilitas Bebas Pajak Perorangan:</span>
+                    <h4 class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">USD $500</h4>
+                </div>
+            </div>
+
+            <!-- Area Berkas Manifest Siap Cetak -->
+            <div id="customs-manifest-print-area" class="space-y-3 p-4 rounded-xl border border-inherit bg-white text-slate-800">
+                <div class="border-b border-slate-200 pb-2 flex justify-between items-center text-xs">
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-900 uppercase">Passenger Luggage Manifest (E-CD Attachment)</h4>
+                        <p class="text-[10px] text-slate-500">Daftar Barang Belanjaan Bawaan Penumpang untuk Verifikasi Bea Cukai Bandara</p>
+                    </div>
+                    <div class="text-right text-[10px] text-slate-500 font-mono">
+                        Date: <span id="customs-manifest-date">Official Document</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 text-[11px]">
+                                <th class="p-2 border border-slate-200">No</th>
+                                <th class="p-2 border border-slate-200">Description of Goods</th>
+                                <th class="p-2 border border-slate-200 text-center">Qty</th>
+                                <th class="p-2 border border-slate-200">Unit Price</th>
+                                <th class="p-2 border border-slate-200">Total Price</th>
+                                <th class="p-2 border border-slate-200 text-right">Value (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customs-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="text-[9px] text-slate-400 italic">
+                    * Dokumen deklarasi pabean ini dapat dilampirkan atau ditunjukkan secara digital kepada petugas Bea dan Cukai di bandara kedatangan.
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-inherit">
+                <button type="button" onclick="generateJastipCustomsPDF()" class="btn-magnetic !py-2 !px-4 flex items-center gap-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>Unduh Dokumen Pabean (PDF)</span>
+                </button>
+                <button type="button" onclick="closeJastipCustomsModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRATINJAU FOTO STRUK PEMBELIAN -->
+    <div id="modal-jastip-photo-preview" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-4 max-w-lg w-full shadow-2xl space-y-3 border my-8">
+            <div class="flex justify-between items-center border-b border-inherit pb-2">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-emerald-500"></i>
+                    <h3 class="text-xs font-bold truncate max-w-[280px]" id="jastip-photo-preview-label">Foto Struk Pembelian</h3>
+                </div>
+                <button type="button" onclick="closeJastipPhotoModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+            <div class="flex items-center justify-center bg-black/40 rounded-xl p-2 max-h-[70vh] overflow-hidden">
+                <img id="jastip-photo-preview-img" src="" class="max-h-[65vh] w-auto object-contain rounded-lg shadow-lg" alt="Foto Struk">
+            </div>
+            <div class="flex justify-end pt-2 border-t border-inherit">
+                <button type="button" onclick="closeJastipPhotoModal()" class="px-4 py-1.5 text-xs theme-input border rounded-xl font-semibold">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA 1-KLIK FLOATING INSTALL BANNER (Dinonaktifkan agar tidak mengganggu dashboard) -->
+    <div id="pwa-install-banner" class="hidden" style="display: none !important;">
         <div class="flex items-start gap-3">
             <img src="icon-192.png" class="w-12 h-12 rounded-xl object-contain shadow-sm border p-1 bg-white shrink-0" alt="SnackLoop Logo">
             <div class="flex-grow">
@@ -1792,7 +2420,32 @@
                         </div>
                     </div>
 
-                    <!-- 4. INFO APLIKASI -->
+                    <!-- 4. PASANG APLIKASI (PWA INSTALL) -->
+                    <div class="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2.5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                    <i class="fa-solid fa-cloud-arrow-down text-xs"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs">Pasang SnackLoop ERP</h4>
+                                    <p class="text-[11px] opacity-70">Akses instan dari Layar Utama HP / Laptop tanpa buka browser. Bekerja offline!</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 shrink-0">PWA Ready</span>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" onclick="triggerPwaInstall()" id="btn-install-from-settings" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-3.5 text-xs font-semibold flex items-center justify-center gap-1.5 w-full">
+                                <i class="fa-solid fa-cloud-arrow-down"></i>
+                                <span>Pasang Sekarang</span>
+                            </button>
+                            <button type="button" onclick="openInstallGuideModal()" class="px-3 py-2 rounded-xl border theme-input hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Instalasi Manual">
+                                <i class="fa-solid fa-circle-question"></i> Panduan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 5. INFO APLIKASI -->
                     <div class="p-3.5 rounded-xl border border-inherit bg-slate-50 dark:bg-slate-900/40 space-y-1.5 text-xs">
                         <span class="font-bold block text-slate-800 dark:text-slate-200">Informasi Aplikasi & Lisensi:</span>
                         <div class="grid grid-cols-2 gap-2 text-[11px] opacity-80 pt-1 font-mono">

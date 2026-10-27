@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v11 (Super Admin admin_kiky & Multi-Role Sync)
-const CACHE_NAME = 'snackloop-cache-v11';
+// SnackLoop ERP Service Worker v12 (Modular Architecture & Local Vendor Bundle)
+const CACHE_NAME = 'snackloop-cache-v12';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
@@ -8,6 +8,16 @@ const STATIC_ASSETS = [
   './style.css',
   './script.js',
   './manifest.json',
+  './vendor/tailwind.min.js',
+  './vendor/fontawesome/css/all.min.css',
+  './vendor/fontawesome/webfonts/fa-solid-900.woff2',
+  './vendor/fontawesome/webfonts/fa-brands-400.woff2',
+  './vendor/fontawesome/webfonts/fa-regular-400.woff2',
+  './vendor/feather.min.js',
+  './vendor/chart.min.js',
+  './vendor/supabase.min.js',
+  './vendor/html2pdf.bundle.min.js',
+  './vendor/xlsx.full.min.js',
   './Snackloop-logo.png',
   './Snackloop-logo.svg',
   './icon-192.png',

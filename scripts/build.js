@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { bundle } = require('./bundle');
 
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.resolve(rootDir, 'dist');
@@ -9,6 +10,7 @@ const EXCLUDED = new Set([
   'android',
   'ios',
   'dist',
+  'src',
   '.git',
   '.github',
   '.gitignore',
@@ -25,6 +27,9 @@ const EXCLUDED = new Set([
 ]);
 
 function build() {
+  console.log('[build] Assembling modular JavaScript architecture...');
+  bundle();
+
   console.log('[build] Cleaning dist directory...');
   if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true, force: true });

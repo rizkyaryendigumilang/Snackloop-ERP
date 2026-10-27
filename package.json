@@ -4,6 +4,7 @@
   "description": "",
   "main": "script.js",
   "scripts": {
+    "bundle": "node scripts/bundle.js",
     "build": "node scripts/build.js",
     "cap:sync": "npm run build && npx cap sync",
     "test": "node scripts/test.js"

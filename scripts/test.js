@@ -24,8 +24,19 @@ function runTest(name, fn) {
   }
 }
 
-// 1. JavaScript Syntax Validation
-runTest('Verify script.js syntax', () => {
+const { bundle } = require('./bundle');
+
+// 1. JavaScript Syntax & Modular Architecture Validation
+runTest('Verify modular architecture assembly and module syntax', () => {
+  bundle();
+  const moduleFiles = fs.readdirSync(path.join(rootDir, 'src', 'modules')).filter(f => f.endsWith('.js'));
+  if (moduleFiles.length < 10) throw new Error(`Expected at least 10 modules, found ${moduleFiles.length}`);
+  for (const mod of moduleFiles) {
+    execSync(`node --check src/modules/${mod}`, { cwd: rootDir, stdio: 'pipe' });
+  }
+});
+
+runTest('Verify assembled script.js syntax', () => {
   execSync('node --check script.js', { cwd: rootDir, stdio: 'pipe' });
 });
 
