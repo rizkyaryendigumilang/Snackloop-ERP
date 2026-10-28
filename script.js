@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-10-27T14:42:19.646Z from 17 source modules in src/modules/
+// Generated on 2026-10-28T06:52:04.205Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1298,7 +1298,7 @@ async function initApp() {
 
 async function loadDataFromCloud() {
     try {
-        const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory] = await Promise.all([
+        const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*'),
             supabaseClient.from('master').select('*'),
             supabaseClient.from('customers').select('*'),
@@ -1307,7 +1307,9 @@ async function loadDataFromCloud() {
             supabaseClient.from('expenses').select('*'),
             supabaseClient.from('users').select('id, username, role'),
             supabaseClient.from('invoices').select('*'),
-            supabaseClient.from('price_history').select('*')
+            supabaseClient.from('price_history').select('*'),
+            supabaseClient.from('returns').select('*').catch(() => ({ data: null })),
+            supabaseClient.from('jastip_orders').select('*').catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
@@ -1316,6 +1318,13 @@ async function loadDataFromCloud() {
         repackData = resRepack.data || [];
         expenseData = resExp.data || [];
         userData = resUsers.data || [];
+
+        if (resReturns && resReturns.data && Array.isArray(resReturns.data) && resReturns.data.length > 0) {
+            returnData = resReturns.data;
+        }
+        if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
+            jastipData = resJastip.data;
+        }
         if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
             try {
                 const { data: newAdmin } = await supabaseClient
@@ -1453,6 +1462,99 @@ function renderAgents() {
     }).join('');
     tbody.innerHTML = rows;
     updateAgentDropdowns();
+    renderAgentPerformanceOverview();
+}
+
+function renderAgentPerformanceOverview() {
+    const container = document.getElementById('agent-performance-container');
+    if(!container) return;
+
+    if(!agentData || agentData.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-6 text-center opacity-60 text-xs theme-card rounded-xl border">Belum ada agen/supplier yang terdaftar. Tambahkan agen baru di atas.</div>`;
+        return;
+    }
+
+    // Hitung performa pasokan per agen dari seluruh data transaksi
+    const statsMap = {};
+    agentData.forEach(ag => {
+        statsMap[ag.name] = {
+            id: ag.id,
+            name: ag.name,
+            totalSoldQty: 0,
+            totalRevenue: 0,
+            totalModal: 0,
+            transactionCount: 0,
+            topItems: {}
+        };
+    });
+
+    for(let mk in transactionData) {
+        (transactionData[mk] || []).forEach(t => {
+            if(t.source && statsMap[t.source]) {
+                const ag = statsMap[t.source];
+                ag.totalSoldQty += (t.qty || 0);
+                ag.totalRevenue += (t.totalSell || 0);
+                ag.totalModal += (t.totalModal || 0);
+                ag.transactionCount += 1;
+                ag.topItems[t.itemName] = (ag.topItems[t.itemName] || 0) + (t.qty || 0);
+            }
+        });
+    }
+
+    const cards = agentData.map(ag => {
+        const stat = statsMap[ag.name];
+        let bestItem = '-';
+        let maxItemQty = 0;
+        for(let itm in stat.topItems) {
+            if(stat.topItems[itm] > maxItemQty) {
+                maxItemQty = stat.topItems[itm];
+                bestItem = `${itm} (${maxItemQty}x)`;
+            }
+        }
+
+        const estProfit = stat.totalRevenue - stat.totalModal;
+        const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
+
+        return `
+            <div class="theme-card rounded-xl border p-4 shadow-sm hover:shadow-md transition space-y-3">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
+                            <i class="fa-solid fa-truck-ramp-box"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xs">${ag.name}</h4>
+                            <span class="text-[10px] opacity-60">ID Agen: #${ag.id}</span>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        ${stat.transactionCount} Penjualan
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
+                    <div>
+                        <span class="opacity-60 block text-[10px]">Total Terjual</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">${stat.totalSoldQty.toLocaleString()} pcs</span>
+                    </div>
+                    <div>
+                        <span class="opacity-60 block text-[10px]">Omzet Pasokan</span>
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${stat.totalRevenue.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="text-[11px] opacity-75 truncate">
+                    <span class="opacity-60 text-[10px] block">Snack Terlaris dari Agen:</span>
+                    <span class="font-semibold text-indigo-500">${bestItem}</span>
+                </div>
+                <div class="pt-2 border-t border-inherit flex justify-between items-center gap-2">
+                    <span class="text-[10px] text-slate-500 font-mono">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
+                    <button type="button" onclick="window.open('https://wa.me/?text=${waMsg}', '_blank')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm">
+                        <i class="fa-brands fa-whatsapp"></i> Chat Supplier
+                    </button>
+                </div>
+            </div>`;
+    }).join('');
+
+    container.innerHTML = cards;
 }
 
 function confirmDeleteAgent(id) {
@@ -2201,45 +2303,475 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     }
 });
 
+// =========================================================================
+// FITUR DISTRIBUSI AGEN & PENAGIHAN: AGING INVOICES & SMART WHATSAPP TAGIH
+// =========================================================================
+let currentInvoiceAgingFilter = 'all';
+
+function setInvoiceAgingFilter(filterKey) {
+    currentInvoiceAgingFilter = filterKey;
+    
+    // Update visual tombol filter
+    const filterButtons = ['all', 'unpaid', '0-7', '8-14', '15-30', 'gt30', 'paid'];
+    filterButtons.forEach(btnKey => {
+        const btn = document.getElementById(`inv-filter-${btnKey}`);
+        if(btn) {
+            if(btnKey === filterKey) {
+                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition bg-indigo-600 text-white shadow-sm";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80";
+            }
+        }
+    });
+
+    renderInvoicesTable();
+}
+
+function getInvoiceAgingInfo(inv) {
+    if (!inv) return { days: 0, category: 'paid', label: 'Lunas', colorClass: 'text-emerald-500 bg-emerald-500/15 border-emerald-500/30' };
+    
+    if (inv.status === 'Lunas') {
+        return { days: 0, category: 'paid', label: 'Lunas', colorClass: 'text-emerald-500 bg-emerald-500/15 border-emerald-500/30' };
+    }
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const invDate = new Date(inv.date);
+    invDate.setHours(0,0,0,0);
+    const diffTime = today - invDate;
+    const days = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+    if (days <= 7) {
+        return {
+            days,
+            category: '0-7',
+            label: `${days} Hari (Lancar)`,
+            badgeIcon: 'fa-regular fa-circle-check',
+            colorClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+        };
+    } else if (days <= 14) {
+        return {
+            days,
+            category: '8-14',
+            label: `${days} Hari (Perhatian)`,
+            badgeIcon: 'fa-solid fa-clock',
+            colorClass: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+        };
+    } else if (days <= 30) {
+        return {
+            days,
+            category: '15-30',
+            label: `${days} Hari (Tempo)`,
+            badgeIcon: 'fa-solid fa-triangle-exclamation',
+            colorClass: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800 font-semibold'
+        };
+    } else {
+        return {
+            days,
+            category: 'gt30',
+            label: `${days} Hari (Macet)`,
+            badgeIcon: 'fa-solid fa-circle-exclamation',
+            colorClass: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 font-bold'
+        };
+    }
+}
+
+function calculateInvoiceAgingStats() {
+    let totalUnpaid = 0;
+    let countUnpaid = 0;
+    let counts = {
+        'all': invoiceData.length,
+        'unpaid': 0,
+        '0-7': 0,
+        '8-14': 0,
+        '15-30': 0,
+        'gt30': 0,
+        'paid': 0
+    };
+    let amounts = {
+        'total': 0,
+        '0-7': 0,
+        '8-14': 0,
+        '15-30': 0,
+        'gt30': 0,
+        'paid': 0
+    };
+
+    invoiceData.forEach(inv => {
+        const amt = Number(inv.total_amount) || 0;
+        if (inv.status === 'Lunas') {
+            counts['paid'] += 1;
+            amounts['paid'] += amt;
+        } else {
+            countUnpaid += 1;
+            totalUnpaid += amt;
+            counts['unpaid'] += 1;
+            amounts['total'] += amt;
+
+            const info = getInvoiceAgingInfo(inv);
+            if (counts[info.category] !== undefined) {
+                counts[info.category] += 1;
+                amounts[info.category] += amt;
+            }
+        }
+    });
+
+    return { totalUnpaid, countUnpaid, counts, amounts };
+}
+
+function renderInvoiceAgingCards() {
+    const container = document.getElementById('invoice-aging-cards-container');
+    const { totalUnpaid, countUnpaid, counts, amounts } = calculateInvoiceAgingStats();
+
+    // Update filter badge numbers
+    for (let key in counts) {
+        const el = document.getElementById(`inv-count-${key}`);
+        if (el) el.innerText = counts[key];
+    }
+
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 bg-gradient-to-br from-indigo-50/50 to-indigo-100/30 dark:from-indigo-950/20 dark:to-slate-900 border-indigo-200 dark:border-indigo-900/60">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                <i class="fa-solid fa-coins"></i> Total Piutang Aktif
+            </span>
+            <h4 class="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400">Rp ${totalUnpaid.toLocaleString()}</h4>
+            <span class="text-[10px] opacity-60 font-medium">${countUnpaid} Invoice Belum Lunas</span>
+        </div>
+
+        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 0-7 Hari (Lancar)
+            </span>
+            <h4 class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">Rp ${amounts['0-7'].toLocaleString()}</h4>
+            <span class="text-[10px] opacity-60 font-medium">${counts['0-7']} Invoice</span>
+        </div>
+
+        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span> 8-14 Hari (Perhatian)
+            </span>
+            <h4 class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400">Rp ${amounts['8-14'].toLocaleString()}</h4>
+            <span class="text-[10px] opacity-60 font-medium">${counts['8-14']} Invoice</span>
+        </div>
+
+        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-orange-200 dark:border-orange-900/60 bg-orange-50/30 dark:bg-orange-950/20">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+                <span class="w-2 h-2 rounded-full bg-orange-500"></span> 15-30 Hari (Tempo)
+            </span>
+            <h4 class="text-base sm:text-lg font-bold text-orange-600 dark:text-orange-400">Rp ${amounts['15-30'].toLocaleString()}</h4>
+            <span class="text-[10px] opacity-60 font-medium">${counts['15-30']} Invoice</span>
+        </div>
+
+        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-rose-300 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/30 col-span-2 sm:col-span-1">
+            <span class="text-[10px] font-bold uppercase opacity-80 flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> > 30 Hari (Macet)
+            </span>
+            <h4 class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400">Rp ${amounts['gt30'].toLocaleString()}</h4>
+            <span class="text-[10px] font-bold text-rose-500">${counts['gt30']} Invoice Kritis</span>
+        </div>
+    `;
+}
+
 async function renderInvoicesTable() {
+    renderInvoiceAgingCards();
+
     const tbody = document.getElementById('invoices-table-body');
     if(!tbody) return;
     
     if(invoiceData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center opacity-60">Belum ada data invoice tercatat.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Belum ada data invoice tercatat.</td></tr>`;
         return;
     }
 
     const isSuperAdmin = currentRole === 'super_admin';
-    const rows = invoiceData.map(inv => {
+
+    // Filter invoice berdasarkan currentInvoiceAgingFilter
+    const filteredInvoices = invoiceData.filter(inv => {
+        if (currentInvoiceAgingFilter === 'all') return true;
+        if (currentInvoiceAgingFilter === 'unpaid') return inv.status !== 'Lunas';
+        if (currentInvoiceAgingFilter === 'paid') return inv.status === 'Lunas';
+        
+        if (inv.status === 'Lunas') return false; // Filter aging hanya relevan untuk yang belum lunas
+        const info = getInvoiceAgingInfo(inv);
+        return info.category === currentInvoiceAgingFilter;
+    });
+
+    if (filteredInvoices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini.</td></tr>`;
+        return;
+    }
+
+    const rows = filteredInvoices.map(inv => {
+        const info = getInvoiceAgingInfo(inv);
         const badgeStatus = inv.status === 'Lunas' ? 
-            `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold">LUNAS</span>` : 
-            `<span class="px-2.5 py-1 bg-rose-500/20 text-rose-500 rounded-full font-bold">BELUM LUNAS</span>`;
+            `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold text-[11px] inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> LUNAS</span>` : 
+            `<div class="space-y-1">
+                <span class="px-2 py-0.5 bg-rose-500/20 text-rose-500 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> BELUM LUNAS</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] border font-bold ${info.colorClass} block w-fit"><i class="${info.badgeIcon || 'fa-regular fa-clock'} mr-1"></i>${info.label}</span>
+             </div>`;
         
         const btnLunasi = inv.status !== 'Lunas' ? 
-            `<button onclick="markInvoiceAsPaid(${inv.id}, '${inv.customer_name}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-check mr-1"></i> Lunasi</button>` : 
+            `<button onclick="markInvoiceAsPaid(${inv.id}, '${inv.customer_name}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
             `<span class="text-xs opacity-50 font-medium">Selesai</span>`;
 
         const btnDelete = isSuperAdmin ? 
-            `<button onclick="confirmDeleteInvoice(${inv.id}, '${inv.invoice_number}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '';
+            `<button onclick="confirmDeleteInvoice(${inv.id}, '${inv.invoice_number}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
 
         return `
-            <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-mono font-bold text-indigo-500">${inv.invoice_number}</td>
-                <td class="p-3 border border-inherit">${inv.date}</td>
-                <td class="p-3 border border-inherit font-bold">${inv.customer_name}</td>
-                <td class="p-3 border border-inherit font-bold">Rp ${inv.total_amount.toLocaleString()}</td>
-                <td class="p-3 border border-inherit">${badgeStatus}</td>
-                <td class="p-3 border border-inherit text-center space-x-1">
-                    <button onclick="downloadInvoicePDF('${inv.invoice_number}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs" title="Download PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                    <button onclick="sendInvoiceWA('${inv.invoice_number}', '${inv.customer_name}', ${inv.total_amount}, '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs" title="Kirim WA"><i class="fa-brands fa-whatsapp"></i> WA</button>
-                    ${btnLunasi}
-                    ${btnDelete}
+            <tr class="hover:bg-slate-50/50 transition">
+                <td class="p-3 border border-inherit">
+                    <span class="font-mono font-bold text-indigo-500 text-xs block">${inv.invoice_number}</span>
+                    <span class="text-[10px] opacity-60">${inv.date}</span>
+                </td>
+                <td class="p-3 border border-inherit">
+                    <span class="font-bold block text-slate-900 dark:text-slate-100">${inv.customer_name}</span>
+                </td>
+                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400">
+                    Rp ${Number(inv.total_amount).toLocaleString()}
+                </td>
+                <td class="p-3 border border-inherit">
+                    ${badgeStatus}
+                </td>
+                <td class="p-3 border border-inherit text-center">
+                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                        <button onclick="downloadInvoicePDF('${inv.invoice_number}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button onclick="sendSmartInvoiceReminderWA('${inv.invoice_number}', '${inv.customer_name}', ${inv.total_amount}, '${inv.date}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
+                        ${btnLunasi}
+                        ${btnDelete}
+                    </div>
                 </td>
             </tr>`;
     }).join('');
 
     tbody.innerHTML = rows;
+}
+
+function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
+    const custObj = customerData.find(c => c.name && c.name.toLowerCase() === custName.toLowerCase());
+    let phone = (custObj && custObj.phone) ? custObj.phone : '';
+    phone = phone.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+    if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+
+    const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
+    const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
+    
+    let msg = '';
+    if (statusInv === 'Lunas') {
+        msg = `*FAKTUR LUNAS (KWITANSI RESMI)* - ${biz}\n` +
+              `-----------------------------------------\n` +
+              `Yth. Kak *${custName}*,\n\n` +
+              `Terima kasih! Pembayaran untuk transaksi:\n` +
+              `📄 No. Faktur : *${invNumber}*\n` +
+              `📅 Tanggal    : *${invDate}*\n` +
+              `💰 Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
+              `✅ Status     : *LUNAS*\n\n` +
+              `Telah kami terima dengan baik. Senang berbisnis dengan Anda! 🙏✨`;
+    } else {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const d = new Date(invDate);
+        d.setHours(0,0,0,0);
+        const days = Math.max(0, Math.floor((today - d) / (1000 * 60 * 60 * 24)));
+
+        if (days <= 7) {
+            msg = `Halo Kak *${custName}*! 👋 Salam dari *${biz}*.\n\n` +
+                  `Berikut adalah rincian nota pesanan snack Anda:\n` +
+                  `📄 No. Nota : *${invNumber}*\n` +
+                  `📅 Tanggal  : *${invDate}*\n` +
+                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Pembayaran dapat ditransfer ke rekening resmi kami:\n` +
+                  `💳 *${bank}*\n\n` +
+                  `Semoga snack dagangannya laris manis ya Kak! Terima kasih banyak. 🙏`;
+        } else if (days <= 14) {
+            msg = `Halo Kak *${custName}*! 🙏 Semoga usahanya selalu lancar.\n\n` +
+                  `Kami mengonfirmasi bahwa nota pesanan SnackLoop berikut:\n` +
+                  `📄 No. Nota : *${invNumber}*\n` +
+                  `📅 Tanggal  : *${invDate}* (sudah berjalan *${days} hari*)\n` +
+                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Jika snack di toko/warung sudah laku terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
+                  `💳 *${bank}*\n\n` +
+                  `Mohon kirimkan bukti transfer ke nomor ini ya Kak. Terima kasih banyak atas kerjasamanya! 😊`;
+        } else {
+            msg = `*PEMBERITAHUAN JATUH TEMPO / REMINDER RESMI* ⚠️\n` +
+                  `Kepada Yth. Kak *${custName}*,\n\n` +
+                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (*${days} hari tertunggak*):\n` +
+                  `📄 No. Nota : *${invNumber}*\n` +
+                  `📅 Tanggal  : *${invDate}*\n` +
+                  `💰 Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Mohon segera melakukan pelunasan ke rekening resmi kami:\n` +
+                  `💳 *${bank}*\n\n` +
+                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan buku kas dan pengiriman order berikutnya berjalan lancar. Terima kasih atas pengertian dan kerjasamanya. 🙏`;
+        }
+    }
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// Alias untuk kompatibilitas mundur
+function sendInvoiceWA(invNumber, custName, amount, statusInv) {
+    const inv = invoiceData.find(i => i.invoice_number === invNumber);
+    const date = inv ? inv.date : new Date().toISOString().split('T')[0];
+    sendSmartInvoiceReminderWA(invNumber, custName, amount, date, statusInv);
+}
+
+// =========================================================================
+// FITUR DISTRIBUSI AGEN: LEADERBOARD MITRA & RESELLER TERBAIK
+// =========================================================================
+let currentLeaderboardPeriod = 'all';
+
+function setLeaderboardPeriod(period) {
+    currentLeaderboardPeriod = period;
+    const btnMonth = document.getElementById('btn-lb-month');
+    const btnAll = document.getElementById('btn-lb-all');
+    if (btnMonth && btnAll) {
+        if (period === 'month') {
+            btnMonth.className = "px-3 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm";
+            btnAll.className = "px-3 py-1.5 rounded-full transition opacity-70 hover:opacity-100";
+        } else {
+            btnAll.className = "px-3 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm";
+            btnMonth.className = "px-3 py-1.5 rounded-full transition opacity-70 hover:opacity-100";
+        }
+    }
+    renderCustomerLeaderboard();
+}
+
+function calculateCustomerLeaderboard(period = 'all') {
+    const custMap = {};
+    for (let mk in transactionData) {
+        if (period === 'month' && mk !== activeMonthSheet) continue;
+        (transactionData[mk] || []).forEach(t => {
+            const cName = (t.customer || 'Pelanggan Umum').trim();
+            if (!custMap[cName]) {
+                custMap[cName] = {
+                    name: cName,
+                    totalSpent: 0,
+                    orderCount: 0,
+                    totalQty: 0,
+                    lastDate: t.date,
+                    items: {}
+                };
+            }
+            custMap[cName].totalSpent += (t.totalSell || 0);
+            custMap[cName].orderCount += 1;
+            custMap[cName].totalQty += (t.qty || 0);
+            if (new Date(t.date) > new Date(custMap[cName].lastDate)) {
+                custMap[cName].lastDate = t.date;
+            }
+            custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
+        });
+    }
+
+    return Object.values(custMap).sort((a, b) => b.totalSpent - a.totalSpent);
+}
+
+function renderCustomerLeaderboard() {
+    const container = document.getElementById('customer-leaderboard-container');
+    if (!container) return;
+
+    const ranked = calculateCustomerLeaderboard(currentLeaderboardPeriod).slice(0, 6);
+
+    if (ranked.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-6 text-center opacity-60 text-xs theme-card rounded-xl border">Belum ada riwayat transaksi pelanggan pada periode ini.</div>`;
+        return;
+    }
+
+    const cards = ranked.map((cust, idx) => {
+        let rankBadge = '';
+        let borderClass = 'border-inherit';
+        let bgGlow = '';
+        let tierTitle = '';
+
+        if (idx === 0) {
+            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-extrabold text-sm shadow-md">🥇</span>`;
+            borderClass = 'border-amber-400/60 dark:border-amber-500/40';
+            bgGlow = 'bg-amber-500/5 dark:bg-amber-500/10';
+            tierTitle = 'Platinum Partner';
+        } else if (idx === 1) {
+            rankBadge = `<span class="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-extrabold text-sm shadow-md">🥈</span>`;
+            borderClass = 'border-slate-300/70 dark:border-slate-600/60';
+            bgGlow = 'bg-slate-400/5 dark:bg-slate-400/10';
+            tierTitle = 'Gold Reseller';
+        } else if (idx === 2) {
+            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-700 text-amber-100 flex items-center justify-center font-extrabold text-sm shadow-md">🥉</span>`;
+            borderClass = 'border-amber-700/50 dark:border-amber-700/40';
+            bgGlow = 'bg-amber-700/5 dark:bg-amber-700/10';
+            tierTitle = 'Silver Partner';
+        } else {
+            rankBadge = `<span class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-200 dark:border-indigo-800">#${idx + 1}</span>`;
+            tierTitle = 'Star Reseller';
+        }
+
+        // Cari produk favorit pelanggan
+        let favoriteItem = '-';
+        let maxItemQty = 0;
+        for (let item in cust.items) {
+            if (cust.items[item] > maxItemQty) {
+                maxItemQty = cust.items[item];
+                favoriteItem = `${item} (${maxItemQty}x)`;
+            }
+        }
+
+        return `
+            <div class="theme-card rounded-2xl border ${borderClass} ${bgGlow} p-4 shadow-sm hover:shadow-md transition space-y-3">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        ${rankBadge}
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${cust.name}</h4>
+                            <span class="text-[10px] font-bold text-indigo-500 uppercase">${tierTitle}</span>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                        ${cust.orderCount}x Order
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
+                    <div>
+                        <span class="opacity-60 block text-[10px]">Total Omzet Belanja</span>
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${cust.totalSpent.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span class="opacity-60 block text-[10px]">Total Produk</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">${cust.totalQty.toLocaleString()} pcs</span>
+                    </div>
+                </div>
+
+                <div class="text-[11px] opacity-75 truncate">
+                    <span class="opacity-60 text-[10px] block">Snack Favorit:</span>
+                    <span class="font-semibold text-indigo-500 truncate block">${favoriteItem}</span>
+                </div>
+
+                <div class="pt-2 border-t border-inherit flex items-center justify-between">
+                    <span class="text-[10px] opacity-50 font-mono">Order Terakhir: ${cust.lastDate || '-'}</span>
+                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition">
+                        <i class="fa-brands fa-whatsapp"></i> Apresiasi Mitra
+                    </button>
+                </div>
+            </div>`;
+    }).join('');
+
+    container.innerHTML = cards;
+}
+
+function sendCustomerRewardWA(cName, totalSpent, orderCount) {
+    const custObj = customerData.find(c => c.name && c.name.toLowerCase() === cName.toLowerCase());
+    let phone = (custObj && custObj.phone) ? custObj.phone : '';
+    phone = phone.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+    if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+
+    const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
+    const msg = `Halo Kak *${cName}*! 👋 Salam hangat dari *${biz}*.\n\n` +
+          `Kami ingin mengucapkan terima kasih atas kesetiaannya menjadi *Mitra Reseller Terbaik* kami! 🏆\n` +
+          `Hingga saat ini, total pesanan Kakak telah mencapai *Rp ${Number(totalSpent).toLocaleString()}* dari *${orderCount} kali order*.\n\n` +
+          `Sebagai bentuk apresiasi, kami siapkan kuota harga spesial dan prioritas stok snack untuk order berikutnya ya Kak! 🎁🍪\n` +
+          `Kapan rencana re-stock berikutnya? Kami siap bantu siapkan pengirimannya. Terima kasih banyak! 🙏✨`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function confirmDeleteInvoice(invId, invNumber) {
@@ -2878,6 +3410,7 @@ function updateDashboard() {
     if (pDesc) pDesc.innerText = activeDesc[currentDashboardTimeFilter] || activeDesc['all'];
 
     renderTopProducts(productSalesMap);
+    renderCustomerLeaderboard();
     renderDashboardHistory(); 
 
     const uBody = document.getElementById('dashboard-unpaid-body');
@@ -2888,16 +3421,39 @@ function updateDashboard() {
             uBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center opacity-60">Tidak ada Piutang aktif. Mantap!</td></tr>`;
         } else {
             const uRows = unpaidList.map(t => {
-                const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
+                const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2.5 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
                 const custObj = customerData.find(c => c.name === t.customer);
-                const phone = custObj ? custObj.phone : '628123456789';
-                const waText = `Halo Kak ${t.customer}, pengingat tagihan SnackLoop sebesar Rp ${t.totalSell.toLocaleString()} untuk pesanan ${t.itemName}. Terima kasih!`;
-                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${encodeURIComponent(waText)}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>`;
+                let phone = custObj && custObj.phone ? custObj.phone.replace(/\D/g, '') : '';
+                if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+                if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+
+                // Hitung umur piutang
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const tDate = new Date(t.date);
+                tDate.setHours(0,0,0,0);
+                const diffDays = Math.max(0, Math.floor((today - tDate) / (1000 * 60 * 60 * 24)));
+                
+                let agingBadge = '';
+                if (diffDays <= 7) {
+                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 font-bold">${diffDays}h (Lancar)</span>`;
+                } else if (diffDays <= 14) {
+                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 font-bold">${diffDays}h (Perhatian)</span>`;
+                } else {
+                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold animate-pulse">${diffDays}h (Jatuh Tempo)</span>`;
+                }
+
+                const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
+                const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
+                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${encodeURIComponent(waText)}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
                 
                 return `
-                    <tr class="hover:bg-slate-50/50">
+                    <tr class="hover:bg-slate-50/50 transition">
                         <td class="p-2.5 border border-inherit">${t.date} <br><span class="text-[9px] opacity-60">${t.monthKey}</span></td>
-                        <td class="p-2.5 border border-inherit font-bold text-indigo-500">${t.customer}</td>
+                        <td class="p-2.5 border border-inherit">
+                            <span class="font-bold text-indigo-500 block">${t.customer}</span>
+                            ${agingBadge}
+                        </td>
                         <td class="p-2.5 border border-inherit font-medium">${t.itemName} (${t.qty}x)</td>
                         <td class="p-2.5 border border-inherit font-bold text-rose-500">Rp ${t.totalSell.toLocaleString()}</td>
                         <td class="p-2.5 border border-inherit text-center">${waBtn}</td>

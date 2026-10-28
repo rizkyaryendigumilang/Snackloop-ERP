@@ -375,7 +375,7 @@ async function initApp() {
 
 async function loadDataFromCloud() {
     try {
-        const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory] = await Promise.all([
+        const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*'),
             supabaseClient.from('master').select('*'),
             supabaseClient.from('customers').select('*'),
@@ -384,7 +384,9 @@ async function loadDataFromCloud() {
             supabaseClient.from('expenses').select('*'),
             supabaseClient.from('users').select('id, username, role'),
             supabaseClient.from('invoices').select('*'),
-            supabaseClient.from('price_history').select('*')
+            supabaseClient.from('price_history').select('*'),
+            supabaseClient.from('returns').select('*').catch(() => ({ data: null })),
+            supabaseClient.from('jastip_orders').select('*').catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
@@ -393,6 +395,13 @@ async function loadDataFromCloud() {
         repackData = resRepack.data || [];
         expenseData = resExp.data || [];
         userData = resUsers.data || [];
+
+        if (resReturns && resReturns.data && Array.isArray(resReturns.data) && resReturns.data.length > 0) {
+            returnData = resReturns.data;
+        }
+        if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
+            jastipData = resJastip.data;
+        }
         if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
             try {
                 const { data: newAdmin } = await supabaseClient

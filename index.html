@@ -387,6 +387,29 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="top-products-container"></div>
                     </div>
 
+                    <!-- WIDGET LEADERBOARD RESELLER & MITRA JUARA -->
+                    <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-inherit pb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-sm shadow-sm">
+                                    <i class="fa-solid fa-crown"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base flex items-center gap-2">
+                                        <span>Top 5 Mitra & Reseller Juara</span>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">Loyalty Leaderboard</span>
+                                    </h3>
+                                    <p class="text-xs opacity-60">Agen & reseller pelanggan dengan omzet dan frekuensi repeat order tertinggi</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center theme-input p-1 rounded-full border text-xs font-bold shadow-inner">
+                                <button type="button" onclick="setLeaderboardPeriod('month')" id="btn-lb-month" class="px-3.5 py-1.5 rounded-full transition opacity-70 hover:opacity-100">Bulan Ini</button>
+                                <button type="button" onclick="setLeaderboardPeriod('all')" id="btn-lb-all" class="px-3.5 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm">Sepanjang Waktu</button>
+                            </div>
+                        </div>
+                        <div id="customer-leaderboard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                    </div>
+
                     <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
                         <div class="flex justify-between items-center border-b border-inherit pb-3">
                             <h3 class="font-bold text-base"><i class="fa-solid fa-chart-column text-indigo-500 mr-2"></i>Keuangan Bulanan</h3>
@@ -519,27 +542,43 @@
 
                 <!-- TAB: MANAJEMEN INVOICE -->
                 <div id="tab-invoices" class="tab-content hidden space-y-6">
+                    <!-- AGING INVOICES KPI CARDS -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="invoice-aging-cards-container"></div>
+
                     <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
-                        <div class="flex justify-between items-center flex-wrap gap-4 border-b border-inherit pb-3">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-inherit pb-3">
                             <div>
-                                <h3 class="text-base font-bold"><i class="fa-solid fa-file-invoice-dollar text-indigo-500 mr-2"></i> Manajemen Invoice & Penagihan</h3>
-                                <p class="text-xs opacity-70">Kelola nota tagihan (belum lunas) dan terbitkan faktur lunas resmi bagi pelanggan.</p>
+                                <h3 class="text-base font-bold flex items-center gap-2">
+                                    <i class="fa-solid fa-file-invoice-dollar text-indigo-500"></i>
+                                    <span>Manajemen Invoice & Umur Piutang (Aging)</span>
+                                </h3>
+                                <p class="text-xs opacity-70">Pantau jatuh tempo nota tagihan agen/toko dan kirim penagihan cerdas via WhatsApp 1-klik.</p>
                             </div>
                             <div class="flex items-center space-x-2 text-xs">
                                 <button onclick="renderInvoicesTable()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Refresh Data</button>
                             </div>
                         </div>
 
+                        <!-- FILTER TOOLBAR AGING PIUTANG -->
+                        <div class="flex items-center gap-1.5 flex-wrap text-xs pb-1 border-b border-inherit" id="invoice-aging-filters">
+                            <button type="button" onclick="setInvoiceAgingFilter('all')" id="inv-filter-all" class="px-3 py-1.5 rounded-xl border font-bold transition bg-indigo-600 text-white shadow-sm">Semua (<span id="inv-count-all">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('unpaid')" id="inv-filter-unpaid" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">Belum Lunas (<span id="inv-count-unpaid">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('0-7')" id="inv-filter-0-7" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-emerald-600 dark:text-emerald-400">🟢 0-7 Hari (<span id="inv-count-0-7">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('8-14')" id="inv-filter-8-14" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-amber-600 dark:text-amber-400">🟡 8-14 Hari (<span id="inv-count-8-14">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('15-30')" id="inv-filter-15-30" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-orange-600 dark:text-orange-400">🟠 15-30 Hari (<span id="inv-count-15-30">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('gt30')" id="inv-filter-gt30" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-rose-600 dark:text-rose-400">🔴 &gt; 30 Hari (<span id="inv-count-gt30">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('paid')" id="inv-filter-paid" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-slate-500">Lunas (<span id="inv-count-paid">0</span>)</button>
+                        </div>
+
                         <div class="overflow-x-auto max-h-[500px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
-                                        <th class="p-3 border border-inherit">No. Invoice</th>
-                                        <th class="p-3 border border-inherit">Tanggal</th>
-                                        <th class="p-3 border border-inherit">Pelanggan</th>
+                                        <th class="p-3 border border-inherit">No. Invoice & Tanggal</th>
+                                        <th class="p-3 border border-inherit">Pelanggan / Toko</th>
                                         <th class="p-3 border border-inherit">Total Tagihan</th>
-                                        <th class="p-3 border border-inherit">Status Pembayaran</th>
-                                        <th class="p-3 border border-inherit text-center">Aksi (PDF / WhatsApp / Lunasi)</th>
+                                        <th class="p-3 border border-inherit">Status & Umur Piutang</th>
+                                        <th class="p-3 border border-inherit text-center">Aksi Penagihan (Smart WA / PDF / Lunasi)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="invoices-table-body"></tbody>
@@ -1257,6 +1296,23 @@
                                 <tbody id="agent-table-body"></tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <!-- WIDGET PERFORMA PASOKAN AGEN & SUPPLIER -->
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4" id="agent-performance-card">
+                        <div class="flex justify-between items-center border-b border-inherit pb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm shadow-sm">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold">Performa Pasokan Agen & Supplier</h3>
+                                    <p class="text-xs opacity-60">Analisis total omzet, volume produk, dan snack paling laris dari tiap pemasok</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg border theme-input shadow-sm">Distribusi Pasokan</span>
+                        </div>
+                        <div id="agent-performance-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
                     </div>
                 </div>
 
