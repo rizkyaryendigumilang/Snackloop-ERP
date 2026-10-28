@@ -67,10 +67,10 @@
 
     <!-- MODAL LUPA PASSWORD (SUPABASE AUTH / USER RECOVERY) -->
     <div id="modal-forgot-password" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[1000] hidden items-center justify-center p-4">
-        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl border space-y-4 text-left">
+        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-lg border space-y-4 text-left">
             <div class="flex items-center justify-between border-b border-inherit pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-9 h-9 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-key"></i>
                     </div>
                     <div>
@@ -120,10 +120,10 @@
 
     <!-- MODAL SETEL PASSWORD BARU (SUPABASE RECOVERY CALLBACK) -->
     <div id="modal-reset-password" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[1000] hidden items-center justify-center p-4">
-        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl border space-y-4 text-left">
+        <div class="theme-card rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-lg border space-y-4 text-left">
             <div class="flex items-center justify-between border-b border-inherit pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-9 h-9 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-lock"></i>
                     </div>
                     <div>
@@ -256,8 +256,8 @@
                 <div class="flex items-center space-x-2.5 text-sm">
                     <!-- Indikator Status Online/Offline & Sync Outbox (Kompak & Minimal) -->
                     <div id="sync-status-container" class="cursor-pointer" onclick="handleSyncBadgeClick()" title="Status: Online - Terhubung (Klik untuk info)">
-                        <span id="sync-status-badge" class="w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm transition-all duration-300 hover:scale-105">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="sync-status-badge" class="w-8 h-8 md:w-9 md:h-9 rounded-lg border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 transition-colors">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                             <span id="sync-status-text" class="hidden">Online</span>
                         </span>
                     </div>
@@ -274,7 +274,7 @@
                     </span>
 
                     <!-- Tombol Pengaturan Header (Kecil, Elegan & Selaras) -->
-                    <button id="btn-open-settings" onclick="openSettingsModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-xl theme-input border flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm hover:border-indigo-400 group text-slate-600 dark:text-slate-300 shrink-0" title="Pengaturan Sistem & Profil Usaha" data-i18n-title="set_modal_title">
+                    <button id="btn-open-settings" onclick="openSettingsModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 group text-slate-600 dark:text-slate-300 shrink-0" title="Pengaturan Sistem & Profil Usaha" data-i18n-title="set_modal_title">
                         <i class="fa-solid fa-gear text-xs md:text-sm group-hover:rotate-45 transition-transform duration-300"></i>
                     </button>
                 </div>
@@ -290,11 +290,11 @@
                             <h3 class="font-bold text-sm" data-i18n="dash_overview_title">Ringkasan Performa Usaha</h3>
                             <p class="text-xs opacity-70" data-i18n="dash_overview_subtitle">Pilih rentang waktu untuk melihat analisis penjualan</p>
                         </div>
-                        <div class="flex items-center theme-input p-1.5 rounded-full border shadow-inner gap-1 text-xs font-bold">
-                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="px-4 py-2 rounded-full transition" data-i18n="filter_today">Hari Ini</button>
-                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="px-4 py-2 rounded-full transition" data-i18n="filter_7days">7 Hari</button>
-                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="px-4 py-2 rounded-full transition" data-i18n="filter_30days">30 Hari</button>
-                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="px-4 py-2 rounded-full transition bg-indigo-600 text-white shadow-md" data-i18n="filter_all">Keseluruhan</button>
+                        <div class="flex items-center theme-input p-1 rounded-xl border gap-1 text-xs font-medium">
+                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_today">Hari Ini</button>
+                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_7days">7 Hari</button>
+                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_30days">30 Hari</button>
+                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="px-3 py-1.5 rounded-lg transition bg-indigo-600 text-white shadow-sm font-semibold" data-i18n="filter_all">Keseluruhan</button>
                         </div>
                     </div>
 
@@ -381,30 +381,28 @@
 
                     <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
                         <div class="flex justify-between items-center border-b border-inherit pb-3">
-                            <h3 class="font-bold text-base"><i class="fa-solid fa-fire text-amber-500 mr-2"></i>Produk Terlaris</h3>
-                            <span class="text-xs opacity-60">Product Terlaris</span>
+                            <h3 class="font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-chart-simple text-slate-400"></i>
+                                <span>Produk Terlaris</span>
+                            </h3>
+                            <span class="text-xs opacity-60">Berdasarkan volume penjualan</span>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="top-products-container"></div>
                     </div>
 
-                    <!-- WIDGET LEADERBOARD RESELLER & MITRA JUARA -->
+                    <!-- WIDGET LEADERBOARD RESELLER & MITRA -->
                     <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-inherit pb-3">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-sm shadow-sm">
-                                    <i class="fa-solid fa-crown"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-base flex items-center gap-2">
-                                        <span>Top 5 Mitra & Reseller Juara</span>
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">Loyalty Leaderboard</span>
-                                    </h3>
-                                    <p class="text-xs opacity-60">Agen & reseller pelanggan dengan omzet dan frekuensi repeat order tertinggi</p>
-                                </div>
+                            <div>
+                                <h3 class="font-bold text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-trophy text-slate-400"></i>
+                                    <span>Mitra & Reseller Utama</span>
+                                </h3>
+                                <p class="text-xs opacity-60">Peringkat agen pelanggan berdasarkan volume belanja dan frekuensi pemesanan</p>
                             </div>
-                            <div class="flex items-center theme-input p-1 rounded-full border text-xs font-bold shadow-inner">
-                                <button type="button" onclick="setLeaderboardPeriod('month')" id="btn-lb-month" class="px-3.5 py-1.5 rounded-full transition opacity-70 hover:opacity-100">Bulan Ini</button>
-                                <button type="button" onclick="setLeaderboardPeriod('all')" id="btn-lb-all" class="px-3.5 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm">Sepanjang Waktu</button>
+                            <div class="flex items-center theme-input p-1 rounded-lg border text-xs font-semibold">
+                                <button type="button" onclick="setLeaderboardPeriod('month')" id="btn-lb-month" class="px-3 py-1 rounded-md transition opacity-70 hover:opacity-100">Bulan Ini</button>
+                                <button type="button" onclick="setLeaderboardPeriod('all')" id="btn-lb-all" class="px-3 py-1 rounded-md transition bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm">Sepanjang Waktu</button>
                             </div>
                         </div>
                         <div id="customer-leaderboard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -412,8 +410,11 @@
 
                     <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
                         <div class="flex justify-between items-center border-b border-inherit pb-3">
-                            <h3 class="font-bold text-base"><i class="fa-solid fa-chart-column text-indigo-500 mr-2"></i>Keuangan Bulanan</h3>
-                            <span class="text-xs opacity-60">Pendapatan</span>
+                            <h3 class="font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-chart-column text-slate-400"></i>
+                                <span>Tren Keuangan Bulanan</span>
+                            </h3>
+                            <span class="text-xs opacity-60">Arus pendapatan dan laba kotor</span>
                         </div>
                         <div class="w-full h-[300px] relative">
                             <canvas id="financialChart"></canvas>
@@ -422,8 +423,11 @@
 
                     <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
                         <div class="flex justify-between items-center border-b border-inherit pb-3">
-                            <h3 class="font-bold text-base"><i class="fa-solid fa-triangle-exclamation text-rose-500 mr-2"></i>Daftar Hutang Aktif</h3>
-                            <span id="unpaid-badge" class="bg-rose-500/20 text-rose-500 px-2.5 py-1 rounded-full text-xs font-bold">0 Item</span>
+                            <h3 class="font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-slate-400"></i>
+                                <span>Daftar Piutang Berjalan</span>
+                            </h3>
+                            <span id="unpaid-badge" class="border border-inherit px-2.5 py-0.5 rounded-full text-xs font-semibold opacity-80">0 Item</span>
                         </div>
                         <div class="overflow-x-auto max-h-[300px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
@@ -561,13 +565,13 @@
 
                         <!-- FILTER TOOLBAR AGING PIUTANG -->
                         <div class="flex items-center gap-1.5 flex-wrap text-xs pb-1 border-b border-inherit" id="invoice-aging-filters">
-                            <button type="button" onclick="setInvoiceAgingFilter('all')" id="inv-filter-all" class="px-3 py-1.5 rounded-xl border font-bold transition bg-indigo-600 text-white shadow-sm">Semua (<span id="inv-count-all">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('unpaid')" id="inv-filter-unpaid" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">Belum Lunas (<span id="inv-count-unpaid">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('0-7')" id="inv-filter-0-7" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-emerald-600 dark:text-emerald-400">🟢 0-7 Hari (<span id="inv-count-0-7">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('8-14')" id="inv-filter-8-14" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-amber-600 dark:text-amber-400">🟡 8-14 Hari (<span id="inv-count-8-14">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('15-30')" id="inv-filter-15-30" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-orange-600 dark:text-orange-400">🟠 15-30 Hari (<span id="inv-count-15-30">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('gt30')" id="inv-filter-gt30" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-rose-600 dark:text-rose-400">🔴 &gt; 30 Hari (<span id="inv-count-gt30">0</span>)</button>
-                            <button type="button" onclick="setInvoiceAgingFilter('paid')" id="inv-filter-paid" class="px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-slate-500">Lunas (<span id="inv-count-paid">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('all')" id="inv-filter-all" class="px-3 py-1.5 rounded-lg border font-semibold transition bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm">Semua (<span id="inv-count-all">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('unpaid')" id="inv-filter-unpaid" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">Belum Lunas (<span id="inv-count-unpaid">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('0-7')" id="inv-filter-0-7" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">0-7 Hari (<span id="inv-count-0-7">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('8-14')" id="inv-filter-8-14" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">8-14 Hari (<span id="inv-count-8-14">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('15-30')" id="inv-filter-15-30" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80">15-30 Hari (<span id="inv-count-15-30">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('gt30')" id="inv-filter-gt30" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-rose-600 dark:text-rose-400">&gt; 30 Hari (<span id="inv-count-gt30">0</span>)</button>
+                            <button type="button" onclick="setInvoiceAgingFilter('paid')" id="inv-filter-paid" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-slate-500">Lunas (<span id="inv-count-paid">0</span>)</button>
                         </div>
 
                         <div class="overflow-x-auto max-h-[500px]">
@@ -616,32 +620,32 @@
 
                         <!-- 4 KPI SUMMARY CARDS -->
                         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                            <div class="p-4 rounded-xl border theme-card bg-amber-500/5 border-amber-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-box-open text-amber-500"></i> Antrean Klaim Agen
+                                    <i class="fa-solid fa-box-open text-slate-400"></i> Antrean Klaim Agen
                                 </span>
-                                <h4 class="text-xl font-bold text-amber-600 dark:text-amber-400" id="ret-kpi-pending-qty">0 pcs</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="ret-kpi-pending-qty">0 pcs</h4>
                                 <p class="text-[10px] opacity-60">Barang siap ditukar ke agen</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-indigo-500/5 border-indigo-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-wallet text-indigo-500"></i> Modal Tertahan di Agen
+                                    <i class="fa-solid fa-wallet text-slate-400"></i> Modal Tertahan di Agen
                                 </span>
-                                <h4 class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="ret-kpi-pending-cost">Rp 0</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="ret-kpi-pending-cost">Rp 0</h4>
                                 <p class="text-[10px] opacity-60">Estimasi nilai klaim supplier</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-rose-500/5 border-rose-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-receipt text-rose-500"></i> Nilai Retur Toko
+                                    <i class="fa-solid fa-receipt text-slate-400"></i> Nilai Retur Toko
                                 </span>
-                                <h4 class="text-xl font-bold text-rose-600 dark:text-rose-400" id="ret-kpi-total-val">Rp 0</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="ret-kpi-total-val">Rp 0</h4>
                                 <p class="text-[10px] opacity-60">Total potong nota pelanggan</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-emerald-500/5 border-emerald-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-circle-check text-emerald-500"></i> Klaim Selesai
+                                    <i class="fa-solid fa-circle-check text-slate-400"></i> Klaim Selesai
                                 </span>
-                                <h4 class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="ret-kpi-resolved-qty">0 pcs</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="ret-kpi-resolved-qty">0 pcs</h4>
                                 <p class="text-[10px] opacity-60">Berhasil ditukar / dipotong</p>
                             </div>
                         </div>
@@ -754,32 +758,32 @@
 
                         <!-- 4 KPI SUMMARY CARDS -->
                         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                            <div class="p-4 rounded-xl border theme-card bg-indigo-500/5 border-indigo-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-basket-shopping text-indigo-500"></i> Total Pesanan
+                                    <i class="fa-solid fa-basket-shopping text-slate-400"></i> Total Pesanan
                                 </span>
-                                <h4 class="text-xl font-bold text-indigo-600 dark:text-indigo-400" id="jastip-stat-orders">0 Pesanan</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="jastip-stat-orders">0 Pesanan</h4>
                                 <p class="text-[10px] opacity-60">Seluruh antrean order</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-amber-500/5 border-amber-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-shield-halved text-amber-500"></i> DP Terkumpul
+                                    <i class="fa-solid fa-shield-halved text-slate-400"></i> DP Terkumpul
                                 </span>
-                                <h4 class="text-xl font-bold text-amber-600 dark:text-amber-400" id="jastip-stat-dp">Rp 0</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="jastip-stat-dp">Rp 0</h4>
                                 <p class="text-[10px] opacity-60">Amankan cash flow modal</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-blue-500/5 border-blue-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-receipt text-blue-500"></i> Estimasi Omzet
+                                    <i class="fa-solid fa-receipt text-slate-400"></i> Estimasi Omzet
                                 </span>
-                                <h4 class="text-xl font-bold text-blue-600 dark:text-blue-400" id="jastip-stat-turnover">Rp 0</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="jastip-stat-turnover">Rp 0</h4>
                                 <p class="text-[10px] opacity-60">Total nilai jual katalog</p>
                             </div>
-                            <div class="p-4 rounded-xl border theme-card bg-emerald-500/5 border-emerald-500/20 space-y-1">
+                            <div class="p-4 rounded-xl border border-inherit theme-card space-y-1">
                                 <span class="text-[11px] font-semibold opacity-70 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Estimasi Laba Bersih
+                                    <i class="fa-solid fa-hand-holding-dollar text-slate-400"></i> Estimasi Laba Bersih
                                 </span>
-                                <h4 class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="jastip-stat-profit">Rp 0</h4>
+                                <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="jastip-stat-profit">Rp 0</h4>
                                 <p class="text-[10px] opacity-60">Fee jastip + profit selisih kurs</p>
                             </div>
                         </div>
@@ -788,14 +792,14 @@
                         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-2">
                             <!-- Status Filter Buttons -->
                             <div class="flex items-center gap-1.5 flex-wrap" id="jastip-status-filters">
-                                <button onclick="setJastipFilter('all')" id="jastip-filter-all" class="px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white shadow-sm">Semua</button>
-                                <button onclick="setJastipFilter('pre_order')" id="jastip-filter-pre_order" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Pre-Order (DP)</button>
-                                <button onclick="setJastipFilter('purchasing')" id="jastip-filter-purchasing" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Sedang Dibeli</button>
-                                <button onclick="setJastipFilter('transit')" id="jastip-filter-transit" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Transit / Pabean</button>
-                                <button onclick="setJastipFilter('ready_dispatch')" id="jastip-filter-ready_dispatch" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Siap Kirim / Pelunasan</button>
-                                <button onclick="setJastipFilter('completed')" id="jastip-filter-completed" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border">Selesai</button>
-                                <button onclick="setJastipFilter('out_of_stock')" id="jastip-filter-out_of_stock" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border text-rose-600 dark:text-rose-400">Stok Kosong</button>
-                                <button onclick="setJastipFilter('refunded')" id="jastip-filter-refunded" class="px-3 py-1.5 rounded-full text-xs font-semibold opacity-70 hover:opacity-100 theme-input border text-slate-500">DP Refund</button>
+                                <button onclick="setJastipFilter('all')" id="jastip-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow-sm transition-colors">Semua</button>
+                                <button onclick="setJastipFilter('pre_order')" id="jastip-filter-pre_order" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border transition-colors">Pre-Order (DP)</button>
+                                <button onclick="setJastipFilter('purchasing')" id="jastip-filter-purchasing" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border transition-colors">Sedang Dibeli</button>
+                                <button onclick="setJastipFilter('transit')" id="jastip-filter-transit" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border transition-colors">Transit / Pabean</button>
+                                <button onclick="setJastipFilter('ready_dispatch')" id="jastip-filter-ready_dispatch" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border transition-colors">Siap Kirim</button>
+                                <button onclick="setJastipFilter('completed')" id="jastip-filter-completed" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border transition-colors">Selesai</button>
+                                <button onclick="setJastipFilter('out_of_stock')" id="jastip-filter-out_of_stock" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border text-rose-600 dark:text-rose-400 transition-colors">Stok Kosong</button>
+                                <button onclick="setJastipFilter('refunded')" id="jastip-filter-refunded" class="px-3 py-1.5 rounded-lg text-xs font-medium opacity-70 hover:opacity-100 theme-input border text-slate-500 transition-colors">DP Refund</button>
                             </div>
 
                             <!-- Search Input -->
@@ -1302,7 +1306,7 @@
                     <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4" id="agent-performance-card">
                         <div class="flex justify-between items-center border-b border-inherit pb-3">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm shadow-sm">
+                                <div class="w-8 h-8 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                                     <i class="fa-solid fa-chart-line"></i>
                                 </div>
                                 <div>
@@ -1530,10 +1534,10 @@
 
     <!-- MODAL CATAT RETUR BARU -->
     <div id="modal-return" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
-        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border my-8">
+        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-lg space-y-4 border my-8">
             <div class="flex justify-between items-center border-b border-inherit pb-3">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-sm">
+                    <div class="w-8 h-8 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-arrow-rotate-left"></i>
                     </div>
                     <div>
@@ -1826,10 +1830,10 @@
 
     <!-- MODAL ORDER JASTIP (INTAKE / EDIT) -->
     <div id="modal-jastip-order" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
-        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-lg space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-inherit pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-9 h-9 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-shopping-bag"></i>
                     </div>
                     <div>
@@ -1838,7 +1842,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span id="jastip-generated-code" class="px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">JST-NEW</span>
+                    <span id="jastip-generated-code" class="px-2.5 py-1 rounded-lg font-mono text-xs font-semibold theme-input border text-slate-700 dark:text-slate-300">JST-NEW</span>
                     <button type="button" onclick="closeJastipOrderModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                         <i class="fa-solid fa-xmark text-base"></i>
                     </button>
@@ -2038,10 +2042,10 @@
 
     <!-- MODAL MODE BELANJA CEPAT DI LAPANGAN (IN-STORE CHECKLIST) -->
     <div id="modal-jastip-checklist" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
-        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] flex flex-col">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-lg space-y-4 border my-8 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-inherit pb-3 shrink-0">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-9 h-9 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-list-check"></i>
                     </div>
                     <div>
@@ -2084,10 +2088,10 @@
 
     <!-- MODAL PACKING LIST & KELAIKAN PABEAN BEA CUKAI (USD 500) -->
     <div id="modal-jastip-customs" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
-        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-lg space-y-4 border my-8 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-inherit pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-9 h-9 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-passport"></i>
                     </div>
                     <div>
@@ -2325,10 +2329,10 @@
 
     <!-- MODAL PENGATURAN SISTEM & PROFIL USAHA -->
     <div id="modal-settings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto" onclick="if(event.target === this) closeSettingsModal()">
-        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border my-8">
+        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-lg space-y-4 border my-8">
             <div class="flex justify-between items-center border-b border-inherit pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-8 h-8 rounded-lg border theme-input text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">
                         <i class="fa-solid fa-gear"></i>
                     </div>
                     <div>

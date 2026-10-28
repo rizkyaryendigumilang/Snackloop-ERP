@@ -279,19 +279,19 @@ function renderJastip() {
         // Badge Status Alur Jastip
         let statusBadge = '';
         if (item.status === 'pre_order') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"><i class="fa-solid fa-clock mr-1"></i>Pre-Order (DP)</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Pre-Order (DP)</span>`;
         } else if (item.status === 'purchasing') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"><i class="fa-solid fa-basket-shopping mr-1"></i>Sedang Dibeli</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900">Sedang Dibeli</span>`;
         } else if (item.status === 'transit') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20"><i class="fa-solid fa-plane-arrival mr-1"></i>Transit / Pabean</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900">Transit / Pabean</span>`;
         } else if (item.status === 'ready_dispatch') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"><i class="fa-solid fa-box-open mr-1"></i>Siap Kirim / Pelunasan</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900">Siap Kirim</span>`;
         } else if (item.status === 'completed') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-check-double mr-1"></i>Selesai</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">Selesai</span>`;
         } else if (item.status === 'out_of_stock') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Stok Kosong</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">Stok Kosong</span>`;
         } else if (item.status === 'refunded') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20"><i class="fa-solid fa-arrow-rotate-left mr-1"></i>DP Dikembalikan</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium theme-input text-slate-600 dark:text-slate-400 border">DP Dikembalikan</span>`;
         }
 
         // Badge Status DP / Pelunasan
@@ -488,21 +488,21 @@ function copyJastipBroadcastTemplate() {
     const priceValas = document.getElementById('calc-price-valas')?.value || '0';
     const sellPrice = document.getElementById('calc-out-price')?.innerText || 'Rp 0';
 
-    const text = `🌸 *OPEN JASTIP ${rateInfo.name.toUpperCase()}* 🌸\n` +
-                 `━━━━━━━━━━━━━━━━━━━━\n` +
-                 `🛍️ *Produk:* [Nama Produk / Varian]\n` +
-                 `🏷️ *Harga Asli Toko:* ${rateInfo.symbol} ${priceValas}\n` +
-                 `💵 *Harga Jastip All-In:* ${sellPrice} / pcs\n` +
-                 `📌 *Sistem:* Pre-Order (Wajib DP min. 50%)\n` +
-                 `✈️ *Estimasi Tiba:* [Tanggal / Minggu Depan]\n` +
-                 `📦 *Pengiriman:* JNE / J&T / Gojek Instant\n` +
-                 `━━━━━━━━━━━━━━━━━━━━\n` +
-                 `📝 *Format Pemesanan:*\n` +
-                 `Nama:\n` +
-                 `No. WhatsApp:\n` +
-                 `Alamat Lengkap:\n` +
-                 `Pesanan & Jumlah:\n\n` +
-                 `💬 Kirim format pesanan via WhatsApp SnackLoop: https://wa.me/628123456789`;
+    const text = `*OPEN JASTIP ${rateInfo.name.toUpperCase()}*\n` +
+                 `-----------------------------------------\n` +
+                 `• Produk: [Nama Produk / Varian]\n` +
+                 `• Harga Toko: ${rateInfo.symbol} ${priceValas}\n` +
+                 `• Harga Jastip: ${sellPrice} / pcs (All-in)\n` +
+                 `• Sistem: Pre-Order (DP min. 50%)\n` +
+                 `• Estimasi Tiba: [Tanggal / Minggu Depan]\n` +
+                 `• Ekspedisi: JNE / J&T / Instant\n` +
+                 `-----------------------------------------\n` +
+                 `Format Pemesanan:\n` +
+                 `• Nama:\n` +
+                 `• No. WhatsApp:\n` +
+                 `• Alamat Lengkap:\n` +
+                 `• Pesanan & Jumlah:\n\n` +
+                 `Kirimkan format pemesanan via WhatsApp SnackLoop: https://wa.me/628123456789`;
 
     navigator.clipboard.writeText(text).then(() => {
         showNotification("Disalin!", "Format broadcast promosi berhasil disalin ke clipboard.", "success");
@@ -899,29 +899,29 @@ function shareJastipInvoiceWA(id) {
     let message = '';
 
     if (item.tracking_number) {
-        message = `Halo Kak *${item.customer_name}*, paket pesanan Jastip Kakak sudah *DIKIRIM*! 🚀\n\n` +
-                  `📦 *Barang:* ${item.item_name} (${item.item_qty} pcs)\n` +
-                  `🚚 *Kurir:* ${item.delivery_courier || 'JNE/J&T'}\n` +
-                  `🏷️ *Nomor Resi:* *${item.tracking_number}*\n` +
-                  `📍 *Alamat:* ${item.customer_address || '-'}\n\n` +
-                  `Kakak bisa memantau status perjalanan paket melalui website resmi ekspedisi terkait. Terima kasih telah berbelanja jastip di *${bizName}*!`;
+        message = `Halo Kak *${item.customer_name}*, paket pesanan Jastip Anda telah dikirim.\n\n` +
+                  `• Barang: ${item.item_name} (${item.item_qty} pcs)\n` +
+                  `• Kurir: ${item.delivery_courier || 'JNE/J&T'}\n` +
+                  `• No. Resi: *${item.tracking_number}*\n` +
+                  `• Alamat: ${item.customer_address || '-'}\n\n` +
+                  `Anda dapat memantau status pengiriman melalui website resmi kurir terkait. Terima kasih telah berbelanja di *${bizName}*.`;
     } else if (isLunas) {
-        message = `Halo Kak *${item.customer_name}*, pesanan Jastip Kakak sudah *LUNAS*!\n\n` +
-                  `📦 *Rincian Pesanan:* ${item.item_name} (${item.item_qty} pcs)\n` +
-                  `💰 *Total:* Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
-                  `🚚 *Kurir:* ${item.delivery_courier || 'JNE/J&T'}\n` +
-                  `📍 *Alamat:* ${item.customer_address || '-'}\n` +
-                  `📌 *Status:* ${item.status.toUpperCase()}\n\n` +
-                  `Pesanan sedang kami siapkan untuk proses pengiriman. Terima kasih atas kepercayaannya pada *${bizName}*!`;
+        message = `Halo Kak *${item.customer_name}*, pembayaran pesanan Jastip Anda telah lunas.\n\n` +
+                  `• Rincian: ${item.item_name} (${item.item_qty} pcs)\n` +
+                  `• Total: Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
+                  `• Kurir: ${item.delivery_courier || 'JNE/J&T'}\n` +
+                  `• Alamat: ${item.customer_address || '-'}\n` +
+                  `• Status: ${item.status.toUpperCase()}\n\n` +
+                  `Pesanan sedang dipersiapkan untuk pengiriman. Terima kasih atas kepercayaan Anda pada *${bizName}*.`;
     } else {
-        message = `Halo Kak *${item.customer_name}*, terima kasih telah memesan di *${bizName}*!\n\n` +
-                  `📋 *Tagihan Pesanan Jastip:* ${item.id}\n` +
-                  `🛍️ *Barang:* ${item.item_name} (${item.item_variant || '-'}) x ${item.item_qty} pcs\n` +
-                  `💵 *Total Tagihan:* Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
-                  `✅ *DP Diterima:* Rp ${(item.dp_amount || 0).toLocaleString()}\n` +
-                  `⚠️ *Sisa Pelunasan:* *Rp ${(item.remaining_payment || 0).toLocaleString()}*\n\n` +
-                  `💳 *Pembayaran via Transfer:*\n${bankAccount}\n\n` +
-                  `Silakan kirim bukti transfer pelunasan ke nomor ini agar barang bisa segera diproses kirim ke alamat Kakak. Terima kasih!`;
+        message = `Halo Kak *${item.customer_name}*, terima kasih telah memesan di *${bizName}*.\n\n` +
+                  `• No. Pesanan Jastip: ${item.id}\n` +
+                  `• Barang: ${item.item_name} (${item.item_variant || '-'}) x ${item.item_qty} pcs\n` +
+                  `• Total Tagihan: Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
+                  `• DP Diterima: Rp ${(item.dp_amount || 0).toLocaleString()}\n` +
+                  `• Sisa Pelunasan: *Rp ${(item.remaining_payment || 0).toLocaleString()}*\n\n` +
+                  `Rekening Pembayaran:\n${bankAccount}\n\n` +
+                  `Mohon kirimkan bukti transfer pelunasan agar pesanan dapat segera diproses untuk pengiriman. Terima kasih.`;
     }
 
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
@@ -938,9 +938,9 @@ function shareJastipRefundWA(id) {
     const appSettings = typeof loadAppSettings === 'function' ? loadAppSettings() : {};
     const bizName = appSettings.businessName || 'SnackLoop Personal Shopper';
 
-    const message = `Halo Kak *${item.customer_name}*, mohon maaf sekali untuk pesanan Jastip *${item.item_name}* (${item.item_variant || '-'}), setelah tim kami cek di toko lapangan, stoknya sedang habis/kosong 😢.\n\n` +
-                    `Sesuai komitmen dan garansi amanah *${bizName}*, uang muka (DP) sebesar *Rp ${(item.dp_amount || 0).toLocaleString()}* akan kami kembalikan 100% tanpa potongan sepeserpun.\n\n` +
-                    `Mohon informasikan no rekening / e-wallet Kakak (Nama Bank & Atas Nama) agar dana DP dapat segera kami transfer balik hari ini. Terima kasih banyak atas pengertiannya ya Kak! 🙏`;
+    const message = `Halo Kak *${item.customer_name}*, kami menginformasikan perihal pesanan Jastip *${item.item_name}* (${item.item_variant || '-'}), stok di toko sedang habis.\n\n` +
+                    `Sesuai jaminan layanan *${bizName}*, dana DP sebesar *Rp ${(item.dp_amount || 0).toLocaleString()}* akan kami kembalikan 100% tanpa potongan.\n\n` +
+                    `Mohon informasikan nomor rekening atau e-wallet (Nama Bank & Nama Pemilik) agar pengembalian dana DP dapat kami proses hari ini. Terima kasih atas pengertiannya.`;
 
     item.status = 'refunded';
     saveJastipToLocal();
@@ -1105,7 +1105,7 @@ function renderJastipChecklist() {
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     ${items.map(it => `
-                        <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-500/10 border-emerald-500/40 shadow-sm' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-all duration-200">
+                        <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-colors">
                             <div class="space-y-1">
                                 <div class="font-bold text-xs flex items-center gap-1.5 ${it.is_purchased ? 'line-through opacity-70 text-emerald-700 dark:text-emerald-400' : ''}">
                                     ${it.is_purchased ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : ''}
@@ -1114,13 +1114,13 @@ function renderJastipChecklist() {
                                 <div class="text-[11px] opacity-70">
                                     Varian: <strong>${it.item_variant || '-'}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
                                 </div>
-                                <div class="text-[10px] font-mono font-semibold">
+                                <div class="text-[10px] tabular-nums font-semibold">
                                     Target: ${rateInfo.symbol} ${(it.price_valas || 0).toLocaleString()} / pcs
                                 </div>
-                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400 font-mono"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
+                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
                                 ${it.notes ? `<div class="text-[9px] italic opacity-60">"${it.notes}"</div>` : ''}
                             </div>
-                            <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-all duration-200 shadow-sm active:scale-90 flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
+                            <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
                                 ${it.is_purchased ? '<i class="fa-solid fa-check"></i> <span>Terbeli</span>' : '<i class="fa-solid fa-plus"></i> <span>Ambil</span>'}
                             </button>
                         </div>

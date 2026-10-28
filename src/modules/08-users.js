@@ -5,11 +5,11 @@ async function renderUsers() {
     const rows = userData.map((u) => {
         const deleteBtn = (u.username === 'admin' || u.username === 'admin_kiky') ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
         
-        let roleBadge = `<span class="px-2.5 py-1 bg-slate-500/15 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-bold border border-slate-500/30"><i class="fa-solid fa-eye mr-1"></i>Viewer</span>`;
+        let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
-            roleBadge = `<span class="px-2.5 py-1 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-500/30"><i class="fa-solid fa-crown mr-1 text-amber-500"></i>Owner (Super Admin)</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300">Owner (Super Admin)</span>`;
         } else if (u.role === 'staff_rekap') {
-            roleBadge = `<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-bold border border-emerald-500/30"><i class="fa-solid fa-cash-register mr-1"></i>Staff Rekap / Kasir</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap / Kasir</span>`;
         }
 
         return `

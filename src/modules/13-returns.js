@@ -85,16 +85,16 @@ function renderReturns() {
     const rows = list.map(r => {
         const isMenunggu = r.claim_status === 'menunggu_agen';
         const statusBadge = isMenunggu ?
-            `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"><i class="fa-solid fa-clock text-[9px]"></i> Menunggu Agen</span>` :
-            `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-check text-[9px]"></i> Selesai Klaim</span>`;
+            `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Menunggu Agen</span>` :
+            `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">Selesai Klaim</span>`;
 
         let actionLabel = '';
         if (r.action_type === 'tukar_guling') {
-            actionLabel = `<span class="font-semibold text-indigo-600 dark:text-indigo-400">Tukar Guling</span><br><span class="text-[9px] opacity-60">Ganti Fisik Baru</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Tukar Guling</span><br><span class="text-[10px] opacity-60">Ganti Fisik Baru</span>`;
         } else if (r.action_type === 'potong_tagihan') {
-            actionLabel = `<span class="font-semibold text-rose-600 dark:text-rose-400">Potong Nota</span><br><span class="text-[9px] opacity-60">Kredit Saldo</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Potong Nota</span><br><span class="text-[10px] opacity-60">Kredit Saldo</span>`;
         } else {
-            actionLabel = `<span class="font-semibold text-amber-600 dark:text-amber-400">Beban Toko</span><br><span class="text-[9px] opacity-60">Write-Off Rugi</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Beban Toko</span><br><span class="text-[10px] opacity-60">Write-Off Rugi</span>`;
         }
 
         const resolveBtn = isMenunggu ?

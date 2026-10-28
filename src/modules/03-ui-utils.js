@@ -6,23 +6,22 @@ function showNotification(title, message, type = 'success') {
         return;
     }
 
-    let borderColor = 'border-emerald-500';
-    let iconClass = 'fa-solid fa-circle-check text-emerald-500';
-    if (type === 'info') { borderColor = 'border-blue-500'; iconClass = 'fa-solid fa-circle-info text-blue-500'; }
-    if (type === 'warning') { borderColor = 'border-amber-500'; iconClass = 'fa-solid fa-triangle-exclamation text-amber-500'; }
-    if (type === 'error') { borderColor = 'border-rose-500'; iconClass = 'fa-solid fa-circle-xmark text-rose-500'; }
+    let iconClass = 'fa-solid fa-circle-check text-emerald-600 dark:text-emerald-400';
+    if (type === 'info') { iconClass = 'fa-solid fa-circle-info text-indigo-600 dark:text-indigo-400'; }
+    if (type === 'warning') { iconClass = 'fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400'; }
+    if (type === 'error') { iconClass = 'fa-solid fa-circle-xmark text-rose-600 dark:text-rose-400'; }
 
     const toast = document.createElement('div');
-    toast.className = `pointer-events-auto theme-card rounded-lg shadow-xl border border-l-4 ${borderColor} p-4 flex items-start justify-between gap-3 transform translate-x-10 opacity-0 transition-all duration-300 ease-out z-[99999] w-full`;
+    toast.className = `pointer-events-auto theme-card rounded-xl shadow-md border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-all duration-200 ease-out z-[99999] w-full`;
     toast.innerHTML = `
-        <div class="flex items-start gap-3">
-            <i class="${iconClass} text-lg mt-0.5"></i>
+        <div class="flex items-start gap-2.5">
+            <i class="${iconClass} text-base mt-0.5 shrink-0"></i>
             <div>
-                <h4 class="text-xs font-bold">${title}</h4>
-                <p class="text-xs opacity-70 mt-0.5">${message}</p>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${title}</h4>
+                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${message}</p>
             </div>
         </div>
-        <button onclick="this.closest('div').parentElement.remove()" class="opacity-60 hover:opacity-100 text-sm font-bold">&times;</button>
+        <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0">&times;</button>
     `;
 
     container.appendChild(toast);

@@ -68,39 +68,37 @@ function renderAgentPerformanceOverview() {
         const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
 
         return `
-            <div class="theme-card rounded-xl border p-4 shadow-sm hover:shadow-md transition space-y-3">
+            <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex justify-between items-start">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
-                            <i class="fa-solid fa-truck-ramp-box"></i>
-                        </div>
+                        <i class="fa-solid fa-truck-ramp-box text-slate-400 text-sm"></i>
                         <div>
-                            <h4 class="font-bold text-xs">${ag.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${ag.name}</h4>
                             <span class="text-[10px] opacity-60">ID Agen: #${ag.id}</span>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                        ${stat.transactionCount} Penjualan
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        ${stat.transactionCount} penjualan
                     </span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
                         <span class="opacity-60 block text-[10px]">Total Terjual</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">${stat.totalSoldQty.toLocaleString()} pcs</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">${stat.totalSoldQty.toLocaleString()} pcs</span>
                     </div>
                     <div>
                         <span class="opacity-60 block text-[10px]">Omzet Pasokan</span>
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${stat.totalRevenue.toLocaleString()}</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${stat.totalRevenue.toLocaleString()}</span>
                     </div>
                 </div>
                 <div class="text-[11px] opacity-75 truncate">
-                    <span class="opacity-60 text-[10px] block">Snack Terlaris dari Agen:</span>
-                    <span class="font-semibold text-indigo-500">${bestItem}</span>
+                    <span class="opacity-60 text-[10px] block">Snack Terlaris:</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${bestItem}</span>
                 </div>
                 <div class="pt-2 border-t border-inherit flex justify-between items-center gap-2">
-                    <span class="text-[10px] text-slate-500 font-mono">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
-                    <button type="button" onclick="window.open('https://wa.me/?text=${waMsg}', '_blank')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm">
-                        <i class="fa-brands fa-whatsapp"></i> Chat Supplier
+                    <span class="text-[10px] text-slate-500 tabular-nums">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
+                    <button type="button" onclick="window.open('https://wa.me/?text=${waMsg}', '_blank')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                        <i class="fa-brands fa-whatsapp text-emerald-500"></i> Kontak
                     </button>
                 </div>
             </div>`;

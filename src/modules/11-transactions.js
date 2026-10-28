@@ -218,9 +218,9 @@ function setInvoiceAgingFilter(filterKey) {
         const btn = document.getElementById(`inv-filter-${btnKey}`);
         if(btn) {
             if(btnKey === filterKey) {
-                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition bg-indigo-600 text-white shadow-sm";
+                btn.className = "px-3 py-1.5 rounded-lg border font-semibold transition bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm";
             } else {
-                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80";
+                btn.className = "px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80";
             }
         }
     });
@@ -333,44 +333,44 @@ function renderInvoiceAgingCards() {
     if (!container) return;
 
     container.innerHTML = `
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 bg-gradient-to-br from-indigo-50/50 to-indigo-100/30 dark:from-indigo-950/20 dark:to-slate-900 border-indigo-200 dark:border-indigo-900/60">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
             <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                <i class="fa-solid fa-coins"></i> Total Piutang Aktif
+                Total Piutang Aktif
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400">Rp ${totalUnpaid.toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">Rp ${totalUnpaid.toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${countUnpaid} Invoice Belum Lunas</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 0-7 Hari (Lancar)
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-600"></span> 0-7 Hari (Lancar)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">Rp ${amounts['0-7'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['0-7'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['0-7']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span> 8-14 Hari (Perhatian)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400">Rp ${amounts['8-14'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['8-14'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['8-14']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-orange-200 dark:border-orange-900/60 bg-orange-50/30 dark:bg-orange-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span class="w-2 h-2 rounded-full bg-orange-500"></span> 15-30 Hari (Tempo)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-orange-600 dark:text-orange-400">Rp ${amounts['15-30'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['15-30'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['15-30']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-rose-300 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/30 col-span-2 sm:col-span-1">
+        <div class="theme-card rounded-xl border border-rose-200 dark:border-rose-950 p-3.5 space-y-1 col-span-2 sm:col-span-1">
             <span class="text-[10px] font-bold uppercase opacity-80 flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> > 30 Hari (Macet)
+                <span class="w-2 h-2 rounded-full bg-rose-600"></span> > 30 Hari (Macet)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400">Rp ${amounts['gt30'].toLocaleString()}</h4>
-            <span class="text-[10px] font-bold text-rose-500">${counts['gt30']} Invoice Kritis</span>
+            <h4 class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400 tabular-nums">Rp ${amounts['gt30'].toLocaleString()}</h4>
+            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400">${counts['gt30']} Invoice Kritis</span>
         </div>
     `;
 }
@@ -464,12 +464,12 @@ function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, status
         msg = `*FAKTUR LUNAS (KWITANSI RESMI)* - ${biz}\n` +
               `-----------------------------------------\n` +
               `Yth. Kak *${custName}*,\n\n` +
-              `Terima kasih! Pembayaran untuk transaksi:\n` +
-              `📄 No. Faktur : *${invNumber}*\n` +
-              `📅 Tanggal    : *${invDate}*\n` +
-              `💰 Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
-              `✅ Status     : *LUNAS*\n\n` +
-              `Telah kami terima dengan baik. Senang berbisnis dengan Anda! 🙏✨`;
+              `Terima kasih. Pembayaran untuk transaksi berikut telah kami terima:\n` +
+              `• No. Faktur : *${invNumber}*\n` +
+              `• Tanggal    : *${invDate}*\n` +
+              `• Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
+              `• Status     : *LUNAS*\n\n` +
+              `Pembayaran telah tercatat di sistem kami. Terima kasih atas kerjasamanya.`;
     } else {
         const today = new Date();
         today.setHours(0,0,0,0);
@@ -478,33 +478,33 @@ function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, status
         const days = Math.max(0, Math.floor((today - d) / (1000 * 60 * 60 * 24)));
 
         if (days <= 7) {
-            msg = `Halo Kak *${custName}*! 👋 Salam dari *${biz}*.\n\n` +
+            msg = `Halo Kak *${custName}*, salam dari *${biz}*.\n\n` +
                   `Berikut adalah rincian nota pesanan snack Anda:\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}*\n` +
-                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}*\n` +
+                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
                   `Pembayaran dapat ditransfer ke rekening resmi kami:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Semoga snack dagangannya laris manis ya Kak! Terima kasih banyak. 🙏`;
+                  `*${bank}*\n\n` +
+                  `Mohon konfirmasi jika pembayaran telah dilakukan. Terima kasih.`;
         } else if (days <= 14) {
-            msg = `Halo Kak *${custName}*! 🙏 Semoga usahanya selalu lancar.\n\n` +
+            msg = `Halo Kak *${custName}*, semoga usaha Anda berjalan lancar.\n\n` +
                   `Kami mengonfirmasi bahwa nota pesanan SnackLoop berikut:\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}* (sudah berjalan *${days} hari*)\n` +
-                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
-                  `Jika snack di toko/warung sudah laku terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Mohon kirimkan bukti transfer ke nomor ini ya Kak. Terima kasih banyak atas kerjasamanya! 😊`;
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}* (${days} hari berjalan)\n` +
+                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Jika snack di toko/warung sudah terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
+                  `*${bank}*\n\n` +
+                  `Mohon kirimkan bukti transfer ke nomor ini. Terima kasih atas kerjasamanya.`;
         } else {
-            msg = `*PEMBERITAHUAN JATUH TEMPO / REMINDER RESMI* ⚠️\n` +
+            msg = `*PEMBERITAHUAN JATUH TEMPO* - ${biz}\n` +
                   `Kepada Yth. Kak *${custName}*,\n\n` +
-                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (*${days} hari tertunggak*):\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}*\n` +
-                  `💰 Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (${days} hari tertunggak):\n` +
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}*\n` +
+                  `• Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
                   `Mohon segera melakukan pelunasan ke rekening resmi kami:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan buku kas dan pengiriman order berikutnya berjalan lancar. Terima kasih atas pengertian dan kerjasamanya. 🙏`;
+                  `*${bank}*\n\n` +
+                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan administrasi dan pengiriman order berikutnya berjalan lancar. Terima kasih atas perhatiannya.`;
         }
     }
 
@@ -581,28 +581,20 @@ function renderCustomerLeaderboard() {
 
     const cards = ranked.map((cust, idx) => {
         let rankBadge = '';
-        let borderClass = 'border-inherit';
-        let bgGlow = '';
         let tierTitle = '';
 
         if (idx === 0) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-extrabold text-sm shadow-md">🥇</span>`;
-            borderClass = 'border-amber-400/60 dark:border-amber-500/40';
-            bgGlow = 'bg-amber-500/5 dark:bg-amber-500/10';
-            tierTitle = 'Platinum Partner';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-bold text-xs">1</span>`;
+            tierTitle = 'Mitra Utama';
         } else if (idx === 1) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-extrabold text-sm shadow-md">🥈</span>`;
-            borderClass = 'border-slate-300/70 dark:border-slate-600/60';
-            bgGlow = 'bg-slate-400/5 dark:bg-slate-400/10';
-            tierTitle = 'Gold Reseller';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-xs">2</span>`;
+            tierTitle = 'Mitra Gold';
         } else if (idx === 2) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-700 text-amber-100 flex items-center justify-center font-extrabold text-sm shadow-md">🥉</span>`;
-            borderClass = 'border-amber-700/50 dark:border-amber-700/40';
-            bgGlow = 'bg-amber-700/5 dark:bg-amber-700/10';
-            tierTitle = 'Silver Partner';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300 flex items-center justify-center font-bold text-xs">3</span>`;
+            tierTitle = 'Mitra Silver';
         } else {
-            rankBadge = `<span class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-200 dark:border-indigo-800">#${idx + 1}</span>`;
-            tierTitle = 'Star Reseller';
+            rankBadge = `<span class="w-6 h-6 rounded-md border border-inherit text-slate-500 flex items-center justify-center font-semibold text-xs">${idx + 1}</span>`;
+            tierTitle = 'Mitra Reguler';
         }
 
         // Cari produk favorit pelanggan
@@ -616,40 +608,40 @@ function renderCustomerLeaderboard() {
         }
 
         return `
-            <div class="theme-card rounded-2xl border ${borderClass} ${bgGlow} p-4 shadow-sm hover:shadow-md transition space-y-3">
+            <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-2">
                         ${rankBadge}
                         <div>
                             <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${cust.name}</h4>
-                            <span class="text-[10px] font-bold text-indigo-500 uppercase">${tierTitle}</span>
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
-                        ${cust.orderCount}x Order
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">
+                        ${cust.orderCount} pesanan
                     </span>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Omzet Belanja</span>
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${cust.totalSpent.toLocaleString()}</span>
+                        <span class="opacity-60 block text-[10px]">Total Belanja</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${cust.totalSpent.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Produk</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">${cust.totalQty.toLocaleString()} pcs</span>
+                        <span class="opacity-60 block text-[10px]">Volume Produk</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">${cust.totalQty.toLocaleString()} pcs</span>
                     </div>
                 </div>
 
                 <div class="text-[11px] opacity-75 truncate">
-                    <span class="opacity-60 text-[10px] block">Snack Favorit:</span>
-                    <span class="font-semibold text-indigo-500 truncate block">${favoriteItem}</span>
+                    <span class="opacity-60 text-[10px] block">Snack Paling Sering:</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${favoriteItem}</span>
                 </div>
 
                 <div class="pt-2 border-t border-inherit flex items-center justify-between">
-                    <span class="text-[10px] opacity-50 font-mono">Order Terakhir: ${cust.lastDate || '-'}</span>
-                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition">
-                        <i class="fa-brands fa-whatsapp"></i> Apresiasi Mitra
+                    <span class="text-[10px] opacity-50">Terakhir: ${cust.lastDate || '-'}</span>
+                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                        <i class="fa-brands fa-whatsapp text-emerald-500"></i> Hubungi
                     </button>
                 </div>
             </div>`;
@@ -666,11 +658,9 @@ function sendCustomerRewardWA(cName, totalSpent, orderCount) {
     if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
 
     const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
-    const msg = `Halo Kak *${cName}*! 👋 Salam hangat dari *${biz}*.\n\n` +
-          `Kami ingin mengucapkan terima kasih atas kesetiaannya menjadi *Mitra Reseller Terbaik* kami! 🏆\n` +
-          `Hingga saat ini, total pesanan Kakak telah mencapai *Rp ${Number(totalSpent).toLocaleString()}* dari *${orderCount} kali order*.\n\n` +
-          `Sebagai bentuk apresiasi, kami siapkan kuota harga spesial dan prioritas stok snack untuk order berikutnya ya Kak! 🎁🍪\n` +
-          `Kapan rencana re-stock berikutnya? Kami siap bantu siapkan pengirimannya. Terima kasih banyak! 🙏✨`;
+    const msg = `Halo Kak ${cName}, terima kasih atas kemitraannya dengan ${biz}.\n\n` +
+          `Total pesanan Kakak telah mencapai Rp ${Number(totalSpent).toLocaleString()} dari ${orderCount} transaksi.\n\n` +
+          `Kami siap memberikan penawaran harga terbaik dan prioritas alokasi stok untuk pengiriman berikutnya. Jika ada kebutuhan re-stock dalam waktu dekat, silakan hubungi kami. Terima kasih banyak.`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }

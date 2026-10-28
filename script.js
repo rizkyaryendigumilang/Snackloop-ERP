@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-10-28T06:52:04.205Z from 17 source modules in src/modules/
+// Generated on 2026-10-28T07:12:57.422Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -310,23 +310,22 @@ function showNotification(title, message, type = 'success') {
         return;
     }
 
-    let borderColor = 'border-emerald-500';
-    let iconClass = 'fa-solid fa-circle-check text-emerald-500';
-    if (type === 'info') { borderColor = 'border-blue-500'; iconClass = 'fa-solid fa-circle-info text-blue-500'; }
-    if (type === 'warning') { borderColor = 'border-amber-500'; iconClass = 'fa-solid fa-triangle-exclamation text-amber-500'; }
-    if (type === 'error') { borderColor = 'border-rose-500'; iconClass = 'fa-solid fa-circle-xmark text-rose-500'; }
+    let iconClass = 'fa-solid fa-circle-check text-emerald-600 dark:text-emerald-400';
+    if (type === 'info') { iconClass = 'fa-solid fa-circle-info text-indigo-600 dark:text-indigo-400'; }
+    if (type === 'warning') { iconClass = 'fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400'; }
+    if (type === 'error') { iconClass = 'fa-solid fa-circle-xmark text-rose-600 dark:text-rose-400'; }
 
     const toast = document.createElement('div');
-    toast.className = `pointer-events-auto theme-card rounded-lg shadow-xl border border-l-4 ${borderColor} p-4 flex items-start justify-between gap-3 transform translate-x-10 opacity-0 transition-all duration-300 ease-out z-[99999] w-full`;
+    toast.className = `pointer-events-auto theme-card rounded-xl shadow-md border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-all duration-200 ease-out z-[99999] w-full`;
     toast.innerHTML = `
-        <div class="flex items-start gap-3">
-            <i class="${iconClass} text-lg mt-0.5"></i>
+        <div class="flex items-start gap-2.5">
+            <i class="${iconClass} text-base mt-0.5 shrink-0"></i>
             <div>
-                <h4 class="text-xs font-bold">${title}</h4>
-                <p class="text-xs opacity-70 mt-0.5">${message}</p>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${title}</h4>
+                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${message}</p>
             </div>
         </div>
-        <button onclick="this.closest('div').parentElement.remove()" class="opacity-60 hover:opacity-100 text-sm font-bold">&times;</button>
+        <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0">&times;</button>
     `;
 
     container.appendChild(toast);
@@ -537,16 +536,16 @@ function updateNetworkStatus() {
         badgeEl.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin text-xs text-indigo-500"></i><span id="sync-status-text" class="hidden">Syncing</span>`;
         if (container) container.setAttribute('title', `Menyinkronkan ${count} data ke database cloud...`);
     } else if (!online) {
-        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 shadow-sm cursor-pointer";
-        badgeEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span><span id="sync-status-text" class="hidden">Offline</span>`;
+        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 shadow-sm cursor-pointer";
+        badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span><span id="sync-status-text" class="hidden">Offline</span>`;
         if (container) container.setAttribute('title', `Status: Offline (${count} data tersimpan lokal)`);
     } else if (count > 0) {
-        badgeEl.className = "relative w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 shadow-sm cursor-pointer hover:bg-amber-100 transition";
-        badgeEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span><span class="absolute -top-1 -right-1 bg-amber-600 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">${count}</span><span id="sync-status-text" class="hidden">Pending</span>`;
+        badgeEl.className = "relative w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 shadow-sm cursor-pointer hover:bg-amber-100 transition-colors";
+        badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="absolute -top-1 -right-1 bg-amber-600 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">${count}</span><span id="sync-status-text" class="hidden">Pending</span>`;
         if (container) container.setAttribute('title', `Ada ${count} data tertunda sinkronisasi. Klik untuk kirim.`);
     } else {
-        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm cursor-pointer hover:scale-105 transition-all";
-        badgeEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span><span id="sync-status-text" class="hidden">Online</span>`;
+        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-slate-50 text-emerald-700 border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800 shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
+        badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-600"></span><span id="sync-status-text" class="hidden">Online</span>`;
         if (container) container.setAttribute('title', "Status: Online - Terhubung dengan Database");
     }
 }
@@ -1516,39 +1515,37 @@ function renderAgentPerformanceOverview() {
         const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
 
         return `
-            <div class="theme-card rounded-xl border p-4 shadow-sm hover:shadow-md transition space-y-3">
+            <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex justify-between items-start">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
-                            <i class="fa-solid fa-truck-ramp-box"></i>
-                        </div>
+                        <i class="fa-solid fa-truck-ramp-box text-slate-400 text-sm"></i>
                         <div>
-                            <h4 class="font-bold text-xs">${ag.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${ag.name}</h4>
                             <span class="text-[10px] opacity-60">ID Agen: #${ag.id}</span>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                        ${stat.transactionCount} Penjualan
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        ${stat.transactionCount} penjualan
                     </span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
                         <span class="opacity-60 block text-[10px]">Total Terjual</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">${stat.totalSoldQty.toLocaleString()} pcs</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">${stat.totalSoldQty.toLocaleString()} pcs</span>
                     </div>
                     <div>
                         <span class="opacity-60 block text-[10px]">Omzet Pasokan</span>
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${stat.totalRevenue.toLocaleString()}</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${stat.totalRevenue.toLocaleString()}</span>
                     </div>
                 </div>
                 <div class="text-[11px] opacity-75 truncate">
-                    <span class="opacity-60 text-[10px] block">Snack Terlaris dari Agen:</span>
-                    <span class="font-semibold text-indigo-500">${bestItem}</span>
+                    <span class="opacity-60 text-[10px] block">Snack Terlaris:</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${bestItem}</span>
                 </div>
                 <div class="pt-2 border-t border-inherit flex justify-between items-center gap-2">
-                    <span class="text-[10px] text-slate-500 font-mono">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
-                    <button type="button" onclick="window.open('https://wa.me/?text=${waMsg}', '_blank')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm">
-                        <i class="fa-brands fa-whatsapp"></i> Chat Supplier
+                    <span class="text-[10px] text-slate-500 tabular-nums">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
+                    <button type="button" onclick="window.open('https://wa.me/?text=${waMsg}', '_blank')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                        <i class="fa-brands fa-whatsapp text-emerald-500"></i> Kontak
                     </button>
                 </div>
             </div>`;
@@ -1627,11 +1624,11 @@ async function renderUsers() {
     const rows = userData.map((u) => {
         const deleteBtn = (u.username === 'admin' || u.username === 'admin_kiky') ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
         
-        let roleBadge = `<span class="px-2.5 py-1 bg-slate-500/15 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-bold border border-slate-500/30"><i class="fa-solid fa-eye mr-1"></i>Viewer</span>`;
+        let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
-            roleBadge = `<span class="px-2.5 py-1 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-500/30"><i class="fa-solid fa-crown mr-1 text-amber-500"></i>Owner (Super Admin)</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300">Owner (Super Admin)</span>`;
         } else if (u.role === 'staff_rekap') {
-            roleBadge = `<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-bold border border-emerald-500/30"><i class="fa-solid fa-cash-register mr-1"></i>Staff Rekap / Kasir</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap / Kasir</span>`;
         }
 
         return `
@@ -2317,9 +2314,9 @@ function setInvoiceAgingFilter(filterKey) {
         const btn = document.getElementById(`inv-filter-${btnKey}`);
         if(btn) {
             if(btnKey === filterKey) {
-                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition bg-indigo-600 text-white shadow-sm";
+                btn.className = "px-3 py-1.5 rounded-lg border font-semibold transition bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm";
             } else {
-                btn.className = "px-3 py-1.5 rounded-xl border font-bold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80";
+                btn.className = "px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80";
             }
         }
     });
@@ -2432,44 +2429,44 @@ function renderInvoiceAgingCards() {
     if (!container) return;
 
     container.innerHTML = `
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 bg-gradient-to-br from-indigo-50/50 to-indigo-100/30 dark:from-indigo-950/20 dark:to-slate-900 border-indigo-200 dark:border-indigo-900/60">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
             <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                <i class="fa-solid fa-coins"></i> Total Piutang Aktif
+                Total Piutang Aktif
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400">Rp ${totalUnpaid.toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">Rp ${totalUnpaid.toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${countUnpaid} Invoice Belum Lunas</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 0-7 Hari (Lancar)
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-600"></span> 0-7 Hari (Lancar)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">Rp ${amounts['0-7'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['0-7'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['0-7']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span> 8-14 Hari (Perhatian)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400">Rp ${amounts['8-14'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['8-14'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['8-14']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-orange-200 dark:border-orange-900/60 bg-orange-50/30 dark:bg-orange-950/20">
-            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+        <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase opacity-70 flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span class="w-2 h-2 rounded-full bg-orange-500"></span> 15-30 Hari (Tempo)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-orange-600 dark:text-orange-400">Rp ${amounts['15-30'].toLocaleString()}</h4>
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${amounts['15-30'].toLocaleString()}</h4>
             <span class="text-[10px] opacity-60 font-medium">${counts['15-30']} Invoice</span>
         </div>
 
-        <div class="theme-card rounded-xl border p-3.5 shadow-sm space-y-1 border-rose-300 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/30 col-span-2 sm:col-span-1">
+        <div class="theme-card rounded-xl border border-rose-200 dark:border-rose-950 p-3.5 space-y-1 col-span-2 sm:col-span-1">
             <span class="text-[10px] font-bold uppercase opacity-80 flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> > 30 Hari (Macet)
+                <span class="w-2 h-2 rounded-full bg-rose-600"></span> > 30 Hari (Macet)
             </span>
-            <h4 class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400">Rp ${amounts['gt30'].toLocaleString()}</h4>
-            <span class="text-[10px] font-bold text-rose-500">${counts['gt30']} Invoice Kritis</span>
+            <h4 class="text-base sm:text-lg font-bold text-rose-600 dark:text-rose-400 tabular-nums">Rp ${amounts['gt30'].toLocaleString()}</h4>
+            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400">${counts['gt30']} Invoice Kritis</span>
         </div>
     `;
 }
@@ -2563,12 +2560,12 @@ function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, status
         msg = `*FAKTUR LUNAS (KWITANSI RESMI)* - ${biz}\n` +
               `-----------------------------------------\n` +
               `Yth. Kak *${custName}*,\n\n` +
-              `Terima kasih! Pembayaran untuk transaksi:\n` +
-              `📄 No. Faktur : *${invNumber}*\n` +
-              `📅 Tanggal    : *${invDate}*\n` +
-              `💰 Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
-              `✅ Status     : *LUNAS*\n\n` +
-              `Telah kami terima dengan baik. Senang berbisnis dengan Anda! 🙏✨`;
+              `Terima kasih. Pembayaran untuk transaksi berikut telah kami terima:\n` +
+              `• No. Faktur : *${invNumber}*\n` +
+              `• Tanggal    : *${invDate}*\n` +
+              `• Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
+              `• Status     : *LUNAS*\n\n` +
+              `Pembayaran telah tercatat di sistem kami. Terima kasih atas kerjasamanya.`;
     } else {
         const today = new Date();
         today.setHours(0,0,0,0);
@@ -2577,33 +2574,33 @@ function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, status
         const days = Math.max(0, Math.floor((today - d) / (1000 * 60 * 60 * 24)));
 
         if (days <= 7) {
-            msg = `Halo Kak *${custName}*! 👋 Salam dari *${biz}*.\n\n` +
+            msg = `Halo Kak *${custName}*, salam dari *${biz}*.\n\n` +
                   `Berikut adalah rincian nota pesanan snack Anda:\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}*\n` +
-                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}*\n` +
+                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
                   `Pembayaran dapat ditransfer ke rekening resmi kami:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Semoga snack dagangannya laris manis ya Kak! Terima kasih banyak. 🙏`;
+                  `*${bank}*\n\n` +
+                  `Mohon konfirmasi jika pembayaran telah dilakukan. Terima kasih.`;
         } else if (days <= 14) {
-            msg = `Halo Kak *${custName}*! 🙏 Semoga usahanya selalu lancar.\n\n` +
+            msg = `Halo Kak *${custName}*, semoga usaha Anda berjalan lancar.\n\n` +
                   `Kami mengonfirmasi bahwa nota pesanan SnackLoop berikut:\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}* (sudah berjalan *${days} hari*)\n` +
-                  `💰 Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
-                  `Jika snack di toko/warung sudah laku terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Mohon kirimkan bukti transfer ke nomor ini ya Kak. Terima kasih banyak atas kerjasamanya! 😊`;
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}* (${days} hari berjalan)\n` +
+                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Jika snack di toko/warung sudah terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
+                  `*${bank}*\n\n` +
+                  `Mohon kirimkan bukti transfer ke nomor ini. Terima kasih atas kerjasamanya.`;
         } else {
-            msg = `*PEMBERITAHUAN JATUH TEMPO / REMINDER RESMI* ⚠️\n` +
+            msg = `*PEMBERITAHUAN JATUH TEMPO* - ${biz}\n` +
                   `Kepada Yth. Kak *${custName}*,\n\n` +
-                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (*${days} hari tertunggak*):\n` +
-                  `📄 No. Nota : *${invNumber}*\n` +
-                  `📅 Tanggal  : *${invDate}*\n` +
-                  `💰 Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
+                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (${days} hari tertunggak):\n` +
+                  `• No. Nota : *${invNumber}*\n` +
+                  `• Tanggal  : *${invDate}*\n` +
+                  `• Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
                   `Mohon segera melakukan pelunasan ke rekening resmi kami:\n` +
-                  `💳 *${bank}*\n\n` +
-                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan buku kas dan pengiriman order berikutnya berjalan lancar. Terima kasih atas pengertian dan kerjasamanya. 🙏`;
+                  `*${bank}*\n\n` +
+                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan administrasi dan pengiriman order berikutnya berjalan lancar. Terima kasih atas perhatiannya.`;
         }
     }
 
@@ -2680,28 +2677,20 @@ function renderCustomerLeaderboard() {
 
     const cards = ranked.map((cust, idx) => {
         let rankBadge = '';
-        let borderClass = 'border-inherit';
-        let bgGlow = '';
         let tierTitle = '';
 
         if (idx === 0) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-extrabold text-sm shadow-md">🥇</span>`;
-            borderClass = 'border-amber-400/60 dark:border-amber-500/40';
-            bgGlow = 'bg-amber-500/5 dark:bg-amber-500/10';
-            tierTitle = 'Platinum Partner';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 flex items-center justify-center font-bold text-xs">1</span>`;
+            tierTitle = 'Mitra Utama';
         } else if (idx === 1) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-extrabold text-sm shadow-md">🥈</span>`;
-            borderClass = 'border-slate-300/70 dark:border-slate-600/60';
-            bgGlow = 'bg-slate-400/5 dark:bg-slate-400/10';
-            tierTitle = 'Gold Reseller';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-xs">2</span>`;
+            tierTitle = 'Mitra Gold';
         } else if (idx === 2) {
-            rankBadge = `<span class="w-7 h-7 rounded-full bg-amber-700 text-amber-100 flex items-center justify-center font-extrabold text-sm shadow-md">🥉</span>`;
-            borderClass = 'border-amber-700/50 dark:border-amber-700/40';
-            bgGlow = 'bg-amber-700/5 dark:bg-amber-700/10';
-            tierTitle = 'Silver Partner';
+            rankBadge = `<span class="w-6 h-6 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300 flex items-center justify-center font-bold text-xs">3</span>`;
+            tierTitle = 'Mitra Silver';
         } else {
-            rankBadge = `<span class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-200 dark:border-indigo-800">#${idx + 1}</span>`;
-            tierTitle = 'Star Reseller';
+            rankBadge = `<span class="w-6 h-6 rounded-md border border-inherit text-slate-500 flex items-center justify-center font-semibold text-xs">${idx + 1}</span>`;
+            tierTitle = 'Mitra Reguler';
         }
 
         // Cari produk favorit pelanggan
@@ -2715,40 +2704,40 @@ function renderCustomerLeaderboard() {
         }
 
         return `
-            <div class="theme-card rounded-2xl border ${borderClass} ${bgGlow} p-4 shadow-sm hover:shadow-md transition space-y-3">
+            <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-2">
                         ${rankBadge}
                         <div>
                             <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${cust.name}</h4>
-                            <span class="text-[10px] font-bold text-indigo-500 uppercase">${tierTitle}</span>
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
-                        ${cust.orderCount}x Order
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">
+                        ${cust.orderCount} pesanan
                     </span>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Omzet Belanja</span>
-                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Rp ${cust.totalSpent.toLocaleString()}</span>
+                        <span class="opacity-60 block text-[10px]">Total Belanja</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${cust.totalSpent.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Produk</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">${cust.totalQty.toLocaleString()} pcs</span>
+                        <span class="opacity-60 block text-[10px]">Volume Produk</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">${cust.totalQty.toLocaleString()} pcs</span>
                     </div>
                 </div>
 
                 <div class="text-[11px] opacity-75 truncate">
-                    <span class="opacity-60 text-[10px] block">Snack Favorit:</span>
-                    <span class="font-semibold text-indigo-500 truncate block">${favoriteItem}</span>
+                    <span class="opacity-60 text-[10px] block">Snack Paling Sering:</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${favoriteItem}</span>
                 </div>
 
                 <div class="pt-2 border-t border-inherit flex items-center justify-between">
-                    <span class="text-[10px] opacity-50 font-mono">Order Terakhir: ${cust.lastDate || '-'}</span>
-                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition">
-                        <i class="fa-brands fa-whatsapp"></i> Apresiasi Mitra
+                    <span class="text-[10px] opacity-50">Terakhir: ${cust.lastDate || '-'}</span>
+                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                        <i class="fa-brands fa-whatsapp text-emerald-500"></i> Hubungi
                     </button>
                 </div>
             </div>`;
@@ -2765,11 +2754,9 @@ function sendCustomerRewardWA(cName, totalSpent, orderCount) {
     if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
 
     const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
-    const msg = `Halo Kak *${cName}*! 👋 Salam hangat dari *${biz}*.\n\n` +
-          `Kami ingin mengucapkan terima kasih atas kesetiaannya menjadi *Mitra Reseller Terbaik* kami! 🏆\n` +
-          `Hingga saat ini, total pesanan Kakak telah mencapai *Rp ${Number(totalSpent).toLocaleString()}* dari *${orderCount} kali order*.\n\n` +
-          `Sebagai bentuk apresiasi, kami siapkan kuota harga spesial dan prioritas stok snack untuk order berikutnya ya Kak! 🎁🍪\n` +
-          `Kapan rencana re-stock berikutnya? Kami siap bantu siapkan pengirimannya. Terima kasih banyak! 🙏✨`;
+    const msg = `Halo Kak ${cName}, terima kasih atas kemitraannya dengan ${biz}.\n\n` +
+          `Total pesanan Kakak telah mencapai Rp ${Number(totalSpent).toLocaleString()} dari ${orderCount} transaksi.\n\n` +
+          `Kami siap memberikan penawaran harga terbaik dan prioritas alokasi stok untuk pengiriman berikutnya. Jika ada kebutuhan re-stock dalam waktu dekat, silakan hubungi kami. Terima kasih banyak.`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -4584,16 +4571,16 @@ function renderReturns() {
     const rows = list.map(r => {
         const isMenunggu = r.claim_status === 'menunggu_agen';
         const statusBadge = isMenunggu ?
-            `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"><i class="fa-solid fa-clock text-[9px]"></i> Menunggu Agen</span>` :
-            `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-check text-[9px]"></i> Selesai Klaim</span>`;
+            `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Menunggu Agen</span>` :
+            `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">Selesai Klaim</span>`;
 
         let actionLabel = '';
         if (r.action_type === 'tukar_guling') {
-            actionLabel = `<span class="font-semibold text-indigo-600 dark:text-indigo-400">Tukar Guling</span><br><span class="text-[9px] opacity-60">Ganti Fisik Baru</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Tukar Guling</span><br><span class="text-[10px] opacity-60">Ganti Fisik Baru</span>`;
         } else if (r.action_type === 'potong_tagihan') {
-            actionLabel = `<span class="font-semibold text-rose-600 dark:text-rose-400">Potong Nota</span><br><span class="text-[9px] opacity-60">Kredit Saldo</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Potong Nota</span><br><span class="text-[10px] opacity-60">Kredit Saldo</span>`;
         } else {
-            actionLabel = `<span class="font-semibold text-amber-600 dark:text-amber-400">Beban Toko</span><br><span class="text-[9px] opacity-60">Write-Off Rugi</span>`;
+            actionLabel = `<span class="font-medium text-slate-800 dark:text-slate-200">Beban Toko</span><br><span class="text-[10px] opacity-60">Write-Off Rugi</span>`;
         }
 
         const resolveBtn = isMenunggu ?
@@ -5441,19 +5428,19 @@ function renderJastip() {
         // Badge Status Alur Jastip
         let statusBadge = '';
         if (item.status === 'pre_order') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"><i class="fa-solid fa-clock mr-1"></i>Pre-Order (DP)</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Pre-Order (DP)</span>`;
         } else if (item.status === 'purchasing') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"><i class="fa-solid fa-basket-shopping mr-1"></i>Sedang Dibeli</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900">Sedang Dibeli</span>`;
         } else if (item.status === 'transit') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20"><i class="fa-solid fa-plane-arrival mr-1"></i>Transit / Pabean</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900">Transit / Pabean</span>`;
         } else if (item.status === 'ready_dispatch') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"><i class="fa-solid fa-box-open mr-1"></i>Siap Kirim / Pelunasan</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900">Siap Kirim</span>`;
         } else if (item.status === 'completed') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-check-double mr-1"></i>Selesai</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">Selesai</span>`;
         } else if (item.status === 'out_of_stock') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Stok Kosong</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">Stok Kosong</span>`;
         } else if (item.status === 'refunded') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20"><i class="fa-solid fa-arrow-rotate-left mr-1"></i>DP Dikembalikan</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium theme-input text-slate-600 dark:text-slate-400 border">DP Dikembalikan</span>`;
         }
 
         // Badge Status DP / Pelunasan
@@ -5650,21 +5637,21 @@ function copyJastipBroadcastTemplate() {
     const priceValas = document.getElementById('calc-price-valas')?.value || '0';
     const sellPrice = document.getElementById('calc-out-price')?.innerText || 'Rp 0';
 
-    const text = `🌸 *OPEN JASTIP ${rateInfo.name.toUpperCase()}* 🌸\n` +
-                 `━━━━━━━━━━━━━━━━━━━━\n` +
-                 `🛍️ *Produk:* [Nama Produk / Varian]\n` +
-                 `🏷️ *Harga Asli Toko:* ${rateInfo.symbol} ${priceValas}\n` +
-                 `💵 *Harga Jastip All-In:* ${sellPrice} / pcs\n` +
-                 `📌 *Sistem:* Pre-Order (Wajib DP min. 50%)\n` +
-                 `✈️ *Estimasi Tiba:* [Tanggal / Minggu Depan]\n` +
-                 `📦 *Pengiriman:* JNE / J&T / Gojek Instant\n` +
-                 `━━━━━━━━━━━━━━━━━━━━\n` +
-                 `📝 *Format Pemesanan:*\n` +
-                 `Nama:\n` +
-                 `No. WhatsApp:\n` +
-                 `Alamat Lengkap:\n` +
-                 `Pesanan & Jumlah:\n\n` +
-                 `💬 Kirim format pesanan via WhatsApp SnackLoop: https://wa.me/628123456789`;
+    const text = `*OPEN JASTIP ${rateInfo.name.toUpperCase()}*\n` +
+                 `-----------------------------------------\n` +
+                 `• Produk: [Nama Produk / Varian]\n` +
+                 `• Harga Toko: ${rateInfo.symbol} ${priceValas}\n` +
+                 `• Harga Jastip: ${sellPrice} / pcs (All-in)\n` +
+                 `• Sistem: Pre-Order (DP min. 50%)\n` +
+                 `• Estimasi Tiba: [Tanggal / Minggu Depan]\n` +
+                 `• Ekspedisi: JNE / J&T / Instant\n` +
+                 `-----------------------------------------\n` +
+                 `Format Pemesanan:\n` +
+                 `• Nama:\n` +
+                 `• No. WhatsApp:\n` +
+                 `• Alamat Lengkap:\n` +
+                 `• Pesanan & Jumlah:\n\n` +
+                 `Kirimkan format pemesanan via WhatsApp SnackLoop: https://wa.me/628123456789`;
 
     navigator.clipboard.writeText(text).then(() => {
         showNotification("Disalin!", "Format broadcast promosi berhasil disalin ke clipboard.", "success");
@@ -6061,29 +6048,29 @@ function shareJastipInvoiceWA(id) {
     let message = '';
 
     if (item.tracking_number) {
-        message = `Halo Kak *${item.customer_name}*, paket pesanan Jastip Kakak sudah *DIKIRIM*! 🚀\n\n` +
-                  `📦 *Barang:* ${item.item_name} (${item.item_qty} pcs)\n` +
-                  `🚚 *Kurir:* ${item.delivery_courier || 'JNE/J&T'}\n` +
-                  `🏷️ *Nomor Resi:* *${item.tracking_number}*\n` +
-                  `📍 *Alamat:* ${item.customer_address || '-'}\n\n` +
-                  `Kakak bisa memantau status perjalanan paket melalui website resmi ekspedisi terkait. Terima kasih telah berbelanja jastip di *${bizName}*!`;
+        message = `Halo Kak *${item.customer_name}*, paket pesanan Jastip Anda telah dikirim.\n\n` +
+                  `• Barang: ${item.item_name} (${item.item_qty} pcs)\n` +
+                  `• Kurir: ${item.delivery_courier || 'JNE/J&T'}\n` +
+                  `• No. Resi: *${item.tracking_number}*\n` +
+                  `• Alamat: ${item.customer_address || '-'}\n\n` +
+                  `Anda dapat memantau status pengiriman melalui website resmi kurir terkait. Terima kasih telah berbelanja di *${bizName}*.`;
     } else if (isLunas) {
-        message = `Halo Kak *${item.customer_name}*, pesanan Jastip Kakak sudah *LUNAS*!\n\n` +
-                  `📦 *Rincian Pesanan:* ${item.item_name} (${item.item_qty} pcs)\n` +
-                  `💰 *Total:* Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
-                  `🚚 *Kurir:* ${item.delivery_courier || 'JNE/J&T'}\n` +
-                  `📍 *Alamat:* ${item.customer_address || '-'}\n` +
-                  `📌 *Status:* ${item.status.toUpperCase()}\n\n` +
-                  `Pesanan sedang kami siapkan untuk proses pengiriman. Terima kasih atas kepercayaannya pada *${bizName}*!`;
+        message = `Halo Kak *${item.customer_name}*, pembayaran pesanan Jastip Anda telah lunas.\n\n` +
+                  `• Rincian: ${item.item_name} (${item.item_qty} pcs)\n` +
+                  `• Total: Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
+                  `• Kurir: ${item.delivery_courier || 'JNE/J&T'}\n` +
+                  `• Alamat: ${item.customer_address || '-'}\n` +
+                  `• Status: ${item.status.toUpperCase()}\n\n` +
+                  `Pesanan sedang dipersiapkan untuk pengiriman. Terima kasih atas kepercayaan Anda pada *${bizName}*.`;
     } else {
-        message = `Halo Kak *${item.customer_name}*, terima kasih telah memesan di *${bizName}*!\n\n` +
-                  `📋 *Tagihan Pesanan Jastip:* ${item.id}\n` +
-                  `🛍️ *Barang:* ${item.item_name} (${item.item_variant || '-'}) x ${item.item_qty} pcs\n` +
-                  `💵 *Total Tagihan:* Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
-                  `✅ *DP Diterima:* Rp ${(item.dp_amount || 0).toLocaleString()}\n` +
-                  `⚠️ *Sisa Pelunasan:* *Rp ${(item.remaining_payment || 0).toLocaleString()}*\n\n` +
-                  `💳 *Pembayaran via Transfer:*\n${bankAccount}\n\n` +
-                  `Silakan kirim bukti transfer pelunasan ke nomor ini agar barang bisa segera diproses kirim ke alamat Kakak. Terima kasih!`;
+        message = `Halo Kak *${item.customer_name}*, terima kasih telah memesan di *${bizName}*.\n\n` +
+                  `• No. Pesanan Jastip: ${item.id}\n` +
+                  `• Barang: ${item.item_name} (${item.item_variant || '-'}) x ${item.item_qty} pcs\n` +
+                  `• Total Tagihan: Rp ${(item.total_selling_price || 0).toLocaleString()}\n` +
+                  `• DP Diterima: Rp ${(item.dp_amount || 0).toLocaleString()}\n` +
+                  `• Sisa Pelunasan: *Rp ${(item.remaining_payment || 0).toLocaleString()}*\n\n` +
+                  `Rekening Pembayaran:\n${bankAccount}\n\n` +
+                  `Mohon kirimkan bukti transfer pelunasan agar pesanan dapat segera diproses untuk pengiriman. Terima kasih.`;
     }
 
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
@@ -6100,9 +6087,9 @@ function shareJastipRefundWA(id) {
     const appSettings = typeof loadAppSettings === 'function' ? loadAppSettings() : {};
     const bizName = appSettings.businessName || 'SnackLoop Personal Shopper';
 
-    const message = `Halo Kak *${item.customer_name}*, mohon maaf sekali untuk pesanan Jastip *${item.item_name}* (${item.item_variant || '-'}), setelah tim kami cek di toko lapangan, stoknya sedang habis/kosong 😢.\n\n` +
-                    `Sesuai komitmen dan garansi amanah *${bizName}*, uang muka (DP) sebesar *Rp ${(item.dp_amount || 0).toLocaleString()}* akan kami kembalikan 100% tanpa potongan sepeserpun.\n\n` +
-                    `Mohon informasikan no rekening / e-wallet Kakak (Nama Bank & Atas Nama) agar dana DP dapat segera kami transfer balik hari ini. Terima kasih banyak atas pengertiannya ya Kak! 🙏`;
+    const message = `Halo Kak *${item.customer_name}*, kami menginformasikan perihal pesanan Jastip *${item.item_name}* (${item.item_variant || '-'}), stok di toko sedang habis.\n\n` +
+                    `Sesuai jaminan layanan *${bizName}*, dana DP sebesar *Rp ${(item.dp_amount || 0).toLocaleString()}* akan kami kembalikan 100% tanpa potongan.\n\n` +
+                    `Mohon informasikan nomor rekening atau e-wallet (Nama Bank & Nama Pemilik) agar pengembalian dana DP dapat kami proses hari ini. Terima kasih atas pengertiannya.`;
 
     item.status = 'refunded';
     saveJastipToLocal();
@@ -6267,7 +6254,7 @@ function renderJastipChecklist() {
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     ${items.map(it => `
-                        <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-500/10 border-emerald-500/40 shadow-sm' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-all duration-200">
+                        <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-colors">
                             <div class="space-y-1">
                                 <div class="font-bold text-xs flex items-center gap-1.5 ${it.is_purchased ? 'line-through opacity-70 text-emerald-700 dark:text-emerald-400' : ''}">
                                     ${it.is_purchased ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : ''}
@@ -6276,13 +6263,13 @@ function renderJastipChecklist() {
                                 <div class="text-[11px] opacity-70">
                                     Varian: <strong>${it.item_variant || '-'}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
                                 </div>
-                                <div class="text-[10px] font-mono font-semibold">
+                                <div class="text-[10px] tabular-nums font-semibold">
                                     Target: ${rateInfo.symbol} ${(it.price_valas || 0).toLocaleString()} / pcs
                                 </div>
-                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400 font-mono"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
+                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
                                 ${it.notes ? `<div class="text-[9px] italic opacity-60">"${it.notes}"</div>` : ''}
                             </div>
-                            <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-all duration-200 shadow-sm active:scale-90 flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
+                            <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
                                 ${it.is_purchased ? '<i class="fa-solid fa-check"></i> <span>Terbeli</span>' : '<i class="fa-solid fa-plus"></i> <span>Ambil</span>'}
                             </button>
                         </div>
@@ -7017,7 +7004,7 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
                 </div>
                 <div class="flex-between" style="margin-top: 3px;">
                     <span>Status:</span>
-                    <span class="bold" style="text-decoration: underline;">${statusBayar}</span>
+                    <span class="bold">${statusBayar}</span>
                 </div>
             </div>
 

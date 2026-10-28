@@ -126,7 +126,7 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
                 </div>
                 <div class="flex-between" style="margin-top: 3px;">
                     <span>Status:</span>
-                    <span class="bold" style="text-decoration: underline;">${statusBayar}</span>
+                    <span class="bold">${statusBayar}</span>
                 </div>
             </div>
 
