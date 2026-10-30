@@ -358,4 +358,21 @@ a:active,
 
 .theme-table {
   contain: paint;
+}
+
+/* ==================== 10. SMART ECO MODE (HEMAT BATERAI KASIR) ==================== */
+/* Menonaktifkan efek GPU berat, blur, dan animasi saat mode hemat daya aktif */
+.eco-mode *,
+.eco-mode *::before,
+.eco-mode *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.eco-mode .theme-card,
+.eco-mode .btn-magnetic {
+  box-shadow: none !important;
 }

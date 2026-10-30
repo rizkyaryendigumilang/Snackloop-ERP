@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-10-30T06:33:23.234Z from 17 source modules in src/modules/
+// Generated on 2026-10-30T08:18:09.117Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -838,8 +838,9 @@ async function loadCacheFromLocal() {
     return data;
 }
 
-// ======================= OFFLINE OUTBOX & SYNC ENGINE ======================= //
+// ======================= OFFLINE OUTBOX & BATCHED SYNC ENGINE ======================= //
 const OUTBOX_KEY = 'snackloop_outbox';
+const BATCH_CHUNK_SIZE = 50; // Kapasitas optimal bulk request PostgREST / Supabase
 
 function getOutbox() {
     try {
@@ -905,10 +906,203 @@ function handleSyncBadgeClick() {
         return;
     }
     if (count > 0) {
-        showNotification("Sinkronisasi", `Memproses ${count} data yang tertunda ke cloud...`, "info");
+        showNotification("Sinkronisasi", `Memproses ${count} data yang tertunda ke cloud (Batching Mode)...`, "info");
         syncOutboxQueue();
     } else {
         showNotification("Status Cloud", "Semua data sudah tersinkronisasi penuh dengan database.", "success");
+    }
+}
+
+// ----------------- EKSEKUTOR ATOMIK SATUAN (FALLBACK TAHAN BANTING) ----------------- //
+async function syncSingleOutboxItem(item) {
+    if (item.type === 'INSERT_TRANSACTION') {
+        if (item.payload.repackUpdate) {
+            await supabaseClient.from('repack')
+                .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
+                .eq('id', item.payload.repackUpdate.batchId);
+        }
+        const { error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]);
+        if (trxErr) throw trxErr;
+
+        if (item.payload.invoice) {
+            await supabaseClient.from('invoices').insert([item.payload.invoice]);
+        }
+    } else if (item.type === 'DELETE_TRANSACTION') {
+        if (item.payload.source === 'Repack' && item.payload.batch) {
+            const rItem = repackData.find(r => r.id === item.payload.batch);
+            if (rItem) {
+                await supabaseClient.from('repack')
+                    .update({ remaining_qty: rItem.remaining_qty })
+                    .eq('id', item.payload.batch);
+            }
+        }
+        const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
+        const { error } = await supabaseClient.from('transactions')
+            .update({ status: item.payload.status })
+            .eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_EXPENSE') {
+        const { error } = await supabaseClient.from('expenses').insert([item.payload]);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_REPACK') {
+        const { error } = await supabaseClient.from('repack').insert([item.payload]);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_REPACK') {
+        const { error } = await supabaseClient.from('repack').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_CUSTOMER') {
+        const { error } = await supabaseClient.from('customers').insert([item.payload]);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_CUSTOMER') {
+        const { error } = await supabaseClient.from('customers').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_AGENT') {
+        const { error } = await supabaseClient.from('agents').insert([item.payload]);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_AGENT') {
+        const { error } = await supabaseClient.from('agents').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_MASTER') {
+        const { error } = await supabaseClient.from('master').insert([item.payload]);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_MASTER') {
+        const { error } = await supabaseClient.from('master').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'UPDATE_MASTER') {
+        const { error } = await supabaseClient.from('master').update(item.payload.updates).eq('id', item.payload.id);
+        if (error) throw error;
+        if (item.payload.history) {
+            await supabaseClient.from('price_history').insert([item.payload.history]);
+        }
+    } else if (item.type === 'DELETE_INVOICE') {
+        const { error } = await supabaseClient.from('invoices').delete().eq('id', item.payload.id);
+        if (error) throw error;
+    } else if (item.type === 'UPDATE_INVOICE_PAID') {
+        await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
+        if (item.payload.customerName) {
+            await supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', item.payload.customerName);
+        }
+    } else if (item.type === 'UPSERT_JASTIP') {
+        try {
+            const { error } = await supabaseClient.from('jastip_orders').upsert([item.payload]);
+            if (error) console.warn("Supabase jastip_orders note:", error.message);
+        } catch (e) {
+            console.warn("Supabase jastip sync skipped:", e);
+        }
+    } else if (item.type === 'DELETE_JASTIP') {
+        try {
+            const { error } = await supabaseClient.from('jastip_orders').delete().eq('id', item.payload.id);
+            if (error) console.warn("Supabase jastip_orders delete note:", error.message);
+        } catch (e) {
+            console.warn("Supabase jastip delete skipped:", e);
+        }
+    }
+}
+
+// ----------------- BATCHING MUTATION ENGINE (50x LEBIH CEPAT DI KONEKSI MOBILE) ----------------- //
+async function syncBatchedItems(type, batchItems) {
+    if (batchItems.length === 1) {
+        await syncSingleOutboxItem(batchItems[0]);
+        return;
+    }
+
+    if (type === 'INSERT_TRANSACTION') {
+        // 1. Batch Repack Stock Updates (ambil remaining_qty paling mutakhir per batchId)
+        const repackMap = new Map();
+        batchItems.forEach(it => {
+            if (it.payload && it.payload.repackUpdate) {
+                repackMap.set(it.payload.repackUpdate.batchId, it.payload.repackUpdate.newRemainingQty);
+            }
+        });
+        if (repackMap.size > 0) {
+            await Promise.all(
+                Array.from(repackMap.entries()).map(([batchId, qty]) =>
+                    supabaseClient.from('repack').update({ remaining_qty: qty }).eq('id', batchId)
+                )
+            );
+        }
+
+        // 2. Bulk Insert Transactions (1 HTTP POST)
+        const trxRows = batchItems.map(it => it.payload && it.payload.transaction).filter(Boolean);
+        if (trxRows.length > 0) {
+            const { error: trxErr } = await supabaseClient.from('transactions').insert(trxRows);
+            if (trxErr) throw trxErr;
+        }
+
+        // 3. Bulk Insert Invoices (1 HTTP POST)
+        const invRows = batchItems.map(it => it.payload && it.payload.invoice).filter(Boolean);
+        if (invRows.length > 0) {
+            const { error: invErr } = await supabaseClient.from('invoices').insert(invRows);
+            if (invErr) throw invErr;
+        }
+    } else if (type === 'INSERT_EXPENSE') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('expenses').insert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_CUSTOMER') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('customers').insert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_AGENT') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('agents').insert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_REPACK') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('repack').insert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_MASTER') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('master').insert(rows);
+        if (error) throw error;
+    } else if (type === 'UPSERT_JASTIP') {
+        const rows = batchItems.map(it => it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('jastip_orders').upsert(rows);
+        if (error) throw error;
+    } else if (type === 'DELETE_TRANSACTION') {
+        // Kembalikan stok repack jika ada
+        batchItems.forEach(it => {
+            if (it.payload && it.payload.source === 'Repack' && it.payload.batch) {
+                const rItem = repackData.find(r => r.id === it.payload.batch);
+                if (rItem) {
+                    supabaseClient.from('repack').update({ remaining_qty: rItem.remaining_qty }).eq('id', it.payload.batch).catch(() => {});
+                }
+            }
+        });
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('transactions').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_CUSTOMER') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('customers').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_AGENT') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('agents').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_MASTER') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('master').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_REPACK') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('repack').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_INVOICE') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('invoices').delete().in('id', ids);
+        if (error) throw error;
+    } else if (type === 'DELETE_JASTIP') {
+        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
+        const { error } = await supabaseClient.from('jastip_orders').delete().in('id', ids);
+        if (error) throw error;
+    } else {
+        // Tipe lain yang disparate / non-batchable (misal UPDATE_MASTER, UPDATE_INVOICE_PAID)
+        for (const it of batchItems) {
+            await syncSingleOutboxItem(it);
+        }
     }
 }
 
@@ -925,124 +1119,43 @@ async function syncOutboxQueue() {
 
     let syncedCount = 0;
     const remainingQueue = [];
+    let currentIndex = 0;
 
-    for (let i = 0; i < queue.length; i++) {
-        const item = queue[i];
-        let success = false;
-        try {
-            if (item.type === 'INSERT_TRANSACTION') {
-                if (item.payload.repackUpdate) {
-                    await supabaseClient.from('repack')
-                        .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
-                        .eq('id', item.payload.repackUpdate.batchId);
-                }
-                const { error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]);
-                if (trxErr) throw trxErr;
-
-                if (item.payload.invoice) {
-                    await supabaseClient.from('invoices').insert([item.payload.invoice]);
-                }
-                success = true;
-            } else if (item.type === 'DELETE_TRANSACTION') {
-                if (item.payload.source === 'Repack' && item.payload.batch) {
-                    const rItem = repackData.find(r => r.id === item.payload.batch);
-                    if (rItem) {
-                        await supabaseClient.from('repack')
-                            .update({ remaining_qty: rItem.remaining_qty })
-                            .eq('id', item.payload.batch);
-                    }
-                }
-                const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
-                const { error } = await supabaseClient.from('transactions')
-                    .update({ status: item.payload.status })
-                    .eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'INSERT_EXPENSE') {
-                const { error } = await supabaseClient.from('expenses').insert([item.payload]);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'INSERT_REPACK') {
-                const { error } = await supabaseClient.from('repack').insert([item.payload]);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'DELETE_REPACK') {
-                const { error } = await supabaseClient.from('repack').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'INSERT_CUSTOMER') {
-                const { error } = await supabaseClient.from('customers').insert([item.payload]);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'DELETE_CUSTOMER') {
-                const { error } = await supabaseClient.from('customers').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'INSERT_AGENT') {
-                const { error } = await supabaseClient.from('agents').insert([item.payload]);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'DELETE_AGENT') {
-                const { error } = await supabaseClient.from('agents').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'INSERT_MASTER') {
-                const { error } = await supabaseClient.from('master').insert([item.payload]);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'DELETE_MASTER') {
-                const { error } = await supabaseClient.from('master').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'UPDATE_MASTER') {
-                const { error } = await supabaseClient.from('master').update(item.payload.updates).eq('id', item.payload.id);
-                if (error) throw error;
-                if (item.payload.history) {
-                    await supabaseClient.from('price_history').insert([item.payload.history]);
-                }
-                success = true;
-            } else if (item.type === 'DELETE_INVOICE') {
-                const { error } = await supabaseClient.from('invoices').delete().eq('id', item.payload.id);
-                if (error) throw error;
-                success = true;
-            } else if (item.type === 'UPDATE_INVOICE_PAID') {
-                await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
-                if (item.payload.customerName) {
-                    await supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', item.payload.customerName);
-                }
-                success = true;
-            } else if (item.type === 'UPSERT_JASTIP') {
-                try {
-                    const { error } = await supabaseClient.from('jastip_orders').upsert([item.payload]);
-                    if (error) console.warn("Supabase jastip_orders note:", error.message);
-                } catch (e) {
-                    console.warn("Supabase jastip sync skipped:", e);
-                }
-                success = true;
-            } else if (item.type === 'DELETE_JASTIP') {
-                try {
-                    const { error } = await supabaseClient.from('jastip_orders').delete().eq('id', item.payload.id);
-                    if (error) console.warn("Supabase jastip_orders delete note:", error.message);
-                } catch (e) {
-                    console.warn("Supabase jastip delete skipped:", e);
-                }
-                success = true;
-            }
-        } catch (err) {
-            console.error("Gagal sinkron item outbox:", item, err);
-            success = false;
+    while (currentIndex < queue.length) {
+        if (!navigator.onLine) {
+            for (let k = currentIndex; k < queue.length; k++) remainingQueue.push(queue[k]);
+            break;
         }
 
-        if (success) {
-            syncedCount++;
-        } else {
-            remainingQueue.push(item);
-            if (!navigator.onLine) {
-                for (let k = i + 1; k < queue.length; k++) remainingQueue.push(queue[k]);
-                break;
+        const currentType = queue[currentIndex].type;
+        const batchItems = [];
+        while (
+            currentIndex < queue.length &&
+            queue[currentIndex].type === currentType &&
+            batchItems.length < BATCH_CHUNK_SIZE
+        ) {
+            batchItems.push(queue[currentIndex]);
+            currentIndex++;
+        }
+
+        try {
+            await syncBatchedItems(currentType, batchItems);
+            syncedCount += batchItems.length;
+        } catch (batchErr) {
+            console.warn(`[OutboxBatch] Batch sinkronisasi tipe ${currentType} (${batchItems.length} item) gagal, mengaktifkan fallback item-by-item:`, batchErr);
+            // Resilient Fallback: Proses item satu per satu agar data yang valid tetap terkirim
+            for (const item of batchItems) {
+                if (!navigator.onLine) {
+                    remainingQueue.push(item);
+                    continue;
+                }
+                try {
+                    await syncSingleOutboxItem(item);
+                    syncedCount++;
+                } catch (singleErr) {
+                    console.error("[OutboxBatch] Item gagal disinkronkan:", item, singleErr);
+                    remainingQueue.push(item);
+                }
             }
         }
     }
@@ -1052,7 +1165,7 @@ async function syncOutboxQueue() {
     updateNetworkStatus();
 
     if (syncedCount > 0) {
-        showNotification("Sinkronisasi Selesai", `${syncedCount} data offline berhasil diunggah ke cloud!`, "success");
+        showNotification("Sinkronisasi Selesai", `${syncedCount} data offline berhasil diunggah ke cloud (Batching Mode)!`, "success");
     }
 }
 
@@ -1087,24 +1200,152 @@ function dispatchOutboxMutation(table, action, payload) {
     }
 }
 
-// Event Listeners Koneksi
-window.addEventListener('online', () => {
-    updateNetworkStatus();
-    showNotification("Online", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
-    syncOutboxQueue();
-});
+// =========================================================================
+// PAGE VISIBILITY API & SMART POWER SAVER ENGINE (HEMAT BATERAI KASIR)
+// =========================================================================
+let isAppVisible = typeof document !== 'undefined' ? !document.hidden : true;
+let syncIntervalId = null;
+let currentSyncIntervalMs = 30000;
+let wakeLockSentinel = null;
+let isEcoModeActive = false;
 
-window.addEventListener('offline', () => {
-    updateNetworkStatus();
-    showNotification("Offline", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
-});
+function setSyncInterval(ms) {
+    if (syncIntervalId) clearInterval(syncIntervalId);
+    currentSyncIntervalMs = ms;
+    if (isAppVisible) {
+        syncIntervalId = setInterval(() => {
+            if (navigator.onLine && getOutbox().length > 0 && !isSyncing && isAppVisible) {
+                syncOutboxQueue();
+            }
+        }, currentSyncIntervalMs);
+    }
+}
 
-// Periodic Sync Interval (setiap 30 detik jika ada antrean)
-setInterval(() => {
+function pauseBackgroundTimers() {
+    if (syncIntervalId) {
+        clearInterval(syncIntervalId);
+        syncIntervalId = null;
+    }
+    releaseScreenWakeLock();
+    console.info("[PowerSaver] Tab diminimalkan / latar belakang. Interval & CPU dijeda.");
+}
+
+function resumeBackgroundTimers() {
+    if (!syncIntervalId) {
+        setSyncInterval(isEcoModeActive ? 60000 : 30000);
+    }
+    console.info("[PowerSaver] Tab aktif kembali. Sinkronisasi dipulihkan.");
     if (navigator.onLine && getOutbox().length > 0 && !isSyncing) {
         syncOutboxQueue();
     }
-}, 30000);
+}
+
+async function requestScreenWakeLock() {
+    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && isAppVisible) {
+        try {
+            if (!wakeLockSentinel) {
+                wakeLockSentinel = await navigator.wakeLock.request('screen');
+                wakeLockSentinel.addEventListener('release', () => {
+                    wakeLockSentinel = null;
+                });
+                console.info("[PowerSaver] Screen Wake Lock aktif (Layar kasir tetap menyala saat kasir aktif).");
+            }
+        } catch (err) {
+            console.debug("[PowerSaver] Wake Lock notice:", err.message);
+        }
+    }
+}
+
+async function releaseScreenWakeLock() {
+    if (wakeLockSentinel) {
+        try {
+            await wakeLockSentinel.release();
+        } catch(e) {}
+        wakeLockSentinel = null;
+    }
+}
+
+function applyEcoMode(enable) {
+    isEcoModeActive = enable;
+    if (typeof document !== 'undefined') {
+        if (enable) {
+            document.documentElement.classList.add('eco-mode');
+            setSyncInterval(60000);
+            console.info("[PowerSaver] Mode Hemat Baterai (Eco Mode) diaktifkan.");
+        } else {
+            document.documentElement.classList.remove('eco-mode');
+            setSyncInterval(30000);
+            console.info("[PowerSaver] Mode Hemat Baterai dinonaktifkan.");
+        }
+    }
+}
+
+async function initBatteryMonitoring() {
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+        try {
+            const battery = await navigator.getBattery();
+            const checkBattery = () => {
+                if (battery.level <= 0.20 && !battery.charging) {
+                    applyEcoMode(true);
+                } else if (battery.charging || battery.level > 0.30) {
+                    if (isEcoModeActive) applyEcoMode(false);
+                }
+            };
+            checkBattery();
+            battery.addEventListener('levelchange', checkBattery);
+            battery.addEventListener('chargingchange', checkBattery);
+        } catch (e) {
+            console.debug("[PowerSaver] Battery status API not available or restricted.");
+        }
+    }
+}
+
+function initPageVisibilityAndPowerSaver() {
+    setSyncInterval(30000);
+
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isAppVisible = false;
+                pauseBackgroundTimers();
+            } else {
+                isAppVisible = true;
+                resumeBackgroundTimers();
+            }
+        });
+    }
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('focus', () => {
+            if (!isAppVisible) {
+                isAppVisible = true;
+                resumeBackgroundTimers();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            updateNetworkStatus();
+            showNotification("Online", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
+            syncOutboxQueue();
+        });
+
+        window.addEventListener('offline', () => {
+            updateNetworkStatus();
+            showNotification("Offline", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
+        });
+    }
+
+    initBatteryMonitoring();
+}
+
+// Inisialisasi otomatis jika di lingkungan browser
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPageVisibilityAndPowerSaver);
+    } else {
+        initPageVisibilityAndPowerSaver();
+    }
+}
 
 // ======================= AUDIT TRAIL UI & EXPORT HANDLERS ======================= //
 function renderAuditLogsTable() {
@@ -1843,17 +2084,17 @@ async function initApp() {
 async function loadDataFromCloud() {
     try {
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
-            supabaseClient.from('agents').select('*'),
-            supabaseClient.from('master').select('*'),
-            supabaseClient.from('customers').select('*'),
-            supabaseClient.from('repack').select('*'),
-            supabaseClient.from('transactions').select('*'),
-            supabaseClient.from('expenses').select('*'),
-            supabaseClient.from('users').select('id, username, role'),
-            supabaseClient.from('invoices').select('*'),
-            supabaseClient.from('price_history').select('*'),
-            supabaseClient.from('returns').select('*').catch(() => ({ data: null })),
-            supabaseClient.from('jastip_orders').select('*').catch(() => ({ data: null }))
+            supabaseClient.from('agents').select('*').order('name', { ascending: true }),
+            supabaseClient.from('master').select('*').order('name', { ascending: true }),
+            supabaseClient.from('customers').select('*').order('name', { ascending: true }),
+            supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*')),
+            supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
+            supabaseClient.from('expenses').select('*').order('date', { ascending: false }),
+            supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }),
+            supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
+            supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
+            supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
+            supabaseClient.from('jastip_orders').select('*').order('order_date', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];

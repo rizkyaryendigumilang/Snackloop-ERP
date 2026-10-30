@@ -25,7 +25,8 @@ const EXCLUDED = new Set([
   'vercel.json',
   '.vercelignore',
   'Customer',
-  'Data Penjualan'
+  'Data Penjualan',
+  'database'
 ]);
 
 function build() {

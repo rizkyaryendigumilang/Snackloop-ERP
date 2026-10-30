@@ -376,17 +376,17 @@ async function initApp() {
 async function loadDataFromCloud() {
     try {
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
-            supabaseClient.from('agents').select('*'),
-            supabaseClient.from('master').select('*'),
-            supabaseClient.from('customers').select('*'),
-            supabaseClient.from('repack').select('*'),
-            supabaseClient.from('transactions').select('*'),
-            supabaseClient.from('expenses').select('*'),
-            supabaseClient.from('users').select('id, username, role'),
-            supabaseClient.from('invoices').select('*'),
-            supabaseClient.from('price_history').select('*'),
-            supabaseClient.from('returns').select('*').catch(() => ({ data: null })),
-            supabaseClient.from('jastip_orders').select('*').catch(() => ({ data: null }))
+            supabaseClient.from('agents').select('*').order('name', { ascending: true }),
+            supabaseClient.from('master').select('*').order('name', { ascending: true }),
+            supabaseClient.from('customers').select('*').order('name', { ascending: true }),
+            supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*')),
+            supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
+            supabaseClient.from('expenses').select('*').order('date', { ascending: false }),
+            supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }),
+            supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
+            supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
+            supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
+            supabaseClient.from('jastip_orders').select('*').order('order_date', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
