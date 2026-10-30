@@ -22,6 +22,9 @@ let userData = [
 let invoiceData = [];
 let priceHistoryData = []; 
 let returnData = [];
+let auditLogData = [];
+let currentAuditActionFilter = 'all';
+let currentAuditSearchKeyword = '';
 let currentReturnStatusFilter = 'all';
 let currentReturnAgentFilter = 'all'; 
 

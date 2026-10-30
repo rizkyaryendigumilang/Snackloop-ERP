@@ -417,6 +417,8 @@ function saveReturnRecord(e) {
     renderFinancialChart();
     renderInvoicesTable();
 
+    logAuditActivity('RETURN_CREATE', newReturn.return_code, `Pencatatan klaim retur: ${newReturn.qty}x ${newReturn.item_name} dari ${newReturn.customer} (${newReturn.action_type})`);
+
     closeReturnModal();
     showNotification("Sukses", `Retur "${returnCode}" berhasil dicatat & disinkronkan!`, "success");
 }
@@ -434,6 +436,8 @@ function resolveReturnClaim(returnId) {
         claim_status: 'selesai',
         resolved_date: item.resolved_date
     });
+
+    logAuditActivity('RETURN_RESOLVE', item.return_code || `RET #${item.id}`, `Penyelesaian klaim retur: ${item.item_name} (${item.qty} pcs) ke ${item.agent}`);
 
     renderReturns();
     showNotification("Klaim Selesai", `Barang ${item.item_name} (${item.qty} pcs) berhasil ditandai selesai ditukar ke ${item.agent}.`, "success");
@@ -458,6 +462,8 @@ function confirmDeleteReturn(returnId) {
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'delete', { id: returnId });
+
+    logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
 
     renderReturns();
     renderTransactionsForActiveSheet();

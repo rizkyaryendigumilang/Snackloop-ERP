@@ -41,6 +41,7 @@ async function saveToRepackWarehouse() {
     saveCacheToLocal();
     renderRepackWarehouse();
     onSourceChange();
+    logAuditActivity('REPACK_CREATE', itemToSave.id, `Membuat batch repack ${itemToSave.id}: ${itemToSave.name} (${itemToSave.initial_qty} pcs)`);
     showNotification("Sukses", "Batch masuk ke Gudang Repack", "success");
 
     currentRepackCalcResult = null;
@@ -86,10 +87,12 @@ function confirmDeleteRepackBatch(batchId) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Hanya Owner / Super Admin yang diizinkan menghapus batch.", "error");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus Batch Repack ini secara permanen?", async () => {
         const idx = repackData.findIndex(r => r.id === batchId);
+        const item = idx !== -1 ? repackData[idx] : null;
         if(idx !== -1) repackData.splice(idx, 1);
         saveCacheToLocal();
         renderRepackWarehouse();
         onSourceChange();
+        logAuditActivity('REPACK_DELETE', batchId, `Menghapus batch repack ${batchId} (${item?.name || ''})`);
         showNotification("Sukses", "Batch Repack berhasil dihapus", "success");
 
         dispatchMutation({

@@ -116,6 +116,10 @@ function switchSettingsTab(tabName) {
             if (btnEl) {
                 btnEl.className = "px-3 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition flex items-center gap-1.5";
             }
+            if (p === 'backup') {
+                if (typeof renderStorageHealthUI === 'function') renderStorageHealthUI();
+                if (typeof renderSnapshotListUI === 'function') renderSnapshotListUI();
+            }
         } else {
             if (panelEl) {
                 panelEl.classList.add('hidden');
@@ -168,6 +172,10 @@ function clearLocalAppCache() {
     if (!confirm("Bersihkan cache lokal browser? Data Anda di database cloud tetap aman.")) return;
     try {
         localStorage.removeItem('snackloop_cache');
+        localStorage.removeItem('snackloop_storage_mode');
+        if (window.indexedDB) {
+            indexedDB.deleteDatabase('snackloop_erp_db');
+        }
         if ('caches' in window) {
             caches.keys().then(names => {
                 names.forEach(name => caches.delete(name));

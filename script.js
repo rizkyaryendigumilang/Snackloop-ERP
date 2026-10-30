@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-10-28T07:12:57.422Z from 17 source modules in src/modules/
+// Generated on 2026-10-30T06:18:49.868Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -28,6 +28,9 @@ let userData = [
 let invoiceData = [];
 let priceHistoryData = []; 
 let returnData = [];
+let auditLogData = [];
+let currentAuditActionFilter = 'all';
+let currentAuditSearchKeyword = '';
 let currentReturnStatusFilter = 'all';
 let currentReturnAgentFilter = 'all'; 
 
@@ -337,7 +340,7 @@ function showNotification(title, message, type = 'success') {
 }
 
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
         form.addEventListener('invalid', function(e) {
@@ -375,7 +378,7 @@ document.addEventListener("DOMContentLoaded", function() {
     updateLanguageButtonsUI();
 
     loadMemos();
-    loadCacheFromLocal();
+    await loadCacheFromLocal();
     updateNetworkStatus();
 
     // Cek Sesi Login yang Tersimpan (Persistent Session Check)
@@ -446,48 +449,387 @@ function applyRolePermissions() {
 
 
 // --- [MODULE: 04-outbox.js] ---
-// ======================= LOCALSTORAGE CACHING (OFFLINE READY) ======================= //
-function saveCacheToLocal() {
+// ======================= MODERN INDEXEDDB STORAGE & AUDIT TRAIL ENGINE ======================= //
+const DB_NAME = 'snackloop_erp_db';
+const DB_VERSION = 1;
+let dbPromise = null;
+
+function getIndexedDB() {
+    if (!window.indexedDB) return null;
+    if (dbPromise) return dbPromise;
+
+    dbPromise = new Promise((resolve) => {
+        try {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('keyval')) {
+                    db.createObjectStore('keyval');
+                }
+                if (!db.objectStoreNames.contains('audit_logs')) {
+                    const auditStore = db.createObjectStore('audit_logs', { keyPath: 'id' });
+                    auditStore.createIndex('timestamp', 'timestamp', { unique: false });
+                    auditStore.createIndex('action', 'action', { unique: false });
+                    auditStore.createIndex('user', 'user', { unique: false });
+                }
+                if (!db.objectStoreNames.contains('snapshots')) {
+                    db.createObjectStore('snapshots', { keyPath: 'date' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => {
+                console.warn("[IndexedDB] Gagal membuka database:", e);
+                resolve(null);
+            };
+        } catch(err) {
+            console.warn("[IndexedDB] Exception membuka database:", err);
+            resolve(null);
+        }
+    });
+
+    return dbPromise;
+}
+
+async function idbGet(key) {
+    const db = await getIndexedDB();
+    if (!db) {
+        try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; }
+    }
+    return new Promise((resolve) => {
+        try {
+            const tx = db.transaction('keyval', 'readonly');
+            const store = tx.objectStore('keyval');
+            const req = store.get(key);
+            req.onsuccess = () => resolve(req.result !== undefined ? req.result : null);
+            req.onerror = () => resolve(null);
+        } catch(e) {
+            resolve(null);
+        }
+    });
+}
+
+async function idbSet(key, val) {
+    const db = await getIndexedDB();
+    if (!db) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+        return true;
+    }
+    return new Promise((resolve) => {
+        try {
+            const tx = db.transaction('keyval', 'readwrite');
+            const store = tx.objectStore('keyval');
+            store.put(val, key);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+        } catch(e) {
+            resolve(false);
+        }
+    });
+}
+
+// ----------------- AUDIT TRAIL LOGGING & STORAGE ----------------- //
+async function idbAddAuditLog(logEntry) {
+    const db = await getIndexedDB();
+    if (!db) {
+        try {
+            const list = JSON.parse(localStorage.getItem('snackloop_audit_logs') || '[]');
+            list.unshift(logEntry);
+            if (list.length > 200) list.pop();
+            localStorage.setItem('snackloop_audit_logs', JSON.stringify(list));
+        } catch(e) {}
+        return true;
+    }
+    return new Promise((resolve) => {
+        try {
+            const tx = db.transaction('audit_logs', 'readwrite');
+            const store = tx.objectStore('audit_logs');
+            store.put(logEntry);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+        } catch(e) {
+            resolve(false);
+        }
+    });
+}
+
+async function idbGetAuditLogs(limit = 300) {
+    const db = await getIndexedDB();
+    if (!db) {
+        try { return JSON.parse(localStorage.getItem('snackloop_audit_logs') || '[]'); } catch(e) { return []; }
+    }
+    return new Promise((resolve) => {
+        try {
+            const tx = db.transaction('audit_logs', 'readonly');
+            const store = tx.objectStore('audit_logs');
+            const req = store.openCursor(null, 'prev');
+            const logs = [];
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor && logs.length < limit) {
+                    logs.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(logs);
+                }
+            };
+            req.onerror = () => resolve([]);
+        } catch(e) {
+            resolve([]);
+        }
+    });
+}
+
+async function logAuditActivity(action, target, details, prevVal = null, newVal = null) {
+    const now = new Date();
+    const logItem = {
+        id: 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        timestamp: now.toISOString(),
+        displayTime: now.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' }),
+        user: currentUser || 'system',
+        role: currentRole || 'operator',
+        action: action,
+        target: String(target || '-'),
+        details: String(details || ''),
+        prevVal: prevVal,
+        newVal: newVal
+    };
+
+    auditLogData.unshift(logItem);
+    if (auditLogData.length > 500) auditLogData.pop();
+
+    await idbAddAuditLog(logItem);
+
+    // Kirim mutasi jika online (graceful catch jika Supabase audit_logs belum dibuat)
+    dispatchOutboxMutation('audit_logs', 'insert', {
+        id: logItem.id,
+        timestamp: logItem.timestamp,
+        operator_user: logItem.user,
+        operator_role: logItem.role,
+        action: logItem.action,
+        target_ref: logItem.target,
+        description: logItem.details
+    });
+
+    if (typeof renderAuditLogsTable === 'function') {
+        renderAuditLogsTable();
+    }
+}
+
+// ----------------- SNAPSHOT ENGINE (DISASTER RECOVERY) ----------------- //
+async function checkAndCreateDailySnapshot() {
+    const today = new Date().toISOString().slice(0, 10);
+    const lastSnapDate = localStorage.getItem('snackloop_last_snapshot_date');
+    if (lastSnapDate === today) return;
+
+    await createDailySnapshot(today);
+}
+
+async function createDailySnapshot(dateKey = null) {
+    const key = dateKey || new Date().toISOString().slice(0, 10);
     try {
         const jData = typeof jastipData !== 'undefined' ? jastipData : [];
-        const cacheObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData };
-        localStorage.setItem('snackloop_cache', JSON.stringify(cacheObj));
+        const snapshotPayload = {
+            date: key,
+            createdAt: new Date().toISOString(),
+            displayDate: new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }),
+            itemCount: Object.values(transactionData).reduce((acc, curr) => acc + (curr ? curr.length : 0), 0),
+            data: { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData }
+        };
+
+        const db = await getIndexedDB();
+        if (db) {
+            const tx = db.transaction('snapshots', 'readwrite');
+            const store = tx.objectStore('snapshots');
+            store.put(snapshotPayload);
+            tx.oncomplete = () => {
+                localStorage.setItem('snackloop_last_snapshot_date', key);
+                pruneOldSnapshots(db);
+                if (typeof renderSnapshotListUI === 'function') renderSnapshotListUI();
+            };
+        }
+    } catch(e) {
+        console.warn("[Snapshot] Warning:", e);
+    }
+}
+
+async function pruneOldSnapshots(db) {
+    try {
+        const tx = db.transaction('snapshots', 'readwrite');
+        const store = tx.objectStore('snapshots');
+        const req = store.getAllKeys();
+        req.onsuccess = () => {
+            const keys = req.result || [];
+            if (keys.length > 7) {
+                keys.sort();
+                const toDelete = keys.slice(0, keys.length - 7);
+                toDelete.forEach(k => store.delete(k));
+            }
+        };
     } catch(e) {}
 }
 
-function loadCacheFromLocal() {
+async function listDailySnapshots() {
+    const db = await getIndexedDB();
+    if (!db) return [];
+    return new Promise((resolve) => {
+        try {
+            const tx = db.transaction('snapshots', 'readonly');
+            const store = tx.objectStore('snapshots');
+            const req = store.getAll();
+            req.onsuccess = () => {
+                const list = req.result || [];
+                list.sort((a, b) => (b.date > a.date ? 1 : -1));
+                resolve(list);
+            };
+            req.onerror = () => resolve([]);
+        } catch(e) {
+            resolve([]);
+        }
+    });
+}
+
+async function restoreDailySnapshot(dateKey) {
+    if (currentRole !== 'super_admin') {
+        return showNotification("Akses Ditolak", "Hanya Super Admin / Owner yang dapat memulihkan snapshot.", "error");
+    }
+    if (!confirm(`Pulihkan seluruh database sistem ke snapshot tanggal ${dateKey}? Perubahan setelah tanggal ini akan ditimpa.`)) {
+        return;
+    }
+
+    const db = await getIndexedDB();
+    if (!db) return showNotification("Gagal", "Database IndexedDB tidak tersedia.", "error");
+
+    const tx = db.transaction('snapshots', 'readonly');
+    const store = tx.objectStore('snapshots');
+    const req = store.get(dateKey);
+
+    req.onsuccess = async () => {
+        const snap = req.result;
+        if (!snap || !snap.data) {
+            return showNotification("Gagal", "Data snapshot tidak ditemukan.", "error");
+        }
+
+        const data = snap.data;
+        if (data.transactionData) transactionData = data.transactionData;
+        if (data.masterData) masterData = data.masterData;
+        if (data.customerData) customerData = data.customerData;
+        if (data.agentData) agentData = data.agentData;
+        if (data.repackData) repackData = data.repackData;
+        if (data.expenseData) expenseData = data.expenseData;
+        if (data.invoiceData) invoiceData = data.invoiceData;
+        if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
+        if (data.returnData) returnData = data.returnData;
+        if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+
+        await saveCacheToLocal();
+
+        if (typeof renderMonthTabs === 'function') renderMonthTabs();
+        if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderCustomer === 'function') renderCustomer();
+        if (typeof renderAgents === 'function') renderAgents();
+        if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+        if (typeof renderReturns === 'function') renderReturns();
+        if (typeof updateDashboard === 'function') updateDashboard();
+        if (typeof renderFinancialChart === 'function') renderFinancialChart();
+        if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
+
+        logAuditActivity('DATA_RESTORE', `Snapshot ${dateKey}`, `Memulihkan database dari snapshot otomatis tanggal ${dateKey}`);
+        showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
+    };
+}
+
+// ----------------- LOCAL / INDEXEDDB CACHING ----------------- //
+function saveCacheToLocal() {
+    const jData = typeof jastipData !== 'undefined' ? jastipData : [];
+    const cacheObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData };
+
+    // 1. Asinkron ke IndexedDB (Kapasitas Besar & Bebas Quota Limit)
+    const p = idbSet('snackloop_cache_v2', cacheObj).catch(err => {
+        console.warn("[Storage] idbSet warn:", err);
+    });
+
+    // 2. Mirror ringan ke localStorage jika ukuran aman (< 2.5 MB)
     try {
-        const cached = localStorage.getItem('snackloop_cache');
-        if(cached) {
-            const data = JSON.parse(cached);
-            if (typeof jastipData !== 'undefined' && data.jastipData) {
-                jastipData = data.jastipData;
-            }
-            agentData = data.agentData || [];
-            masterData = data.masterData || [];
-            customerData = data.customerData || [];
-            repackData = data.repackData || [];
-            transactionData = data.transactionData || {};
-            expenseData = data.expenseData || [];
-            invoiceData = data.invoiceData || [];
-            priceHistoryData = data.priceHistoryData || [];
-            returnData = data.returnData || [];
-            userData = data.userData && data.userData.length > 0 ? data.userData : [
-                { id: 1, username: 'admin', role: 'super_admin' },
-                { id: 2, username: 'staff1', role: 'staff_rekap' },
-                { id: 3, username: 'admin_kiky', role: 'super_admin' }
-            ];
-            if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
-                userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-            }
+        const jsonStr = JSON.stringify(cacheObj);
+        if (jsonStr.length < 2500000) {
+            localStorage.setItem('snackloop_cache', jsonStr);
         } else {
-            userData = [
-                { id: 1, username: 'admin', role: 'super_admin' },
-                { id: 2, username: 'staff1', role: 'staff_rekap' },
-                { id: 3, username: 'admin_kiky', role: 'super_admin' }
-            ];
+            localStorage.removeItem('snackloop_cache');
+            localStorage.setItem('snackloop_storage_mode', 'indexeddb');
+        }
+    } catch(e) {
+        localStorage.removeItem('snackloop_cache');
+    }
+
+    return p;
+}
+
+async function loadCacheFromLocal() {
+    let data = null;
+
+    // 1. Baca dari IndexedDB
+    try {
+        data = await idbGet('snackloop_cache_v2');
+    } catch(e) {
+        data = null;
+    }
+
+    // 2. Migrasi otomatis dari localStorage jika di IndexedDB belum ada
+    if (!data) {
+        try {
+            const cached = localStorage.getItem('snackloop_cache');
+            if (cached) {
+                data = JSON.parse(cached);
+                if (data) {
+                    await idbSet('snackloop_cache_v2', data);
+                    console.info("[Storage] Migrasi otomatis cache localStorage -> IndexedDB berhasil.");
+                }
+            }
+        } catch(e) {}
+    }
+
+    if (data) {
+        if (typeof jastipData !== 'undefined' && data.jastipData) {
+            jastipData = data.jastipData;
+        }
+        agentData = data.agentData || [];
+        masterData = data.masterData || [];
+        customerData = data.customerData || [];
+        repackData = data.repackData || [];
+        transactionData = data.transactionData || {};
+        expenseData = data.expenseData || [];
+        invoiceData = data.invoiceData || [];
+        priceHistoryData = data.priceHistoryData || [];
+        returnData = data.returnData || [];
+        userData = data.userData && data.userData.length > 0 ? data.userData : [
+            { id: 1, username: 'admin', role: 'super_admin' },
+            { id: 2, username: 'staff1', role: 'staff_rekap' },
+            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+        ];
+        if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
+            userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
+        }
+    } else {
+        userData = [
+            { id: 1, username: 'admin', role: 'super_admin' },
+            { id: 2, username: 'staff1', role: 'staff_rekap' },
+            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+        ];
+    }
+
+    // Muat riwayat audit logs
+    try {
+        const logs = await idbGetAuditLogs(300);
+        if (logs && Array.isArray(logs) && logs.length > 0) {
+            auditLogData = logs;
         }
     } catch(e) {}
+
+    // Jalankan auto snapshot harian di background
+    setTimeout(checkAndCreateDailySnapshot, 3000);
+
+    return data;
 }
 
 // ======================= OFFLINE OUTBOX & SYNC ENGINE ======================= //
@@ -757,6 +1099,203 @@ setInterval(() => {
         syncOutboxQueue();
     }
 }, 30000);
+
+// ======================= AUDIT TRAIL UI & EXPORT HANDLERS ======================= //
+function renderAuditLogsTable() {
+    const tbody = document.getElementById('audit-logs-table-body');
+    const badgeEl = document.getElementById('audit-log-count-badge');
+    if (!tbody) return;
+
+    let filtered = auditLogData || [];
+
+    // Filter Aksi
+    if (currentAuditActionFilter && currentAuditActionFilter !== 'all') {
+        filtered = filtered.filter(l => (l.action || '').startsWith(currentAuditActionFilter));
+    }
+
+    // Filter Search Keyword
+    if (currentAuditSearchKeyword) {
+        const kw = currentAuditSearchKeyword.toLowerCase();
+        filtered = filtered.filter(l => 
+            (l.user || '').toLowerCase().includes(kw) ||
+            (l.target || '').toLowerCase().includes(kw) ||
+            (l.details || '').toLowerCase().includes(kw) ||
+            (l.action || '').toLowerCase().includes(kw)
+        );
+    }
+
+    if (badgeEl) {
+        badgeEl.innerText = `${filtered.length} Catatan`;
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center opacity-60">Tidak ada riwayat aktivitas yang sesuai.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.slice(0, 150).map(log => {
+        let actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border theme-input">${log.action}</span>`;
+        if (log.action.includes('CREATE')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300">Buat Data</span>`;
+        } else if (log.action.includes('DELETE')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300">Hapus Data</span>`;
+        } else if (log.action.includes('STATUS')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">Ubah Status</span>`;
+        } else if (log.action.includes('PAID')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300">Pelunasan</span>`;
+        } else if (log.action.includes('PRICE')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300">Ubah Harga</span>`;
+        } else if (log.action.includes('RESTORE') || log.action.includes('BACKUP')) {
+            actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border theme-input text-slate-700 dark:text-slate-300">Cadangan</span>`;
+        }
+
+        const roleBadge = log.role === 'super_admin' ? 'Owner' : (log.role === 'staff_rekap' ? 'Kasir' : log.role);
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 border-b border-inherit">
+                <td class="p-3 border border-inherit tabular-nums whitespace-nowrap text-slate-600 dark:text-slate-300 text-[11px]">${log.displayTime || log.timestamp}</td>
+                <td class="p-3 border border-inherit whitespace-nowrap font-medium">
+                    <span>${log.user}</span>
+                    <span class="text-[10px] opacity-60 block">(${roleBadge})</span>
+                </td>
+                <td class="p-3 border border-inherit whitespace-nowrap">${actionBadge}</td>
+                <td class="p-3 border border-inherit font-mono font-semibold">${log.target}</td>
+                <td class="p-3 border border-inherit text-slate-700 dark:text-slate-300">${log.details}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function onAuditSearch(e) {
+    currentAuditSearchKeyword = (e.target.value || '').trim();
+    renderAuditLogsTable();
+}
+
+function onAuditActionFilterChange(val) {
+    currentAuditActionFilter = val || 'all';
+    renderAuditLogsTable();
+}
+
+async function refreshAuditLogs() {
+    showNotification("Memuat Ulang", "Menyegarkan catatan log audit...", "info");
+    const logs = await idbGetAuditLogs(300);
+    if (logs) auditLogData = logs;
+    renderAuditLogsTable();
+}
+
+function exportAuditLogsCSV() {
+    if (!auditLogData || auditLogData.length === 0) {
+        return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
+    }
+
+    const headers = ["Waktu", "Operator", "Peran", "Aksi", "Target", "Rincian"];
+    const rows = auditLogData.map(l => [
+        `"${(l.displayTime || l.timestamp || '').replace(/"/g, '""')}"`,
+        `"${(l.user || '').replace(/"/g, '""')}"`,
+        `"${(l.role || '').replace(/"/g, '""')}"`,
+        `"${(l.action || '').replace(/"/g, '""')}"`,
+        `"${(l.target || '').replace(/"/g, '""')}"`,
+        `"${(l.details || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showNotification("Sukses", "File rekap Audit Log (CSV) berhasil diunduh.", "success");
+}
+
+function exportAuditLogsJSON() {
+    if (!auditLogData || auditLogData.length === 0) {
+        return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
+    }
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditLogData, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
+    dlAnchor.remove();
+    showNotification("Sukses", "File JSON Audit Log berhasil diunduh.", "success");
+}
+
+// ----------------- STORAGE HEALTH & SNAPSHOT UI ----------------- //
+async function renderStorageHealthUI() {
+    const statUsageEl = document.getElementById('storage-stat-usage');
+    const statOutboxEl = document.getElementById('storage-stat-outbox');
+    const statAuditEl = document.getElementById('storage-stat-audit');
+    const badgeEl = document.getElementById('storage-engine-badge');
+
+    if (!statUsageEl && !badgeEl) return;
+
+    const hasIDB = !!window.indexedDB;
+    if (badgeEl) {
+        badgeEl.className = hasIDB 
+            ? "px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+            : "px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800";
+        badgeEl.innerText = hasIDB ? "IndexedDB Aktif" : "LocalStorage Mode";
+    }
+
+    if (statOutboxEl) {
+        const outboxCount = getOutbox().length;
+        statOutboxEl.innerText = `${outboxCount} pending`;
+    }
+
+    if (statAuditEl) {
+        statAuditEl.innerText = `${auditLogData.length} log`;
+    }
+
+    if (statUsageEl) {
+        if (navigator.storage && navigator.storage.estimate) {
+            try {
+                const est = await navigator.storage.estimate();
+                const mb = ((est.usage || 0) / (1024 * 1024)).toFixed(2);
+                statUsageEl.innerText = `${mb} MB`;
+            } catch(e) {
+                statUsageEl.innerText = `< 5 MB`;
+            }
+        } else {
+            statUsageEl.innerText = `Normal`;
+        }
+    }
+}
+
+async function renderSnapshotListUI() {
+    const container = document.getElementById('snapshot-history-list');
+    if (!container) return;
+
+    const snapshots = await listDailySnapshots();
+    if (snapshots.length === 0) {
+        container.innerHTML = `<div class="p-2.5 rounded-lg border theme-input text-center text-[11px] opacity-60">Belum ada snapshot harian tersimpan. Tekan "Ambil Sekarang" untuk mencadangkan.</div>`;
+        return;
+    }
+
+    container.innerHTML = snapshots.map(s => `
+        <div class="p-2.5 rounded-lg border theme-input flex items-center justify-between gap-2">
+            <div>
+                <strong class="font-mono text-xs block text-slate-800 dark:text-slate-200">${s.date}</strong>
+                <span class="text-[10px] opacity-60">${s.displayDate || s.createdAt} | ${s.itemCount || 0} transaksi</span>
+            </div>
+            <button type="button" onclick="restoreDailySnapshot('${s.date}')" class="px-2.5 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition" title="Pulihkan data ke snapshot ini">
+                <i class="fa-solid fa-rotate-left mr-1"></i> Pulihkan
+            </button>
+        </div>
+    `).join('');
+}
+
+async function triggerManualSnapshot() {
+    const today = new Date().toISOString().slice(0, 10);
+    showNotification("Memproses Snapshot", "Mencadangkan snapshot lokal ke IndexedDB...", "info");
+    await createDailySnapshot(today);
+    await renderSnapshotListUI();
+    showNotification("Sukses", `Snapshot tanggal ${today} berhasil disimpan!`, "success");
+}
 
 
 // --- [MODULE: 05-modals.js] ---
@@ -1639,17 +2178,25 @@ async function renderUsers() {
             </tr>`;
     }).join('');
     tbody.innerHTML = rows;
+
+    if (typeof renderAuditLogsTable === 'function') {
+        renderAuditLogsTable();
+    }
 }
 
 function confirmDeleteUser(id) {
     if(currentRole !== 'super_admin') return;
-    showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus akun pengguna ini?", async () => {
+    const targetUser = userData.find(u => u.id === id);
+    const username = targetUser ? targetUser.username : `User #${id}`;
+
+    showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus akun pengguna "${username}"?`, async () => {
         const { error } = await supabaseClient.from('users').delete().eq('id', id);
         if(error) return showNotification("Gagal", error.message, "error");
 
+        logAuditActivity('USER_DELETE', username, `Menghapus akun pengguna: ${username} (ID: ${id})`);
         await loadDataFromCloud(); 
         renderUsers();
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Akun berhasil dihapus", "success");
     });
 }
 
@@ -1666,16 +2213,19 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     const { error } = await supabaseClient.from('users').insert([{ username, password, role }]);
     if(error) return showNotification("Gagal", error.message, "error");
     
+    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
+    logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);
+
     await loadDataFromCloud(); 
     renderUsers(); 
     this.reset(); 
-    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
     showNotification("Sukses", `Akun ${username} (${roleLabel}) berhasil didaftarkan!`, "success");
 });
 
 function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
-    const backupObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData };
+    const jData = typeof jastipData !== 'undefined' ? jastipData : [];
+    const backupObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, jastipData: jData, auditLogData };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute("href", dataStr);
@@ -1683,6 +2233,8 @@ function backupDataJSON() {
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
+
+    logAuditActivity('DATA_BACKUP', `Backup-${new Date().toISOString().slice(0, 10)}`, "Mengunduh file cadangan database JSON lengkap");
     showNotification("Sukses", "File backup lokal berhasil diunduh.", "success");
 }
 
@@ -1703,6 +2255,8 @@ function restoreDataJSON(event) {
             if (data.invoiceData) invoiceData = data.invoiceData;
             if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
             if (data.returnData) returnData = data.returnData;
+            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+            if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
 
             saveCacheToLocal();
             renderMonthTabs();
@@ -1713,7 +2267,9 @@ function restoreDataJSON(event) {
             renderInvoicesTable();
             renderReturns();
             updateDashboard();
+            if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
 
+            logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);
             showNotification("Sukses", "Data backup berhasil dipulihkan secara penuh ke sistem!", "success");
         } catch(err) {
             console.error("Gagal restore:", err);
@@ -1810,6 +2366,8 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.sell = newSell;
     saveCacheToLocal();
 
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+
     renderMaster();
     renderDropdowns();
     closeEditMasterModal();
@@ -1878,10 +2436,12 @@ function confirmDeleteMaster(id) {
     if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus produk master ini?", async () => {
         const idx = masterData.findIndex(m => m.id === id);
+        const item = idx !== -1 ? masterData[idx] : null;
         if(idx !== -1) masterData.splice(idx, 1);
         saveCacheToLocal();
         renderMaster();
         renderDropdowns();
+        if (item) logAuditActivity('MASTER_DELETE', item.name, `Menghapus produk master: ${item.name} (${item.source})`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
@@ -2031,6 +2591,7 @@ async function saveToRepackWarehouse() {
     saveCacheToLocal();
     renderRepackWarehouse();
     onSourceChange();
+    logAuditActivity('REPACK_CREATE', itemToSave.id, `Membuat batch repack ${itemToSave.id}: ${itemToSave.name} (${itemToSave.initial_qty} pcs)`);
     showNotification("Sukses", "Batch masuk ke Gudang Repack", "success");
 
     currentRepackCalcResult = null;
@@ -2076,10 +2637,12 @@ function confirmDeleteRepackBatch(batchId) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Hanya Owner / Super Admin yang diizinkan menghapus batch.", "error");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus Batch Repack ini secara permanen?", async () => {
         const idx = repackData.findIndex(r => r.id === batchId);
+        const item = idx !== -1 ? repackData[idx] : null;
         if(idx !== -1) repackData.splice(idx, 1);
         saveCacheToLocal();
         renderRepackWarehouse();
         onSourceChange();
+        logAuditActivity('REPACK_DELETE', batchId, `Menghapus batch repack ${batchId} (${item?.name || ''})`);
         showNotification("Sukses", "Batch Repack berhasil dihapus", "success");
 
         dispatchMutation({
@@ -2292,6 +2855,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
         await supabaseClient.from('invoices').insert([dbInvPayload]);
     });
+
+    logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
 
     if(navigator.onLine) {
         showNotification("Sukses", "Data penjualan berhasil disimpan!", "success");
@@ -2765,10 +3330,12 @@ function confirmDeleteInvoice(invId, invNumber) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Hanya Super Admin yang diizinkan.", "error");
     showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus invoice ${invNumber} secara permanen?`, async () => {
         const idx = invoiceData.findIndex(i => i.id === invId);
+        const invTarget = idx !== -1 ? invoiceData[idx] : null;
         if(idx !== -1) invoiceData.splice(idx, 1);
         saveCacheToLocal();
         renderInvoicesTable();
         updateDashboard();
+        logAuditActivity('INVOICE_DELETE', invNumber, `Menghapus invoice ${invNumber} (${invTarget ? invTarget.customer_name : ''}) senilai Rp ${(invTarget?.total_amount || 0).toLocaleString()}`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
@@ -2801,6 +3368,11 @@ async function markInvoiceAsPaid(invId, custName) {
     renderTransactionsForActiveSheet();
     updateDashboard();
     renderFinancialChart();
+
+    const invNo = inv ? inv.invoice_number : `INV #${invId}`;
+    const amount = inv ? inv.total_amount : 0;
+    logAuditActivity('INVOICE_PAID', invNo, `Pelunasan tagihan invoice ${invNo} (${custName}) senilai Rp ${amount.toLocaleString()}`);
+
     showNotification("Sukses", "Invoice berhasil ditandai Lunas!", "success");
 
     dispatchMutation({
@@ -3064,6 +3636,8 @@ function confirmDeleteTrx(id) {
         updateDashboard(); 
         renderFinancialChart();
         renderRepackWarehouse();
+
+        logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
@@ -3084,12 +3658,16 @@ async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     const list = transactionData[activeMonthSheet] || [];
     const trx = list.find(t => t.id === id);
+    let oldStatus = 'Belum Lunas';
     if(trx) {
+        oldStatus = trx.status;
         trx.status = newStatus;
         saveCacheToLocal();
         renderTransactionsForActiveSheet();
         updateDashboard();
         renderFinancialChart();
+
+        logAuditActivity('TRANSACTION_STATUS_CHANGE', `TRX #${id}`, `Mengubah status transaksi ${trx.customer} (${trx.itemName}) dari "${oldStatus}" menjadi "${newStatus}"`);
     }
     showNotification("Sukses", "Status transaksi diperbarui.", "success");
 
@@ -4903,6 +5481,8 @@ function saveReturnRecord(e) {
     renderFinancialChart();
     renderInvoicesTable();
 
+    logAuditActivity('RETURN_CREATE', newReturn.return_code, `Pencatatan klaim retur: ${newReturn.qty}x ${newReturn.item_name} dari ${newReturn.customer} (${newReturn.action_type})`);
+
     closeReturnModal();
     showNotification("Sukses", `Retur "${returnCode}" berhasil dicatat & disinkronkan!`, "success");
 }
@@ -4920,6 +5500,8 @@ function resolveReturnClaim(returnId) {
         claim_status: 'selesai',
         resolved_date: item.resolved_date
     });
+
+    logAuditActivity('RETURN_RESOLVE', item.return_code || `RET #${item.id}`, `Penyelesaian klaim retur: ${item.item_name} (${item.qty} pcs) ke ${item.agent}`);
 
     renderReturns();
     showNotification("Klaim Selesai", `Barang ${item.item_name} (${item.qty} pcs) berhasil ditandai selesai ditukar ke ${item.agent}.`, "success");
@@ -4944,6 +5526,8 @@ function confirmDeleteReturn(returnId) {
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'delete', { id: returnId });
+
+    logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
 
     renderReturns();
     renderTransactionsForActiveSheet();
@@ -6803,6 +7387,10 @@ function switchSettingsTab(tabName) {
             if (btnEl) {
                 btnEl.className = "px-3 py-2 font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition flex items-center gap-1.5";
             }
+            if (p === 'backup') {
+                if (typeof renderStorageHealthUI === 'function') renderStorageHealthUI();
+                if (typeof renderSnapshotListUI === 'function') renderSnapshotListUI();
+            }
         } else {
             if (panelEl) {
                 panelEl.classList.add('hidden');
@@ -6855,6 +7443,10 @@ function clearLocalAppCache() {
     if (!confirm("Bersihkan cache lokal browser? Data Anda di database cloud tetap aman.")) return;
     try {
         localStorage.removeItem('snackloop_cache');
+        localStorage.removeItem('snackloop_storage_mode');
+        if (window.indexedDB) {
+            indexedDB.deleteDatabase('snackloop_erp_db');
+        }
         if ('caches' in window) {
             caches.keys().then(names => {
                 names.forEach(name => caches.delete(name));

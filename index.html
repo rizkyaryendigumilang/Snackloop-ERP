@@ -1378,6 +1378,74 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- AUDIT TRAIL / LOG AKTIVITAS SISTEM (ANTI-FRAUD) -->
+                    <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4" id="audit-logs-card">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-inherit pb-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base font-bold flex items-center gap-2">
+                                        <i class="fa-solid fa-clipboard-list text-indigo-500"></i>
+                                        <span>Log Aktivitas Sistem (Audit Trail)</span>
+                                    </h3>
+                                    <span id="audit-log-count-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 border theme-input">0 Catatan</span>
+                                </div>
+                                <p class="text-xs opacity-70 mt-0.5">Rekam jejak forensik pembuatan nota, penghapusan data, pelunasan piutang, dan perubahan harga master.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="exportAuditLogsCSV()" class="px-3 py-1.5 rounded-lg border theme-input text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-1.5" title="Ekspor rekap log ke Excel/CSV">
+                                    <i class="fa-solid fa-file-csv text-emerald-500"></i> <span>Ekspor CSV</span>
+                                </button>
+                                <button type="button" onclick="exportAuditLogsJSON()" class="px-3 py-1.5 rounded-lg border theme-input text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-1.5" title="Ekspor rekap log ke JSON">
+                                    <i class="fa-solid fa-file-code text-indigo-500"></i> <span>Ekspor JSON</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filter & Search Bar -->
+                        <div class="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between text-xs">
+                            <div class="relative flex-grow max-w-sm">
+                                <input type="text" id="audit-search-input" oninput="onAuditSearch(event)" placeholder="Cari user, nomor nota, atau aksi..." class="w-full theme-input border rounded-xl py-2 pl-8 pr-3 outline-none text-xs">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <select id="audit-action-filter" onchange="onAuditActionFilterChange(this.value)" class="theme-input border rounded-xl px-3 py-2 text-xs font-medium outline-none">
+                                    <option value="all">Semua Jenis Aksi</option>
+                                    <option value="TRANSACTION_CREATE">Buat Transaksi / Nota</option>
+                                    <option value="TRANSACTION_STATUS_CHANGE">Ubah Status Piutang</option>
+                                    <option value="TRANSACTION_DELETE">Hapus Transaksi</option>
+                                    <option value="INVOICE_PAID">Pelunasan Invoice</option>
+                                    <option value="INVOICE_DELETE">Hapus Invoice</option>
+                                    <option value="RETURN_CREATE">Pencatatan Retur</option>
+                                    <option value="RETURN_RESOLVE">Penyelesaian Retur</option>
+                                    <option value="PRICE_CHANGE">Perubahan Harga Master</option>
+                                    <option value="USER_">Pengelolaan Akun User</option>
+                                    <option value="DATA_">Backup / Restore Database</option>
+                                </select>
+                                <button type="button" onclick="refreshAuditLogs()" class="p-2 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Muat Ulang Log">
+                                    <i class="fa-solid fa-arrows-rotate text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table Container -->
+                        <div class="overflow-x-auto max-h-[420px] rounded-xl border border-inherit">
+                            <table class="w-full text-left border-collapse text-xs theme-table">
+                                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/80 border-b border-inherit">
+                                    <tr>
+                                        <th class="p-3 border border-inherit font-semibold">Waktu</th>
+                                        <th class="p-3 border border-inherit font-semibold">Operator</th>
+                                        <th class="p-3 border border-inherit font-semibold">Jenis Aksi</th>
+                                        <th class="p-3 border border-inherit font-semibold">Objek / Nota</th>
+                                        <th class="p-3 border border-inherit font-semibold">Rincian Perubahan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-logs-table-body">
+                                    <tr><td colspan="5" class="p-6 text-center opacity-60">Memuat riwayat audit...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- TEMPLATE INVOICE / REKAP PDF -->
@@ -2399,11 +2467,52 @@
 
                 <!-- SUB-TAB 2: CADANGAN DATA -->
                 <div id="set-panel-backup" class="hidden space-y-3">
+                    <!-- 1. KETAHANAN PENYIMPANAN & ESTIMASI STORAGE -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-hard-drive text-indigo-500"></i> Ketahanan Penyimpanan Lokal
+                            </h4>
+                            <span id="storage-engine-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">IndexedDB Aktif</span>
+                        </div>
+                        <p class="text-[11px] opacity-70">Sistem menggunakan database IndexedDB lokal asinkron untuk menjamin kapasitas penyimpanan ratusan MB tanpa limit kuota browser.</p>
+                        
+                        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div class="p-2 rounded-lg border theme-input">
+                                <span class="text-[10px] opacity-60 block">Estimasi Terpakai</span>
+                                <strong id="storage-stat-usage" class="tabular-nums">- MB</strong>
+                            </div>
+                            <div class="p-2 rounded-lg border theme-input">
+                                <span class="text-[10px] opacity-60 block">Antrean Outbox</span>
+                                <strong id="storage-stat-outbox" class="tabular-nums">0 pending</strong>
+                            </div>
+                            <div class="p-2 rounded-lg border theme-input">
+                                <span class="text-[10px] opacity-60 block">Riwayat Audit</span>
+                                <strong id="storage-stat-audit" class="tabular-nums">0 log</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. SNAPSHOT HARIAN OTOMATIS (DISASTER RECOVERY) -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> Snapshot Harian Otomatis
+                            </h4>
+                            <button type="button" onclick="triggerManualSnapshot()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Ambil Sekarang</button>
+                        </div>
+                        <p class="text-[11px] opacity-70">Pencadangan snapshot lokal mandiri 7 hari terakhir untuk pemulihan cepat jika terjadi kesalahan input kasir.</p>
+                        <div id="snapshot-history-list" class="space-y-1.5 pt-1 text-xs max-h-36 overflow-y-auto">
+                            <div class="p-2 rounded-lg border theme-input text-center text-[11px] opacity-60">Memeriksa snapshot harian...</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. FILE CADANGAN MANUAL (JSON) -->
                     <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
                         <h4 class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                             <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i> Unduh File Cadangan (JSON)
                         </h4>
-                        <p class="text-[11px] opacity-70">Simpan salinan seluruh transaksi, data master, pelanggan, agen, gudang repack, dan catatan retur ke komputer/HP Anda.</p>
+                        <p class="text-[11px] opacity-70">Simpan salinan seluruh transaksi, data master, pelanggan, agen, gudang repack, catatan retur, dan jastip ke komputer/HP Anda.</p>
                         <button type="button" onclick="backupDataJSON()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white w-full !py-2 text-xs flex items-center justify-center gap-1.5 font-semibold">
                             <i class="fa-solid fa-download"></i> <span>Download Backup Database (.json)</span>
                         </button>

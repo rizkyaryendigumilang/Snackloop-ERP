@@ -33,7 +33,7 @@ function showNotification(title, message, type = 'success') {
 }
 
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
         form.addEventListener('invalid', function(e) {
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", function() {
     updateLanguageButtonsUI();
 
     loadMemos();
-    loadCacheFromLocal();
+    await loadCacheFromLocal();
     updateNetworkStatus();
 
     // Cek Sesi Login yang Tersimpan (Persistent Session Check)

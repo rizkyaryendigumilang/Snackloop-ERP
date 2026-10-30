@@ -20,17 +20,25 @@ async function renderUsers() {
             </tr>`;
     }).join('');
     tbody.innerHTML = rows;
+
+    if (typeof renderAuditLogsTable === 'function') {
+        renderAuditLogsTable();
+    }
 }
 
 function confirmDeleteUser(id) {
     if(currentRole !== 'super_admin') return;
-    showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus akun pengguna ini?", async () => {
+    const targetUser = userData.find(u => u.id === id);
+    const username = targetUser ? targetUser.username : `User #${id}`;
+
+    showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus akun pengguna "${username}"?`, async () => {
         const { error } = await supabaseClient.from('users').delete().eq('id', id);
         if(error) return showNotification("Gagal", error.message, "error");
 
+        logAuditActivity('USER_DELETE', username, `Menghapus akun pengguna: ${username} (ID: ${id})`);
         await loadDataFromCloud(); 
         renderUsers();
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Akun berhasil dihapus", "success");
     });
 }
 
@@ -47,16 +55,19 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     const { error } = await supabaseClient.from('users').insert([{ username, password, role }]);
     if(error) return showNotification("Gagal", error.message, "error");
     
+    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
+    logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);
+
     await loadDataFromCloud(); 
     renderUsers(); 
     this.reset(); 
-    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
     showNotification("Sukses", `Akun ${username} (${roleLabel}) berhasil didaftarkan!`, "success");
 });
 
 function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
-    const backupObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData };
+    const jData = typeof jastipData !== 'undefined' ? jastipData : [];
+    const backupObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, jastipData: jData, auditLogData };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute("href", dataStr);
@@ -64,6 +75,8 @@ function backupDataJSON() {
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
+
+    logAuditActivity('DATA_BACKUP', `Backup-${new Date().toISOString().slice(0, 10)}`, "Mengunduh file cadangan database JSON lengkap");
     showNotification("Sukses", "File backup lokal berhasil diunduh.", "success");
 }
 
@@ -84,6 +97,8 @@ function restoreDataJSON(event) {
             if (data.invoiceData) invoiceData = data.invoiceData;
             if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
             if (data.returnData) returnData = data.returnData;
+            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+            if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
 
             saveCacheToLocal();
             renderMonthTabs();
@@ -94,7 +109,9 @@ function restoreDataJSON(event) {
             renderInvoicesTable();
             renderReturns();
             updateDashboard();
+            if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
 
+            logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);
             showNotification("Sukses", "Data backup berhasil dipulihkan secara penuh ke sistem!", "success");
         } catch(err) {
             console.error("Gagal restore:", err);

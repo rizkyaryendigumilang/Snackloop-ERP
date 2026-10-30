@@ -197,6 +197,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         await supabaseClient.from('invoices').insert([dbInvPayload]);
     });
 
+    logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
+
     if(navigator.onLine) {
         showNotification("Sukses", "Data penjualan berhasil disimpan!", "success");
     } else {
@@ -669,10 +671,12 @@ function confirmDeleteInvoice(invId, invNumber) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Hanya Super Admin yang diizinkan.", "error");
     showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus invoice ${invNumber} secara permanen?`, async () => {
         const idx = invoiceData.findIndex(i => i.id === invId);
+        const invTarget = idx !== -1 ? invoiceData[idx] : null;
         if(idx !== -1) invoiceData.splice(idx, 1);
         saveCacheToLocal();
         renderInvoicesTable();
         updateDashboard();
+        logAuditActivity('INVOICE_DELETE', invNumber, `Menghapus invoice ${invNumber} (${invTarget ? invTarget.customer_name : ''}) senilai Rp ${(invTarget?.total_amount || 0).toLocaleString()}`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
@@ -705,6 +709,11 @@ async function markInvoiceAsPaid(invId, custName) {
     renderTransactionsForActiveSheet();
     updateDashboard();
     renderFinancialChart();
+
+    const invNo = inv ? inv.invoice_number : `INV #${invId}`;
+    const amount = inv ? inv.total_amount : 0;
+    logAuditActivity('INVOICE_PAID', invNo, `Pelunasan tagihan invoice ${invNo} (${custName}) senilai Rp ${amount.toLocaleString()}`);
+
     showNotification("Sukses", "Invoice berhasil ditandai Lunas!", "success");
 
     dispatchMutation({
@@ -968,6 +977,8 @@ function confirmDeleteTrx(id) {
         updateDashboard(); 
         renderFinancialChart();
         renderRepackWarehouse();
+
+        logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
@@ -988,12 +999,16 @@ async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     const list = transactionData[activeMonthSheet] || [];
     const trx = list.find(t => t.id === id);
+    let oldStatus = 'Belum Lunas';
     if(trx) {
+        oldStatus = trx.status;
         trx.status = newStatus;
         saveCacheToLocal();
         renderTransactionsForActiveSheet();
         updateDashboard();
         renderFinancialChart();
+
+        logAuditActivity('TRANSACTION_STATUS_CHANGE', `TRX #${id}`, `Mengubah status transaksi ${trx.customer} (${trx.itemName}) dari "${oldStatus}" menjadi "${newStatus}"`);
     }
     showNotification("Sukses", "Status transaksi diperbarui.", "success");
 

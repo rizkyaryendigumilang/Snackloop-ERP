@@ -83,6 +83,8 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.sell = newSell;
     saveCacheToLocal();
 
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+
     renderMaster();
     renderDropdowns();
     closeEditMasterModal();
@@ -151,10 +153,12 @@ function confirmDeleteMaster(id) {
     if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus produk master ini?", async () => {
         const idx = masterData.findIndex(m => m.id === id);
+        const item = idx !== -1 ? masterData[idx] : null;
         if(idx !== -1) masterData.splice(idx, 1);
         saveCacheToLocal();
         renderMaster();
         renderDropdowns();
+        if (item) logAuditActivity('MASTER_DELETE', item.name, `Menghapus produk master: ${item.name} (${item.source})`);
         showNotification("Sukses", "Data berhasil dihapus", "success");
 
         dispatchMutation({
