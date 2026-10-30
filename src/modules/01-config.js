@@ -41,4 +41,10 @@ let isSyncing = false;
 let currentTransactionPage = 1;
 const rowsPerPage = 25;
 let currentSearchKeyword = '';
+
+// State Pagination & Filtering Invoice
+let activeInvoiceMonthSheet = '';
+let currentInvoicePage = 1;
+const invoiceRowsPerPage = 25;
+let currentInvoiceSearchKeyword = '';
 

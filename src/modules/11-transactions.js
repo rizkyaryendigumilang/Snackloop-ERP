@@ -213,6 +213,7 @@ let currentInvoiceAgingFilter = 'all';
 
 function setInvoiceAgingFilter(filterKey) {
     currentInvoiceAgingFilter = filterKey;
+    currentInvoicePage = 1;
     
     // Update visual tombol filter
     const filterButtons = ['all', 'unpaid', '0-7', '8-14', '15-30', 'gt30', 'paid'];
@@ -377,21 +378,160 @@ function renderInvoiceAgingCards() {
     `;
 }
 
+// =========================================================================
+// MONTHLY GROUPING & PAGINASI INVOICE (DOM & RENDERING PERFORMANCE)
+// =========================================================================
+const INVOICE_MONTH_ORDER = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+function getInvoiceMonthKey(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return 'Lainnya';
+    const parts = dateStr.split('-');
+    if (parts.length >= 2) {
+        const mIdx = parseInt(parts[1], 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+            return `${INVOICE_MONTH_ORDER[mIdx]} ${parts[0]}`;
+        }
+    }
+    return 'Lainnya';
+}
+
+function getInvoiceMonthSortVal(mk) {
+    if (!mk || mk === 'all' || mk === 'Lainnya') return 0;
+    const p = mk.split(' ');
+    if (p.length === 2) {
+        const m = INVOICE_MONTH_ORDER.indexOf(p[0]);
+        const y = parseInt(p[1], 10);
+        if (m !== -1 && !isNaN(y)) {
+            return y * 100 + (m + 1);
+        }
+    }
+    return 0;
+}
+
+function selectInvoiceMonthSheet(mk) {
+    activeInvoiceMonthSheet = mk;
+    currentInvoicePage = 1;
+    renderInvoicesTable();
+}
+
+function renderInvoiceMonthTabs() {
+    const container = document.getElementById('invoice-month-tabs-container');
+    const summaryBadge = document.getElementById('invoice-month-summary-badge');
+    if (!container) return;
+
+    const monthCounts = {};
+    invoiceData.forEach(inv => {
+        const mk = getInvoiceMonthKey(inv.date);
+        monthCounts[mk] = (monthCounts[mk] || 0) + 1;
+    });
+
+    const distinctMonths = Object.keys(monthCounts).sort((a, b) => getInvoiceMonthSortVal(b) - getInvoiceMonthSortVal(a));
+    const currentMonthKeyStr = getCurrentMonthKey(new Date());
+
+    if (!activeInvoiceMonthSheet) {
+        if (distinctMonths.includes(currentMonthKeyStr)) {
+            activeInvoiceMonthSheet = currentMonthKeyStr;
+        } else if (distinctMonths.length > 0) {
+            activeInvoiceMonthSheet = distinctMonths[0];
+        } else {
+            activeInvoiceMonthSheet = 'all';
+        }
+    }
+
+    // Render Tab buttons
+    let tabsHtml = `
+        <button type="button" onclick="selectInvoiceMonthSheet('all')" 
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1.5 ${activeInvoiceMonthSheet === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}">
+            <span>Semua Bulan</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${activeInvoiceMonthSheet === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${invoiceData.length}</span>
+        </button>
+    `;
+
+    distinctMonths.forEach(mk => {
+        const isActive = activeInvoiceMonthSheet === mk;
+        const count = monthCounts[mk] || 0;
+        tabsHtml += `
+            <button type="button" onclick="selectInvoiceMonthSheet('${mk}')" 
+                class="px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1.5 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}">
+                <span>${mk}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${count}</span>
+            </button>
+        `;
+    });
+
+    container.innerHTML = tabsHtml;
+
+    // Render Summary Badge
+    if (summaryBadge) {
+        const monthInvoices = activeInvoiceMonthSheet === 'all'
+            ? invoiceData
+            : invoiceData.filter(inv => getInvoiceMonthKey(inv.date) === activeInvoiceMonthSheet);
+
+        const totalBilled = monthInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+        const unpaidList = monthInvoices.filter(inv => inv.status !== 'Lunas');
+        const totalUnpaid = unpaidList.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+
+        summaryBadge.innerHTML = `
+            <span class="opacity-70"><i class="fa-solid fa-calculator text-indigo-500 mr-1"></i> Rekap ${activeInvoiceMonthSheet === 'all' ? 'Semua' : activeInvoiceMonthSheet}:</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${totalBilled.toLocaleString()}</span>
+            ${totalUnpaid > 0 ? `<span class="text-rose-600 dark:text-rose-400 font-bold ml-1 tabular-nums">(${unpaidList.length} Nota: Rp ${totalUnpaid.toLocaleString()})</span>` : `<span class="text-emerald-600 dark:text-emerald-400 font-bold ml-1">(Lunas Semua)</span>`}
+        `;
+    }
+}
+
+function renderInvoicePaginationControls(totalPages, totalItems, fromItem, toItem) {
+    const container = document.getElementById('invoice-pagination-container');
+    if (!container) return;
+
+    if (totalItems === 0 || totalPages <= 1) {
+        container.innerHTML = totalItems > 0 
+            ? `<div class="flex justify-between items-center text-xs opacity-70 w-full py-1"><span>Menampilkan seluruh ${totalItems} invoice</span></div>`
+            : '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs w-full py-2">
+            <span class="opacity-70">
+                Menampilkan <b>${fromItem}</b> - <b>${toItem}</b> dari <b>${totalItems}</b> invoice (Hal. ${currentInvoicePage} dari ${totalPages})
+            </span>
+            <div class="flex items-center space-x-1.5">
+                <button onclick="changeInvoicePage(${currentInvoicePage - 1})" ${currentInvoicePage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                <span class="px-2 font-mono font-bold">${currentInvoicePage} / ${totalPages}</span>
+                <button onclick="changeInvoicePage(${currentInvoicePage + 1})" ${currentInvoicePage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}>Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+            </div>
+        </div>
+    `;
+}
+
+function changeInvoicePage(newPage) {
+    currentInvoicePage = newPage;
+    renderInvoicesTable();
+}
+
 async function renderInvoicesTable() {
     renderInvoiceAgingCards();
+    renderInvoiceMonthTabs();
 
     const tbody = document.getElementById('invoices-table-body');
     if(!tbody) return;
     
     if(invoiceData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Belum ada data invoice tercatat.</td></tr>`;
+        renderInvoicePaginationControls(0, 0, 0, 0);
         return;
     }
 
     const isSuperAdmin = currentRole === 'super_admin';
 
-    // Filter invoice berdasarkan currentInvoiceAgingFilter
-    const filteredInvoices = invoiceData.filter(inv => {
+    // 1. Scoping berdasarkan Bulan (Buku Invoice Bulanan)
+    let monthScopedInvoices = invoiceData;
+    if (activeInvoiceMonthSheet && activeInvoiceMonthSheet !== 'all') {
+        monthScopedInvoices = invoiceData.filter(inv => getInvoiceMonthKey(inv.date) === activeInvoiceMonthSheet);
+    }
+
+    // 2. Filter invoice berdasarkan Aging Piutang
+    const filteredInvoices = monthScopedInvoices.filter(inv => {
         if (currentInvoiceAgingFilter === 'all') return true;
         if (currentInvoiceAgingFilter === 'unpaid') return inv.status !== 'Lunas';
         if (currentInvoiceAgingFilter === 'paid') return inv.status === 'Lunas';
@@ -401,12 +541,33 @@ async function renderInvoicesTable() {
         return info.category === currentInvoiceAgingFilter;
     });
 
+    // 3. Zero-Allocation Sort: Direct String Comparison descending (Latest first)
+    filteredInvoices.sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        if (dateA !== dateB) {
+            return dateB > dateA ? 1 : -1;
+        }
+        return (b.id || 0) - (a.id || 0);
+    });
+
     if (filteredInvoices.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini.</td></tr>`;
+        const switchHint = activeInvoiceMonthSheet !== 'all' 
+            ? `<div class="mt-2 text-xs"><button onclick="selectInvoiceMonthSheet('all')" class="text-indigo-600 dark:text-indigo-400 font-bold underline hover:opacity-80">Klik di sini untuk melihat Semua Bulan</button></div>` 
+            : '';
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${activeInvoiceMonthSheet}</b>` : ''}.${switchHint}</td></tr>`;
+        renderInvoicePaginationControls(0, 0, 0, 0);
         return;
     }
 
-    const rows = filteredInvoices.map(inv => {
+    // 4. Pagination (25 baris per halaman)
+    const totalPages = Math.ceil(filteredInvoices.length / invoiceRowsPerPage);
+    if (currentInvoicePage > totalPages) currentInvoicePage = totalPages || 1;
+    if (currentInvoicePage < 1) currentInvoicePage = 1;
+    const startIndex = (currentInvoicePage - 1) * invoiceRowsPerPage;
+    const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + invoiceRowsPerPage);
+
+    const rows = paginatedInvoices.map(inv => {
         const info = getInvoiceAgingInfo(inv);
         const badgeStatus = inv.status === 'Lunas' ? 
             `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold text-[11px] inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> LUNAS</span>` : 
@@ -449,6 +610,7 @@ async function renderInvoicesTable() {
     }).join('');
 
     tbody.innerHTML = rows;
+    renderInvoicePaginationControls(totalPages, filteredInvoices.length, startIndex + 1, Math.min(startIndex + invoiceRowsPerPage, filteredInvoices.length));
 }
 
 function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
@@ -560,7 +722,7 @@ function calculateCustomerLeaderboard(period = 'all') {
             custMap[cName].totalSpent += (t.totalSell || 0);
             custMap[cName].orderCount += 1;
             custMap[cName].totalQty += (t.qty || 0);
-            if (new Date(t.date) > new Date(custMap[cName].lastDate)) {
+            if (t.date > custMap[cName].lastDate) {
                 custMap[cName].lastDate = t.date;
             }
             custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
@@ -861,9 +1023,12 @@ function renderTransactionsForActiveSheet() {
     });
 
     filteredList.sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return transactionDateSortAsc ? dateA - dateB : dateB - dateA;
+        if (a.date !== b.date) {
+            return transactionDateSortAsc 
+                ? (a.date > b.date ? 1 : -1) 
+                : (b.date > a.date ? 1 : -1);
+        }
+        return (b.id || 0) - (a.id || 0);
     });
 
     if(filteredList.length === 0) {

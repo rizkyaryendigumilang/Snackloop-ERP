@@ -27,8 +27,8 @@
     <script src="vendor/feather.min.js"></script>
     <script src="vendor/chart.min.js"></script>
     <script src="vendor/supabase.min.js"></script>
-    <script src="vendor/html2pdf.bundle.min.js"></script>
-    <script src="vendor/xlsx.full.min.js"></script>
+    <script defer src="vendor/html2pdf.bundle.min.js"></script>
+    <script defer src="vendor/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-white min-h-screen text-slate-800">
@@ -574,6 +574,15 @@
                             <button type="button" onclick="setInvoiceAgingFilter('paid')" id="inv-filter-paid" class="px-3 py-1.5 rounded-lg border font-semibold transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 opacity-80 text-slate-500">Lunas (<span id="inv-count-paid">0</span>)</button>
                         </div>
 
+                        <!-- MONTH SHEET SELECTOR & SUMMARY TOOLBAR -->
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-inherit pb-3 text-xs">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-[11px] uppercase tracking-wider opacity-60 flex items-center gap-1.5"><i class="fa-regular fa-calendar-days text-indigo-500"></i> Periode Bulan:</span>
+                                <div id="invoice-month-tabs-container" class="flex items-center gap-1.5 flex-wrap"></div>
+                            </div>
+                            <div id="invoice-month-summary-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border theme-input shrink-0 text-xs"></div>
+                        </div>
+
                         <div class="overflow-x-auto max-h-[500px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
@@ -588,6 +597,9 @@
                                 <tbody id="invoices-table-body"></tbody>
                             </table>
                         </div>
+
+                        <!-- PAGINATION CONTROLS -->
+                        <div id="invoice-pagination-container" class="border-t border-inherit pt-3"></div>
                     </div>
                 </div>
 

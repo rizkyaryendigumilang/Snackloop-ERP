@@ -73,7 +73,12 @@ function renderReturns() {
         return true;
     });
 
-    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    list.sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        if (dateA !== dateB) return dateB > dateA ? 1 : -1;
+        return (b.id || 0) - (a.id || 0);
+    });
 
     // 4. Render Tabel
     if (list.length === 0) {
