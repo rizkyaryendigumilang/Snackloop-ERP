@@ -315,13 +315,21 @@ function renderJastip() {
             : '';
 
         // Indikator Resi
+        const safeTracking = escapeHtml(item.tracking_number || '');
         const trackingDisplay = item.tracking_number 
-            ? `<div class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline" onclick="promptJastipTracking('${item.id}')" title="Klik untuk ubah resi"><i class="fa-solid fa-barcode mr-1"></i>${item.tracking_number}</div>`
+            ? `<div class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline" onclick="promptJastipTracking('${item.id}')" title="Klik untuk ubah resi"><i class="fa-solid fa-barcode mr-1"></i>${safeTracking}</div>`
             : `<div class="text-[9px] opacity-50 cursor-pointer hover:text-indigo-500" onclick="promptJastipTracking('${item.id}')">+ Input Resi</div>`;
 
         const profitDisplay = isSuperAdmin 
             ? `<span class="text-emerald-600 dark:text-emerald-400 font-bold">${item.status === 'out_of_stock' || item.status === 'refunded' ? 'Rp 0' : '+Rp ' + (item.total_net_profit || 0).toLocaleString()}</span>` 
             : `<span class="opacity-40 italic">-</span>`;
+
+        const safeCustName = escapeHtml(item.customer_name || '-');
+        const safeCustAddress = escapeHtml(item.customer_address || '-');
+        const safeCourier = escapeHtml(item.delivery_courier || 'Kurir Lokal');
+        const safeItemName = escapeHtml(item.item_name || '-');
+        const safeVariant = escapeHtml(item.item_variant || '-');
+        const safeExpiry = escapeHtml(item.expiry_date_note || '');
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition border-b border-inherit text-xs">
@@ -332,26 +340,26 @@ function renderJastip() {
                 </td>
                 <td class="py-3 px-3.5">
                     <div class="font-bold flex items-center gap-1.5">
-                        <span>${item.customer_name}</span>
+                        <span>${safeCustName}</span>
                         ${item.customer_phone ? `
                             <button onclick="openJastipWhatsApp('${item.id}')" class="text-emerald-600 hover:text-emerald-700 text-xs" title="Chat WhatsApp">
                                 <i class="fa-brands fa-whatsapp"></i>
                             </button>
                         ` : ''}
                     </div>
-                    <div class="text-[11px] opacity-70 truncate max-w-[180px]">${item.customer_address || '-'}</div>
+                    <div class="text-[11px] opacity-70 truncate max-w-[180px]">${safeCustAddress}</div>
                     <div class="flex items-center gap-1 mt-0.5">
-                        <span class="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 border">${item.delivery_courier || 'Kurir Lokal'}</span>
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 border">${safeCourier}</span>
                     </div>
                     ${trackingDisplay}
                 </td>
                 <td class="py-3 px-3.5">
                     <div class="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1">
                         <span>${flag}</span>
-                        <span>${item.item_name}</span>
+                        <span>${safeItemName}</span>
                     </div>
-                    <div class="text-[10px] opacity-70">${item.item_variant || '-'} (${item.item_qty} pcs)</div>
-                    ${item.expiry_date_note ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-mono block"><i class="fa-solid fa-hourglass-half mr-0.5"></i>${item.expiry_date_note}</span>` : ''}
+                    <div class="text-[10px] opacity-70">${safeVariant} (${item.item_qty} pcs)</div>
+                    ${safeExpiry ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-mono block"><i class="fa-solid fa-hourglass-half mr-0.5"></i>${safeExpiry}</span>` : ''}
                     ${receiptPhotoBadge}
                 </td>
                 <td class="py-3 px-3.5 font-mono">
@@ -1223,10 +1231,13 @@ function renderJastipCustomsSummary() {
             const valasTotal = (item.price_valas || 0) * (item.item_qty || 1);
             const usdVal = Math.round(valasTotal * (rateInfo.toUsd || 0.000062));
 
+            const safeName = escapeHtml(item.item_name || '-');
+            const safeVariant = escapeHtml(item.item_variant || '-');
+
             return `
                 <tr class="border-b border-inherit text-xs">
                     <td class="p-2 font-mono text-[10px]">${idx + 1}</td>
-                    <td class="p-2 font-semibold">${item.item_name} <span class="opacity-60 text-[10px]">(${item.item_variant || '-'})</span></td>
+                    <td class="p-2 font-semibold">${safeName} <span class="opacity-60 text-[10px]">(${safeVariant})</span></td>
                     <td class="p-2 text-center font-mono">${item.item_qty} pcs</td>
                     <td class="p-2 font-mono">${rateInfo.symbol} ${(item.price_valas || 0).toLocaleString()}</td>
                     <td class="p-2 font-mono font-bold">${rateInfo.symbol} ${valasTotal.toLocaleString()}</td>

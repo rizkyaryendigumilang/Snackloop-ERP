@@ -5,10 +5,11 @@ function renderAgents() {
     const isSuperAdmin = currentRole === 'super_admin';
     const rows = agentData.map((ag) => {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteAgent(${ag.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
+        const safeName = escapeHtml(ag.name || '');
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-mono opacity-60">#${ag.id}</td>
-                <td class="p-3 border border-inherit font-semibold">${ag.name}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit text-center">${action}</td>
             </tr>`;
     }).join('');
@@ -65,6 +66,8 @@ function renderAgentPerformanceOverview() {
         }
 
         const estProfit = stat.totalRevenue - stat.totalModal;
+        const safeAgName = escapeHtml(ag.name || '');
+        const safeBestItem = escapeHtml(bestItem || '-');
         const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
 
         return `
@@ -73,7 +76,7 @@ function renderAgentPerformanceOverview() {
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-truck-ramp-box text-slate-400 text-sm"></i>
                         <div>
-                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${ag.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${safeAgName}</h4>
                             <span class="text-[10px] opacity-60">ID Agen: #${ag.id}</span>
                         </div>
                     </div>
@@ -93,7 +96,7 @@ function renderAgentPerformanceOverview() {
                 </div>
                 <div class="text-[11px] opacity-75 truncate">
                     <span class="opacity-60 text-[10px] block">Snack Terlaris:</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${bestItem}</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${safeBestItem}</span>
                 </div>
                 <div class="pt-2 border-t border-inherit flex justify-between items-center gap-2">
                     <span class="text-[10px] text-slate-500 tabular-nums">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>

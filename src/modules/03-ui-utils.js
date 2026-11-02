@@ -1,3 +1,38 @@
+// =========================================================================
+// KEAMANAN & ENKODING DATA (XSS PROTECTION & CRYPTO HASHING)
+// =========================================================================
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function hashPassword(plainText, salt = 'snackloop_sec_salt_2026') {
+    if (!plainText) return '';
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+        try {
+            const enc = new TextEncoder();
+            const data = enc.encode(plainText + ':' + salt);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return 'sha256$' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch(e) {
+            console.warn('[Crypto] subtle digest fallback:', e);
+        }
+    }
+    let hash = 0;
+    const str = plainText + ':' + salt;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return 'h$' + Math.abs(hash).toString(16);
+}
+
 // ======================= SISTEM TOAST NOTIFIKASI MODERN ======================= //
 function showNotification(title, message, type = 'success') {
     const container = document.getElementById('toast-container');

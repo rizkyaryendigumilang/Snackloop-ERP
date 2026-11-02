@@ -47,4 +47,22 @@ let activeInvoiceMonthSheet = '';
 let currentInvoicePage = 1;
 const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';
+
+// ==========================================================
+// SNACKLOOP GLOBAL APPLICATION REGISTRY
+// ==========================================================
+window.SnackLoop = {
+    version: '2.5.0',
+    getUser: () => currentUser,
+    getRole: () => currentRole,
+    hasRole: (role) => currentRole === role,
+    isSuperAdmin: () => currentRole === 'super_admin',
+    isStaff: () => currentRole === 'staff_rekap',
+    isOnline: () => (typeof navigator !== 'undefined' ? navigator.onLine : true),
+    getAuditState: () => ({
+        filter: currentAuditActionFilter,
+        search: currentAuditSearchKeyword
+    }),
+    getClient: () => supabaseClient
+};
 

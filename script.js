@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-10-30T08:18:09.117Z from 17 source modules in src/modules/
+// Generated on 2026-11-02T14:24:30.688Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -53,6 +53,24 @@ let activeInvoiceMonthSheet = '';
 let currentInvoicePage = 1;
 const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';
+
+// ==========================================================
+// SNACKLOOP GLOBAL APPLICATION REGISTRY
+// ==========================================================
+window.SnackLoop = {
+    version: '2.5.0',
+    getUser: () => currentUser,
+    getRole: () => currentRole,
+    hasRole: (role) => currentRole === role,
+    isSuperAdmin: () => currentRole === 'super_admin',
+    isStaff: () => currentRole === 'staff_rekap',
+    isOnline: () => (typeof navigator !== 'undefined' ? navigator.onLine : true),
+    getAuditState: () => ({
+        filter: currentAuditActionFilter,
+        search: currentAuditSearchKeyword
+    }),
+    getClient: () => supabaseClient
+};
 
 
 // --- [MODULE: 02-i18n.js] ---
@@ -311,6 +329,41 @@ function setAppTheme(theme) {
 
 
 // --- [MODULE: 03-ui-utils.js] ---
+// =========================================================================
+// KEAMANAN & ENKODING DATA (XSS PROTECTION & CRYPTO HASHING)
+// =========================================================================
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function hashPassword(plainText, salt = 'snackloop_sec_salt_2026') {
+    if (!plainText) return '';
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+        try {
+            const enc = new TextEncoder();
+            const data = enc.encode(plainText + ':' + salt);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return 'sha256$' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch(e) {
+            console.warn('[Crypto] subtle digest fallback:', e);
+        }
+    }
+    let hash = 0;
+    const str = plainText + ':' + salt;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return 'h$' + Math.abs(hash).toString(16);
+}
+
 // ======================= SISTEM TOAST NOTIFIKASI MODERN ======================= //
 function showNotification(title, message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -998,6 +1051,60 @@ async function syncSingleOutboxItem(item) {
         } catch (e) {
             console.warn("Supabase jastip delete skipped:", e);
         }
+    } else if (item.type === 'INSERT_RETURN') {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('returns').insert([payload]);
+        if (error) throw error;
+    } else if (item.type === 'UPDATE_RETURN') {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('returns').update(payload).eq('id', payload.id);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_RETURN') {
+        const id = item.payload.id || (item.payload.data && item.payload.data.id);
+        const { error } = await supabaseClient.from('returns').delete().eq('id', id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_AUDIT_LOG' || (item.table === 'audit_logs' && item.action === 'insert')) {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('audit_logs').insert([payload]);
+        if (error) throw error;
+    } else if (item.table && item.action) {
+        if (item.action === 'insert') {
+            const { error } = await supabaseClient.from(item.table).insert([item.payload]);
+            if (error) throw error;
+        } else if (item.action === 'update') {
+            const { error } = await supabaseClient.from(item.table).update(item.payload).eq('id', item.payload.id);
+            if (error) throw error;
+        } else if (item.action === 'delete') {
+            const { error } = await supabaseClient.from(item.table).delete().eq('id', item.payload.id);
+            if (error) throw error;
+        }
+    }
+}
+
+// ----------------- REKONSILIASI ID TRANSAKSI OFFLINE KE CLOUD ----------------- //
+function reconcileOfflineTransactionIds(insertedList) {
+    if (!Array.isArray(insertedList) || insertedList.length === 0) return;
+    let modified = false;
+    insertedList.forEach(cloudRow => {
+        for (let mk in transactionData) {
+            const list = transactionData[mk];
+            const localTrx = list.find(t => 
+                typeof t.id === 'string' && t.id.startsWith('trx_') &&
+                t.date === cloudRow.date &&
+                t.customer === cloudRow.customer &&
+                t.itemName === cloudRow.item_name
+            );
+            if (localTrx) {
+                localTrx.id = cloudRow.id;
+                modified = true;
+            }
+        }
+    });
+    if (modified) {
+        saveCacheToLocal();
+        if (typeof renderTransactionsForActiveSheet === 'function') {
+            renderTransactionsForActiveSheet();
+        }
     }
 }
 
@@ -1027,8 +1134,11 @@ async function syncBatchedItems(type, batchItems) {
         // 2. Bulk Insert Transactions (1 HTTP POST)
         const trxRows = batchItems.map(it => it.payload && it.payload.transaction).filter(Boolean);
         if (trxRows.length > 0) {
-            const { error: trxErr } = await supabaseClient.from('transactions').insert(trxRows);
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(trxRows).select();
             if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0) {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
         }
 
         // 3. Bulk Insert Invoices (1 HTTP POST)
@@ -1037,6 +1147,14 @@ async function syncBatchedItems(type, batchItems) {
             const { error: invErr } = await supabaseClient.from('invoices').insert(invRows);
             if (invErr) throw invErr;
         }
+    } else if (type === 'INSERT_RETURN') {
+        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('returns').insert(rows);
+        if (error) throw error;
+    } else if (type === 'DELETE_RETURN') {
+        const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
+        const { error } = await supabaseClient.from('returns').delete().in('id', ids);
+        if (error) throw error;
     } else if (type === 'INSERT_EXPENSE') {
         const rows = batchItems.map(it => it.payload).filter(Boolean);
         const { error } = await supabaseClient.from('expenses').insert(rows);
@@ -1060,6 +1178,10 @@ async function syncBatchedItems(type, batchItems) {
     } else if (type === 'UPSERT_JASTIP') {
         const rows = batchItems.map(it => it.payload).filter(Boolean);
         const { error } = await supabaseClient.from('jastip_orders').upsert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_AUDIT_LOG') {
+        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('audit_logs').insert(rows);
         if (error) throw error;
     } else if (type === 'DELETE_TRANSACTION') {
         // Kembalikan stok repack jika ada
@@ -1183,20 +1305,69 @@ async function dispatchMutation(item, asyncOnlineCall) {
 }
 
 function dispatchOutboxMutation(table, action, payload) {
+    let mutationType = null;
+    if (table === 'returns') {
+        if (action === 'insert') mutationType = 'INSERT_RETURN';
+        else if (action === 'update') mutationType = 'UPDATE_RETURN';
+        else if (action === 'delete') mutationType = 'DELETE_RETURN';
+    } else if (table === 'expenses') {
+        if (action === 'insert') mutationType = 'INSERT_EXPENSE';
+    } else if (table === 'transactions') {
+        if (action === 'insert') mutationType = 'INSERT_TRANSACTION';
+    } else if (table === 'audit_logs') {
+        if (action === 'insert') mutationType = 'INSERT_AUDIT_LOG';
+    }
+
+    const item = {
+        id: 'outbox_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        type: mutationType || `GENERIC_${table.toUpperCase()}_${action.toUpperCase()}`,
+        payload: payload,
+        table: table,
+        action: action,
+        timestamp: new Date().toISOString()
+    };
+
     if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
         try {
             if (action === 'insert') {
-                supabaseClient.from(table).insert([payload]).then(({ error }) => {
-                    if (error) console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
-                }).catch(e => console.warn(e));
+                supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             } else if (action === 'update') {
-                supabaseClient.from(table).update(payload).eq('id', payload.id).catch(e => console.warn(e));
+                const id = payload.id;
+                supabaseClient.from(table).update(payload).eq('id', id).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} update notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             } else if (action === 'delete') {
-                supabaseClient.from(table).delete().eq('id', payload.id).catch(e => console.warn(e));
+                const id = payload.id;
+                supabaseClient.from(table).delete().eq('id', id).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} delete notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             }
         } catch(e) {
-            console.warn("Direct online sync notice:", e);
+            console.warn("Direct online sync notice, queuing to outbox:", e);
+            addToOutbox(item);
         }
+    } else {
+        addToOutbox(item);
     }
 }
 
@@ -1396,18 +1567,22 @@ function renderAuditLogsTable() {
             actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border theme-input text-slate-700 dark:text-slate-300">Cadangan</span>`;
         }
 
-        const roleBadge = log.role === 'super_admin' ? 'Owner' : (log.role === 'staff_rekap' ? 'Kasir' : log.role);
+        const roleBadge = log.role === 'super_admin' ? 'Owner' : (log.role === 'staff_rekap' ? 'Kasir' : (log.role || ''));
+        const safeUser = escapeHtml(log.user || '-');
+        const safeTarget = escapeHtml(log.target || '-');
+        const safeDetails = escapeHtml(log.details || '-');
+        const safeTime = escapeHtml(log.displayTime || log.timestamp || '-');
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 border-b border-inherit">
-                <td class="p-3 border border-inherit tabular-nums whitespace-nowrap text-slate-600 dark:text-slate-300 text-[11px]">${log.displayTime || log.timestamp}</td>
+                <td class="p-3 border border-inherit tabular-nums whitespace-nowrap text-slate-600 dark:text-slate-300 text-[11px]">${safeTime}</td>
                 <td class="p-3 border border-inherit whitespace-nowrap font-medium">
-                    <span>${log.user}</span>
-                    <span class="text-[10px] opacity-60 block">(${roleBadge})</span>
+                    <span>${safeUser}</span>
+                    <span class="text-[10px] opacity-60 block">(${escapeHtml(roleBadge)})</span>
                 </td>
                 <td class="p-3 border border-inherit whitespace-nowrap">${actionBadge}</td>
-                <td class="p-3 border border-inherit font-mono font-semibold">${log.target}</td>
-                <td class="p-3 border border-inherit text-slate-700 dark:text-slate-300">${log.details}</td>
+                <td class="p-3 border border-inherit font-mono font-semibold">${safeTarget}</td>
+                <td class="p-3 border border-inherit text-slate-700 dark:text-slate-300">${safeDetails}</td>
             </tr>
         `;
     }).join('');
@@ -1706,64 +1881,70 @@ function toggleDarkMode() {
 
 
 // --- [MODULE: 06-auth.js] ---
-// ======================= 1. LOGIN & AUTH ======================= //
+// ======================= 1. LOGIN & SECURE AUTH ======================= //
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const u = document.getElementById('login-username').value.trim();
     const p = document.getElementById('login-password').value.trim();
     
+    if (!u || !p) {
+        showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
+        return;
+    }
+
+    const hashedInput = await hashPassword(p);
     let userInfo = null;
+
     try {
+        // 1. Cari user di Supabase
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
-            .eq('username', u)
-            .eq('password', p);
+            .ilike('username', u);
             
         if (!error && data && data.length > 0) {
-            userInfo = data[0];
+            const foundUser = data[0];
+            const isMatchHashed = foundUser.password === hashedInput;
+            const isMatchPlain = foundUser.password === p;
+
+            if (isMatchHashed || isMatchPlain) {
+                userInfo = foundUser;
+                // Migrasi otomatis password legacy plaintext ke hash SHA-256
+                if (isMatchPlain && !isMatchHashed) {
+                    supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
+                        console.info("[Auth] Password akun berhasil diamankan dengan enkripsi SHA-256.");
+                    }).catch(() => {});
+                }
+            }
         }
     } catch(err) {
         console.warn("Supabase query error:", err);
     }
 
-    // Auto-provisioning & otentikasi akun admin_kiky (Super Admin / Owner)
-    if (!userInfo && u.toLowerCase() === 'admin_kiky' && (p === '123456' || p === 'password123')) {
-        try {
-            const { data: newAdmin } = await supabaseClient
-                .from('users')
-                .insert([{ username: 'admin_kiky', password: p, role: 'super_admin' }])
-                .select();
-            if (newAdmin && newAdmin.length > 0) {
-                userInfo = newAdmin[0];
-            } else {
-                userInfo = { username: 'admin_kiky', role: 'super_admin' };
+    // 2. Fallback offline: jika sedang offline, periksa cache pengguna lokal
+    if (!userInfo && userData && userData.length > 0) {
+        const localUser = userData.find(usr => usr.username && usr.username.toLowerCase() === u.toLowerCase());
+        if (localUser) {
+            const isMatchHashed = localUser.password === hashedInput;
+            const isMatchPlain = localUser.password === p;
+            if (isMatchHashed || isMatchPlain) {
+                userInfo = localUser;
             }
-        } catch(err) {
-            userInfo = { username: 'admin_kiky', role: 'super_admin' };
         }
     }
 
-    // Auto-provisioning akun staff1 jika belum terdaftar di Supabase
-    if (!userInfo && u.toLowerCase() === 'staff1' && (p === 'password123' || p === '123456')) {
+    // 3. Initial Setup Bootstrap (hanya jika database users sama sekali kosong)
+    if (!userInfo && userData.length === 0) {
         try {
-            const { data: newStaff } = await supabaseClient
-                .from('users')
-                .insert([{ username: 'staff1', password: p, role: 'staff_rekap' }])
-                .select();
-            if (newStaff && newStaff.length > 0) {
-                userInfo = newStaff[0];
-            } else {
-                userInfo = { username: 'staff1', role: 'staff_rekap' };
+            const { count } = await supabaseClient.from('users').select('*', { count: 'exact', head: true });
+            if (count === 0 && u.toLowerCase() === 'admin_kiky' && p === '123456') {
+                const { data: newAdmin } = await supabaseClient
+                    .from('users')
+                    .insert([{ username: 'admin_kiky', password: hashedInput, role: 'super_admin' }])
+                    .select();
+                if (newAdmin && newAdmin.length > 0) userInfo = newAdmin[0];
             }
-        } catch(err) {
-            userInfo = { username: 'staff1', role: 'staff_rekap' };
-        }
-    }
-
-    // Fallback akun default admin
-    if (!userInfo && u.toLowerCase() === 'admin' && (p === 'admin' || p === 'admin123' || p === '123456')) {
-        userInfo = { username: 'admin', role: 'super_admin' };
+        } catch(err) {}
     }
         
     if (!userInfo) {
@@ -1776,7 +1957,11 @@ document.getElementById('login-form').addEventListener('submit', async function(
     currentRole = userInfo.role || 'staff_rekap';
 
     // Simpan sesi login ke localStorage
-    localStorage.setItem('snackloop_session', JSON.stringify({ username: currentUser, role: currentRole }));
+    localStorage.setItem('snackloop_session', JSON.stringify({ 
+        username: currentUser, 
+        role: currentRole,
+        loginAt: Date.now()
+    }));
     
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
@@ -1786,7 +1971,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
     
     applyRolePermissions();
     initApp();
-    showNotification("Sukses", `Selamat datang kembali, ${currentUser}!`, "success");
+    showNotification("Sukses", `Selamat datang kembali, ${escapeHtml(currentUser)}!`, "success");
 });
 
 function logoutApp() {
@@ -1872,12 +2057,12 @@ async function handleForgotPassword(e) {
                     <div>
                         <div class="font-bold">Instruksi Reset Terkirim!</div>
                         <div class="mt-1 leading-relaxed">
-                            Tautan pemulihan kata sandi telah dikirim ke <strong>${identifier}</strong>. Silakan periksa folder <em>Inbox</em> atau <em>Spam</em> Anda dan klik tautan tersebut untuk membuat kata sandi baru.
+                            Tautan pemulihan kata sandi telah dikirim ke <strong>${escapeHtml(identifier)}</strong>. Silakan periksa folder <em>Inbox</em> atau <em>Spam</em> Anda dan klik tautan tersebut untuk membuat kata sandi baru.
                         </div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Sukses", `Tautan reset telah dikirim ke ${identifier}`, "success");
+                showNotification("Sukses", `Tautan reset telah dikirim ke ${escapeHtml(identifier)}`, "success");
                 if (inputEl) inputEl.value = '';
             }
         } else {
@@ -1893,7 +2078,7 @@ async function handleForgotPassword(e) {
                     <i class="fa-solid fa-circle-exclamation mt-0.5 text-rose-500"></i>
                     <div>
                         <div class="font-bold">Koneksi Database Bermasalah</div>
-                        <div class="mt-0.5 opacity-90">${error.message}</div>
+                        <div class="mt-0.5 opacity-90">${escapeHtml(error.message)}</div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
@@ -1905,12 +2090,12 @@ async function handleForgotPassword(e) {
                     <div>
                         <div class="font-bold">Akun Tidak Ditemukan</div>
                         <div class="mt-1 leading-relaxed">
-                            Username <strong>${identifier}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
+                            Username <strong>${escapeHtml(identifier)}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
                         </div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Perhatian", `Username "${identifier}" tidak ditemukan.`, "warning");
+                showNotification("Perhatian", `Username "${escapeHtml(identifier)}" tidak ditemukan.`, "warning");
             } else {
                 const u = users[0];
                 const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nUsername: ${u.username}\nRole: ${u.role}\n\nTerima kasih.`);
@@ -1920,7 +2105,7 @@ async function handleForgotPassword(e) {
                         <i class="fa-solid fa-id-badge text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
                         <div>
                             <div class="font-bold">Akun Staf Ditemukan</div>
-                            <div class="mt-0.5 opacity-90">Username: <strong>${u.username}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${u.role}</span></div>
+                            <div class="mt-0.5 opacity-90">Username: <strong>${escapeHtml(u.username)}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${escapeHtml(u.role)}</span></div>
                         </div>
                     </div>
                     <p class="text-[11px] leading-relaxed opacity-90">
@@ -2238,10 +2423,11 @@ function renderAgents() {
     const isSuperAdmin = currentRole === 'super_admin';
     const rows = agentData.map((ag) => {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteAgent(${ag.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
+        const safeName = escapeHtml(ag.name || '');
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-mono opacity-60">#${ag.id}</td>
-                <td class="p-3 border border-inherit font-semibold">${ag.name}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit text-center">${action}</td>
             </tr>`;
     }).join('');
@@ -2298,6 +2484,8 @@ function renderAgentPerformanceOverview() {
         }
 
         const estProfit = stat.totalRevenue - stat.totalModal;
+        const safeAgName = escapeHtml(ag.name || '');
+        const safeBestItem = escapeHtml(bestItem || '-');
         const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
 
         return `
@@ -2306,7 +2494,7 @@ function renderAgentPerformanceOverview() {
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-truck-ramp-box text-slate-400 text-sm"></i>
                         <div>
-                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${ag.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100">${safeAgName}</h4>
                             <span class="text-[10px] opacity-60">ID Agen: #${ag.id}</span>
                         </div>
                     </div>
@@ -2326,7 +2514,7 @@ function renderAgentPerformanceOverview() {
                 </div>
                 <div class="text-[11px] opacity-75 truncate">
                     <span class="opacity-60 text-[10px] block">Snack Terlaris:</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${bestItem}</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${safeBestItem}</span>
                 </div>
                 <div class="pt-2 border-t border-inherit flex justify-between items-center gap-2">
                     <span class="text-[10px] text-slate-500 tabular-nums">Estimasi Margin: Rp ${estProfit.toLocaleString()}</span>
@@ -2419,7 +2607,7 @@ async function renderUsers() {
 
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${u.username}</td>
+                <td class="p-3 border border-inherit font-semibold">${escapeHtml(u.username)}</td>
                 <td class="p-3 border border-inherit">${roleBadge}</td>
                 <td class="p-3 border border-inherit text-center">${deleteBtn}</td>
             </tr>`;
@@ -2457,7 +2645,8 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     
     if(!username || !password) return showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
 
-    const { error } = await supabaseClient.from('users').insert([{ username, password, role }]);
+    const hashedPassword = await hashPassword(password);
+    const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
     if(error) return showNotification("Gagal", error.message, "error");
     
     const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
@@ -2544,10 +2733,12 @@ async function renderMaster() {
 
         const buyPriceDisplay = canEdit ? `Rp ${m.buy.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
 
+        const safeName = escapeHtml(m.name || '');
+        const safeSource = escapeHtml(m.source || '');
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${m.name}</td>
-                <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${m.source}</span></td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
                 <td class="p-3 border border-inherit">${buyPriceDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${m.sell.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${actionBtns}</td>
@@ -2737,10 +2928,12 @@ async function renderCustomer() {
     const isSuperAdmin = currentRole === 'super_admin';
     const rows = customerData.map((c) => {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteCustomer(${c.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
+        const safeName = escapeHtml(c.name || '');
+        const safePhone = escapeHtml(c.phone || '');
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${c.name}</td>
-                <td class="p-3 border border-inherit text-emerald-500 font-bold">+${c.phone}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit text-emerald-500 font-bold">+${safePhone}</td>
                 <td class="p-3 border border-inherit text-center">${action}</td>
             </tr>`;
     }).join('');
@@ -2866,10 +3059,13 @@ function renderRepackWarehouse() {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteRepackBatch('${r.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
         const modalDisplay = isSuperAdmin ? `Rp ${r.modal_per_pcs.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
 
+        const safeId = escapeHtml(r.id || '');
+        const safeDate = escapeHtml(r.date || '');
+        const safeName = escapeHtml(r.name || '');
         return `
             <tr class="${bgClass}">
-                <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${r.id} <br><span class="text-[9px] opacity-60">${r.date}</span></td>
-                <td class="p-3 border border-inherit font-semibold">${r.name}</td>
+                <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${safeId} <br><span class="text-[9px] opacity-60">${safeDate}</span></td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${r.sell_target.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${r.initial_qty}</td>
@@ -2904,6 +3100,16 @@ function confirmDeleteRepackBatch(batchId) {
 
 
 // --- [MODULE: 11-transactions.js] ---
+// =========================================================================
+// GENERATOR NOMOR INVOICE ANTI-TABRAKAN (HIGH-ENTROPY COLLISION-FREE)
+// =========================================================================
+function generateInvoiceNumber(dateStr) {
+    const cleanDate = (dateStr || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const timestampPart = Date.now().toString().slice(-4);
+    const entropyHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `INV-${cleanDate}-${timestampPart}${entropyHex}`;
+}
+
 // ======================= 8. KASIR & TRANSAKSI ======================= //
 function renderDropdowns() {
     const tCust = document.getElementById('t-customer');
@@ -3019,7 +3225,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
 
     const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
     const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-    const invNumber = `INV-${date.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
+    const invNumber = generateInvoiceNumber(date);
 
     const newTrxData = {
         id: tempTrxId,
@@ -3091,16 +3297,36 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         payload: {
             transaction: dbTrxPayload,
             invoice: dbInvPayload,
-            repackUpdate: repackUpdateInfo
+            repackUpdate: repackUpdateInfo,
+            tempTrxId: tempTrxId
         }
     }, async () => {
-        if(repackUpdateInfo) {
-            await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+        let atomicSuccess = false;
+        try {
+            // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
+            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                p_trx: dbTrxPayload,
+                p_inv: dbInvPayload,
+                p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
+                p_repack_deduct_qty: repackUpdateInfo ? qty : 0
+            });
+            if (!rpcErr && rpcRes && rpcRes.trx_id) {
+                newTrxData.id = rpcRes.trx_id;
+                atomicSuccess = true;
+            }
+        } catch(e) {
+            atomicSuccess = false;
         }
-        const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
-        if(trxErr) throw trxErr;
-        if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
-        await supabaseClient.from('invoices').insert([dbInvPayload]);
+
+        if (!atomicSuccess) {
+            if(repackUpdateInfo) {
+                await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+            }
+            const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
+            if(trxErr) throw trxErr;
+            if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
+            await supabaseClient.from('invoices').insert([dbInvPayload]);
+        }
     });
 
     logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
@@ -3475,6 +3701,10 @@ async function renderInvoicesTable() {
 
     const rows = paginatedInvoices.map(inv => {
         const info = getInvoiceAgingInfo(inv);
+        const safeInvNum = escapeHtml(inv.invoice_number);
+        const safeCustName = escapeHtml(inv.customer_name);
+        const safeDate = escapeHtml(inv.date);
+
         const badgeStatus = inv.status === 'Lunas' ? 
             `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold text-[11px] inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> LUNAS</span>` : 
             `<div class="space-y-1">
@@ -3483,20 +3713,20 @@ async function renderInvoicesTable() {
              </div>`;
         
         const btnLunasi = inv.status !== 'Lunas' ? 
-            `<button onclick="markInvoiceAsPaid(${inv.id}, '${inv.customer_name}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
+            `<button onclick="markInvoiceAsPaid(${inv.id}, '${safeCustName.replace(/'/g, "\\'")}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
             `<span class="text-xs opacity-50 font-medium">Selesai</span>`;
 
         const btnDelete = isSuperAdmin ? 
-            `<button onclick="confirmDeleteInvoice(${inv.id}, '${inv.invoice_number}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
+            `<button onclick="confirmDeleteInvoice(${inv.id}, '${safeInvNum.replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
 
         return `
             <tr class="hover:bg-slate-50/50 transition">
                 <td class="p-3 border border-inherit">
-                    <span class="font-mono font-bold text-indigo-500 text-xs block">${inv.invoice_number}</span>
-                    <span class="text-[10px] opacity-60">${inv.date}</span>
+                    <span class="font-mono font-bold text-indigo-500 text-xs block">${safeInvNum}</span>
+                    <span class="text-[10px] opacity-60">${safeDate}</span>
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="font-bold block text-slate-900 dark:text-slate-100">${inv.customer_name}</span>
+                    <span class="font-bold block text-slate-900 dark:text-slate-100">${safeCustName}</span>
                 </td>
                 <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400">
                     Rp ${Number(inv.total_amount).toLocaleString()}
@@ -3506,8 +3736,8 @@ async function renderInvoicesTable() {
                 </td>
                 <td class="p-3 border border-inherit text-center">
                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                        <button onclick="downloadInvoicePDF('${inv.invoice_number}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button onclick="sendSmartInvoiceReminderWA('${inv.invoice_number}', '${inv.customer_name}', ${inv.total_amount}, '${inv.date}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
+                        <button onclick="downloadInvoicePDF('${safeInvNum}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button onclick="sendSmartInvoiceReminderWA('${safeInvNum}', '${safeCustName.replace(/'/g, "\\'")}', ${inv.total_amount}, '${safeDate}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
                         ${btnLunasi}
                         ${btnDelete}
                     </div>
@@ -3952,15 +4182,23 @@ function renderTransactionsForActiveSheet() {
     const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
     const rowsHtml = paginatedList.map((t) => {
         const itemProfit = t.profitPerItem * t.qty;
+        const safeCustomer = escapeHtml(t.customer);
+        const safeItemName = escapeHtml(t.itemName);
+        const safeSource = escapeHtml(t.source);
+        const safeBatch = escapeHtml(t.batch);
+        const safeNotes = escapeHtml(t.notes);
+        const safeExtraCostNote = escapeHtml(t.extraCostNote);
+        const safeDate = escapeHtml(t.date);
+
         const statusDropdown = isSuperAdmin ? 
             `<select onchange="updateTrxStatus(${t.id}, this.value)" class="text-[11px] font-bold px-2 py-1 rounded border cursor-pointer outline-none ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-rose-500/20 text-rose-500 border-rose-500/30'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
             (canMarkPaid && t.status !== 'Lunas' ?
                 `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="px-2 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-600 hover:bg-emerald-500/20 hover:text-emerald-600 transition" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
                 `<span class="px-2 py-1 rounded text-xs font-bold ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}">${t.status}</span>`);
 
-        const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${t.batch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${t.source}</span>`;
-        const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${t.notes}</span>` : '';
-        const extraCostDisplay = t.extraCost > 0 ? `<span class="text-amber-500 font-bold">+Rp ${t.extraCost.toLocaleString()}</span><br><span class="text-[9px] opacity-70 italic">(${t.extraCostNote})</span>` : `<span class="opacity-40">-</span>`;
+        const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${safeSource}</span>`;
+        const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${safeNotes}</span>` : '';
+        const extraCostDisplay = t.extraCost > 0 ? `<span class="text-amber-500 font-bold">+Rp ${t.extraCost.toLocaleString()}</span><br><span class="text-[9px] opacity-70 italic">(${safeExtraCostNote})</span>` : `<span class="opacity-40">-</span>`;
         
         const isNegativeOrReturn = t.isReturn || (t.qty < 0);
         const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
@@ -3979,9 +4217,9 @@ function renderTransactionsForActiveSheet() {
 
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit">${t.date}</td>
-                <td class="p-3 border border-inherit font-bold text-indigo-500">${t.customer}</td>
-                <td class="p-3 border border-inherit font-medium">${returBadge}${t.itemName} <br>${srcBadge} ${notesDisplay}</td>
+                <td class="p-3 border border-inherit">${safeDate}</td>
+                <td class="p-3 border border-inherit font-bold text-indigo-500">${safeCustomer}</td>
+                <td class="p-3 border border-inherit font-medium">${returBadge}${safeItemName} <br>${srcBadge} ${notesDisplay}</td>
                 <td class="p-3 border border-inherit text-center font-bold">${t.qty}</td>
                 <td class="p-3 border border-inherit text-center">${extraCostDisplay}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
@@ -5585,22 +5823,30 @@ function renderReturns() {
         const deleteBtn = isSuperAdmin ?
             `<button onclick="confirmDeleteReturn(${r.id})" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs transition" title="Hapus"><i class="fa-solid fa-trash"></i></button>` : '';
 
-        const codeDisplay = r.return_code ? `<span class="font-mono text-[10px] text-indigo-500 font-bold block">${r.return_code}</span>` : '';
-        const notesDisplay = r.notes ? `<span class="text-[9px] opacity-60 block italic mt-0.5">${r.notes}</span>` : '';
+        const safeReturnCode = escapeHtml(r.return_code);
+        const safeCustomer = escapeHtml(r.customer);
+        const safeItemName = escapeHtml(r.item_name);
+        const safeAgent = escapeHtml(r.agent);
+        const safeNotes = escapeHtml(r.notes);
+        const safeReason = escapeHtml(r.reason);
+        const safeDate = escapeHtml(r.date);
+
+        const codeDisplay = r.return_code ? `<span class="font-mono text-[10px] text-indigo-500 font-bold block">${safeReturnCode}</span>` : '';
+        const notesDisplay = r.notes ? `<span class="text-[9px] opacity-60 block italic mt-0.5">${safeNotes}</span>` : '';
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 border-b border-inherit transition">
                 <td class="p-3 border border-inherit">
                     ${codeDisplay}
-                    <span>${r.date}</span>
+                    <span>${safeDate}</span>
                 </td>
                 <td class="p-3 border border-inherit font-bold text-slate-800 dark:text-slate-200">
-                    ${r.customer}
+                    ${safeCustomer}
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="font-medium">${r.item_name}</span><br>
+                    <span class="font-medium">${safeItemName}</span><br>
                     <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-inherit font-semibold opacity-85">
-                        <i class="fa-solid fa-truck text-[9px] mr-1 text-indigo-500"></i>${r.agent || '-'}
+                        <i class="fa-solid fa-truck text-[9px] mr-1 text-indigo-500"></i>${safeAgent || '-'}
                     </span>
                     ${notesDisplay}
                 </td>
@@ -5612,7 +5858,7 @@ function renderReturns() {
                     <span class="font-semibold text-slate-700 dark:text-slate-300">Jual: Rp ${(r.total_sell || (r.qty * (r.sell||0))).toLocaleString('id-ID')}</span>
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">${r.reason}</span>
+                    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">${safeReason}</span>
                 </td>
                 <td class="p-3 border border-inherit text-xs">
                     ${actionLabel}
@@ -6465,13 +6711,21 @@ function renderJastip() {
             : '';
 
         // Indikator Resi
+        const safeTracking = escapeHtml(item.tracking_number || '');
         const trackingDisplay = item.tracking_number 
-            ? `<div class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline" onclick="promptJastipTracking('${item.id}')" title="Klik untuk ubah resi"><i class="fa-solid fa-barcode mr-1"></i>${item.tracking_number}</div>`
+            ? `<div class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline" onclick="promptJastipTracking('${item.id}')" title="Klik untuk ubah resi"><i class="fa-solid fa-barcode mr-1"></i>${safeTracking}</div>`
             : `<div class="text-[9px] opacity-50 cursor-pointer hover:text-indigo-500" onclick="promptJastipTracking('${item.id}')">+ Input Resi</div>`;
 
         const profitDisplay = isSuperAdmin 
             ? `<span class="text-emerald-600 dark:text-emerald-400 font-bold">${item.status === 'out_of_stock' || item.status === 'refunded' ? 'Rp 0' : '+Rp ' + (item.total_net_profit || 0).toLocaleString()}</span>` 
             : `<span class="opacity-40 italic">-</span>`;
+
+        const safeCustName = escapeHtml(item.customer_name || '-');
+        const safeCustAddress = escapeHtml(item.customer_address || '-');
+        const safeCourier = escapeHtml(item.delivery_courier || 'Kurir Lokal');
+        const safeItemName = escapeHtml(item.item_name || '-');
+        const safeVariant = escapeHtml(item.item_variant || '-');
+        const safeExpiry = escapeHtml(item.expiry_date_note || '');
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition border-b border-inherit text-xs">
@@ -6482,26 +6736,26 @@ function renderJastip() {
                 </td>
                 <td class="py-3 px-3.5">
                     <div class="font-bold flex items-center gap-1.5">
-                        <span>${item.customer_name}</span>
+                        <span>${safeCustName}</span>
                         ${item.customer_phone ? `
                             <button onclick="openJastipWhatsApp('${item.id}')" class="text-emerald-600 hover:text-emerald-700 text-xs" title="Chat WhatsApp">
                                 <i class="fa-brands fa-whatsapp"></i>
                             </button>
                         ` : ''}
                     </div>
-                    <div class="text-[11px] opacity-70 truncate max-w-[180px]">${item.customer_address || '-'}</div>
+                    <div class="text-[11px] opacity-70 truncate max-w-[180px]">${safeCustAddress}</div>
                     <div class="flex items-center gap-1 mt-0.5">
-                        <span class="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 border">${item.delivery_courier || 'Kurir Lokal'}</span>
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[9px] bg-slate-100 dark:bg-slate-800 border">${safeCourier}</span>
                     </div>
                     ${trackingDisplay}
                 </td>
                 <td class="py-3 px-3.5">
                     <div class="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1">
                         <span>${flag}</span>
-                        <span>${item.item_name}</span>
+                        <span>${safeItemName}</span>
                     </div>
-                    <div class="text-[10px] opacity-70">${item.item_variant || '-'} (${item.item_qty} pcs)</div>
-                    ${item.expiry_date_note ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-mono block"><i class="fa-solid fa-hourglass-half mr-0.5"></i>${item.expiry_date_note}</span>` : ''}
+                    <div class="text-[10px] opacity-70">${safeVariant} (${item.item_qty} pcs)</div>
+                    ${safeExpiry ? `<span class="text-[9px] text-amber-600 dark:text-amber-400 font-mono block"><i class="fa-solid fa-hourglass-half mr-0.5"></i>${safeExpiry}</span>` : ''}
                     ${receiptPhotoBadge}
                 </td>
                 <td class="py-3 px-3.5 font-mono">
@@ -7373,10 +7627,13 @@ function renderJastipCustomsSummary() {
             const valasTotal = (item.price_valas || 0) * (item.item_qty || 1);
             const usdVal = Math.round(valasTotal * (rateInfo.toUsd || 0.000062));
 
+            const safeName = escapeHtml(item.item_name || '-');
+            const safeVariant = escapeHtml(item.item_variant || '-');
+
             return `
                 <tr class="border-b border-inherit text-xs">
                     <td class="p-2 font-mono text-[10px]">${idx + 1}</td>
-                    <td class="p-2 font-semibold">${item.item_name} <span class="opacity-60 text-[10px]">(${item.item_variant || '-'})</span></td>
+                    <td class="p-2 font-semibold">${safeName} <span class="opacity-60 text-[10px]">(${safeVariant})</span></td>
                     <td class="p-2 text-center font-mono">${item.item_qty} pcs</td>
                     <td class="p-2 font-mono">${rateInfo.symbol} ${(item.price_valas || 0).toLocaleString()}</td>
                     <td class="p-2 font-mono font-bold">${rateInfo.symbol} ${valasTotal.toLocaleString()}</td>

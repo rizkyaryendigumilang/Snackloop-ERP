@@ -541,6 +541,60 @@ async function syncSingleOutboxItem(item) {
         } catch (e) {
             console.warn("Supabase jastip delete skipped:", e);
         }
+    } else if (item.type === 'INSERT_RETURN') {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('returns').insert([payload]);
+        if (error) throw error;
+    } else if (item.type === 'UPDATE_RETURN') {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('returns').update(payload).eq('id', payload.id);
+        if (error) throw error;
+    } else if (item.type === 'DELETE_RETURN') {
+        const id = item.payload.id || (item.payload.data && item.payload.data.id);
+        const { error } = await supabaseClient.from('returns').delete().eq('id', id);
+        if (error) throw error;
+    } else if (item.type === 'INSERT_AUDIT_LOG' || (item.table === 'audit_logs' && item.action === 'insert')) {
+        const payload = item.payload.data || item.payload;
+        const { error } = await supabaseClient.from('audit_logs').insert([payload]);
+        if (error) throw error;
+    } else if (item.table && item.action) {
+        if (item.action === 'insert') {
+            const { error } = await supabaseClient.from(item.table).insert([item.payload]);
+            if (error) throw error;
+        } else if (item.action === 'update') {
+            const { error } = await supabaseClient.from(item.table).update(item.payload).eq('id', item.payload.id);
+            if (error) throw error;
+        } else if (item.action === 'delete') {
+            const { error } = await supabaseClient.from(item.table).delete().eq('id', item.payload.id);
+            if (error) throw error;
+        }
+    }
+}
+
+// ----------------- REKONSILIASI ID TRANSAKSI OFFLINE KE CLOUD ----------------- //
+function reconcileOfflineTransactionIds(insertedList) {
+    if (!Array.isArray(insertedList) || insertedList.length === 0) return;
+    let modified = false;
+    insertedList.forEach(cloudRow => {
+        for (let mk in transactionData) {
+            const list = transactionData[mk];
+            const localTrx = list.find(t => 
+                typeof t.id === 'string' && t.id.startsWith('trx_') &&
+                t.date === cloudRow.date &&
+                t.customer === cloudRow.customer &&
+                t.itemName === cloudRow.item_name
+            );
+            if (localTrx) {
+                localTrx.id = cloudRow.id;
+                modified = true;
+            }
+        }
+    });
+    if (modified) {
+        saveCacheToLocal();
+        if (typeof renderTransactionsForActiveSheet === 'function') {
+            renderTransactionsForActiveSheet();
+        }
     }
 }
 
@@ -570,8 +624,11 @@ async function syncBatchedItems(type, batchItems) {
         // 2. Bulk Insert Transactions (1 HTTP POST)
         const trxRows = batchItems.map(it => it.payload && it.payload.transaction).filter(Boolean);
         if (trxRows.length > 0) {
-            const { error: trxErr } = await supabaseClient.from('transactions').insert(trxRows);
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(trxRows).select();
             if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0) {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
         }
 
         // 3. Bulk Insert Invoices (1 HTTP POST)
@@ -580,6 +637,14 @@ async function syncBatchedItems(type, batchItems) {
             const { error: invErr } = await supabaseClient.from('invoices').insert(invRows);
             if (invErr) throw invErr;
         }
+    } else if (type === 'INSERT_RETURN') {
+        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('returns').insert(rows);
+        if (error) throw error;
+    } else if (type === 'DELETE_RETURN') {
+        const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
+        const { error } = await supabaseClient.from('returns').delete().in('id', ids);
+        if (error) throw error;
     } else if (type === 'INSERT_EXPENSE') {
         const rows = batchItems.map(it => it.payload).filter(Boolean);
         const { error } = await supabaseClient.from('expenses').insert(rows);
@@ -603,6 +668,10 @@ async function syncBatchedItems(type, batchItems) {
     } else if (type === 'UPSERT_JASTIP') {
         const rows = batchItems.map(it => it.payload).filter(Boolean);
         const { error } = await supabaseClient.from('jastip_orders').upsert(rows);
+        if (error) throw error;
+    } else if (type === 'INSERT_AUDIT_LOG') {
+        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+        const { error } = await supabaseClient.from('audit_logs').insert(rows);
         if (error) throw error;
     } else if (type === 'DELETE_TRANSACTION') {
         // Kembalikan stok repack jika ada
@@ -726,20 +795,69 @@ async function dispatchMutation(item, asyncOnlineCall) {
 }
 
 function dispatchOutboxMutation(table, action, payload) {
+    let mutationType = null;
+    if (table === 'returns') {
+        if (action === 'insert') mutationType = 'INSERT_RETURN';
+        else if (action === 'update') mutationType = 'UPDATE_RETURN';
+        else if (action === 'delete') mutationType = 'DELETE_RETURN';
+    } else if (table === 'expenses') {
+        if (action === 'insert') mutationType = 'INSERT_EXPENSE';
+    } else if (table === 'transactions') {
+        if (action === 'insert') mutationType = 'INSERT_TRANSACTION';
+    } else if (table === 'audit_logs') {
+        if (action === 'insert') mutationType = 'INSERT_AUDIT_LOG';
+    }
+
+    const item = {
+        id: 'outbox_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        type: mutationType || `GENERIC_${table.toUpperCase()}_${action.toUpperCase()}`,
+        payload: payload,
+        table: table,
+        action: action,
+        timestamp: new Date().toISOString()
+    };
+
     if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
         try {
             if (action === 'insert') {
-                supabaseClient.from(table).insert([payload]).then(({ error }) => {
-                    if (error) console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
-                }).catch(e => console.warn(e));
+                supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             } else if (action === 'update') {
-                supabaseClient.from(table).update(payload).eq('id', payload.id).catch(e => console.warn(e));
+                const id = payload.id;
+                supabaseClient.from(table).update(payload).eq('id', id).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} update notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             } else if (action === 'delete') {
-                supabaseClient.from(table).delete().eq('id', payload.id).catch(e => console.warn(e));
+                const id = payload.id;
+                supabaseClient.from(table).delete().eq('id', id).then(({ error }) => {
+                    if (error) {
+                        console.warn(`[Outbox] Supabase ${table} delete notice:`, error.message);
+                        addToOutbox(item);
+                    }
+                }).catch(e => {
+                    console.warn(e);
+                    addToOutbox(item);
+                });
             }
         } catch(e) {
-            console.warn("Direct online sync notice:", e);
+            console.warn("Direct online sync notice, queuing to outbox:", e);
+            addToOutbox(item);
         }
+    } else {
+        addToOutbox(item);
     }
 }
 
@@ -939,18 +1057,22 @@ function renderAuditLogsTable() {
             actionBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium border theme-input text-slate-700 dark:text-slate-300">Cadangan</span>`;
         }
 
-        const roleBadge = log.role === 'super_admin' ? 'Owner' : (log.role === 'staff_rekap' ? 'Kasir' : log.role);
+        const roleBadge = log.role === 'super_admin' ? 'Owner' : (log.role === 'staff_rekap' ? 'Kasir' : (log.role || ''));
+        const safeUser = escapeHtml(log.user || '-');
+        const safeTarget = escapeHtml(log.target || '-');
+        const safeDetails = escapeHtml(log.details || '-');
+        const safeTime = escapeHtml(log.displayTime || log.timestamp || '-');
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 border-b border-inherit">
-                <td class="p-3 border border-inherit tabular-nums whitespace-nowrap text-slate-600 dark:text-slate-300 text-[11px]">${log.displayTime || log.timestamp}</td>
+                <td class="p-3 border border-inherit tabular-nums whitespace-nowrap text-slate-600 dark:text-slate-300 text-[11px]">${safeTime}</td>
                 <td class="p-3 border border-inherit whitespace-nowrap font-medium">
-                    <span>${log.user}</span>
-                    <span class="text-[10px] opacity-60 block">(${roleBadge})</span>
+                    <span>${safeUser}</span>
+                    <span class="text-[10px] opacity-60 block">(${escapeHtml(roleBadge)})</span>
                 </td>
                 <td class="p-3 border border-inherit whitespace-nowrap">${actionBadge}</td>
-                <td class="p-3 border border-inherit font-mono font-semibold">${log.target}</td>
-                <td class="p-3 border border-inherit text-slate-700 dark:text-slate-300">${log.details}</td>
+                <td class="p-3 border border-inherit font-mono font-semibold">${safeTarget}</td>
+                <td class="p-3 border border-inherit text-slate-700 dark:text-slate-300">${safeDetails}</td>
             </tr>
         `;
     }).join('');

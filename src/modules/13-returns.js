@@ -109,22 +109,30 @@ function renderReturns() {
         const deleteBtn = isSuperAdmin ?
             `<button onclick="confirmDeleteReturn(${r.id})" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs transition" title="Hapus"><i class="fa-solid fa-trash"></i></button>` : '';
 
-        const codeDisplay = r.return_code ? `<span class="font-mono text-[10px] text-indigo-500 font-bold block">${r.return_code}</span>` : '';
-        const notesDisplay = r.notes ? `<span class="text-[9px] opacity-60 block italic mt-0.5">${r.notes}</span>` : '';
+        const safeReturnCode = escapeHtml(r.return_code);
+        const safeCustomer = escapeHtml(r.customer);
+        const safeItemName = escapeHtml(r.item_name);
+        const safeAgent = escapeHtml(r.agent);
+        const safeNotes = escapeHtml(r.notes);
+        const safeReason = escapeHtml(r.reason);
+        const safeDate = escapeHtml(r.date);
+
+        const codeDisplay = r.return_code ? `<span class="font-mono text-[10px] text-indigo-500 font-bold block">${safeReturnCode}</span>` : '';
+        const notesDisplay = r.notes ? `<span class="text-[9px] opacity-60 block italic mt-0.5">${safeNotes}</span>` : '';
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 border-b border-inherit transition">
                 <td class="p-3 border border-inherit">
                     ${codeDisplay}
-                    <span>${r.date}</span>
+                    <span>${safeDate}</span>
                 </td>
                 <td class="p-3 border border-inherit font-bold text-slate-800 dark:text-slate-200">
-                    ${r.customer}
+                    ${safeCustomer}
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="font-medium">${r.item_name}</span><br>
+                    <span class="font-medium">${safeItemName}</span><br>
                     <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-inherit font-semibold opacity-85">
-                        <i class="fa-solid fa-truck text-[9px] mr-1 text-indigo-500"></i>${r.agent || '-'}
+                        <i class="fa-solid fa-truck text-[9px] mr-1 text-indigo-500"></i>${safeAgent || '-'}
                     </span>
                     ${notesDisplay}
                 </td>
@@ -136,7 +144,7 @@ function renderReturns() {
                     <span class="font-semibold text-slate-700 dark:text-slate-300">Jual: Rp ${(r.total_sell || (r.qty * (r.sell||0))).toLocaleString('id-ID')}</span>
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">${r.reason}</span>
+                    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">${safeReason}</span>
                 </td>
                 <td class="p-3 border border-inherit text-xs">
                     ${actionLabel}

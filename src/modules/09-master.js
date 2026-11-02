@@ -14,10 +14,12 @@ async function renderMaster() {
 
         const buyPriceDisplay = canEdit ? `Rp ${m.buy.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
 
+        const safeName = escapeHtml(m.name || '');
+        const safeSource = escapeHtml(m.source || '');
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${m.name}</td>
-                <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${m.source}</span></td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
                 <td class="p-3 border border-inherit">${buyPriceDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${m.sell.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${actionBtns}</td>
@@ -207,10 +209,12 @@ async function renderCustomer() {
     const isSuperAdmin = currentRole === 'super_admin';
     const rows = customerData.map((c) => {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteCustomer(${c.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
+        const safeName = escapeHtml(c.name || '');
+        const safePhone = escapeHtml(c.phone || '');
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${c.name}</td>
-                <td class="p-3 border border-inherit text-emerald-500 font-bold">+${c.phone}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit text-emerald-500 font-bold">+${safePhone}</td>
                 <td class="p-3 border border-inherit text-center">${action}</td>
             </tr>`;
     }).join('');

@@ -1,3 +1,13 @@
+// =========================================================================
+// GENERATOR NOMOR INVOICE ANTI-TABRAKAN (HIGH-ENTROPY COLLISION-FREE)
+// =========================================================================
+function generateInvoiceNumber(dateStr) {
+    const cleanDate = (dateStr || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const timestampPart = Date.now().toString().slice(-4);
+    const entropyHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `INV-${cleanDate}-${timestampPart}${entropyHex}`;
+}
+
 // ======================= 8. KASIR & TRANSAKSI ======================= //
 function renderDropdowns() {
     const tCust = document.getElementById('t-customer');
@@ -113,7 +123,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
 
     const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
     const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-    const invNumber = `INV-${date.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
+    const invNumber = generateInvoiceNumber(date);
 
     const newTrxData = {
         id: tempTrxId,
@@ -185,16 +195,36 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         payload: {
             transaction: dbTrxPayload,
             invoice: dbInvPayload,
-            repackUpdate: repackUpdateInfo
+            repackUpdate: repackUpdateInfo,
+            tempTrxId: tempTrxId
         }
     }, async () => {
-        if(repackUpdateInfo) {
-            await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+        let atomicSuccess = false;
+        try {
+            // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
+            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                p_trx: dbTrxPayload,
+                p_inv: dbInvPayload,
+                p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
+                p_repack_deduct_qty: repackUpdateInfo ? qty : 0
+            });
+            if (!rpcErr && rpcRes && rpcRes.trx_id) {
+                newTrxData.id = rpcRes.trx_id;
+                atomicSuccess = true;
+            }
+        } catch(e) {
+            atomicSuccess = false;
         }
-        const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
-        if(trxErr) throw trxErr;
-        if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
-        await supabaseClient.from('invoices').insert([dbInvPayload]);
+
+        if (!atomicSuccess) {
+            if(repackUpdateInfo) {
+                await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+            }
+            const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
+            if(trxErr) throw trxErr;
+            if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
+            await supabaseClient.from('invoices').insert([dbInvPayload]);
+        }
     });
 
     logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
@@ -569,6 +599,10 @@ async function renderInvoicesTable() {
 
     const rows = paginatedInvoices.map(inv => {
         const info = getInvoiceAgingInfo(inv);
+        const safeInvNum = escapeHtml(inv.invoice_number);
+        const safeCustName = escapeHtml(inv.customer_name);
+        const safeDate = escapeHtml(inv.date);
+
         const badgeStatus = inv.status === 'Lunas' ? 
             `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold text-[11px] inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> LUNAS</span>` : 
             `<div class="space-y-1">
@@ -577,20 +611,20 @@ async function renderInvoicesTable() {
              </div>`;
         
         const btnLunasi = inv.status !== 'Lunas' ? 
-            `<button onclick="markInvoiceAsPaid(${inv.id}, '${inv.customer_name}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
+            `<button onclick="markInvoiceAsPaid(${inv.id}, '${safeCustName.replace(/'/g, "\\'")}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
             `<span class="text-xs opacity-50 font-medium">Selesai</span>`;
 
         const btnDelete = isSuperAdmin ? 
-            `<button onclick="confirmDeleteInvoice(${inv.id}, '${inv.invoice_number}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
+            `<button onclick="confirmDeleteInvoice(${inv.id}, '${safeInvNum.replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
 
         return `
             <tr class="hover:bg-slate-50/50 transition">
                 <td class="p-3 border border-inherit">
-                    <span class="font-mono font-bold text-indigo-500 text-xs block">${inv.invoice_number}</span>
-                    <span class="text-[10px] opacity-60">${inv.date}</span>
+                    <span class="font-mono font-bold text-indigo-500 text-xs block">${safeInvNum}</span>
+                    <span class="text-[10px] opacity-60">${safeDate}</span>
                 </td>
                 <td class="p-3 border border-inherit">
-                    <span class="font-bold block text-slate-900 dark:text-slate-100">${inv.customer_name}</span>
+                    <span class="font-bold block text-slate-900 dark:text-slate-100">${safeCustName}</span>
                 </td>
                 <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400">
                     Rp ${Number(inv.total_amount).toLocaleString()}
@@ -600,8 +634,8 @@ async function renderInvoicesTable() {
                 </td>
                 <td class="p-3 border border-inherit text-center">
                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                        <button onclick="downloadInvoicePDF('${inv.invoice_number}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button onclick="sendSmartInvoiceReminderWA('${inv.invoice_number}', '${inv.customer_name}', ${inv.total_amount}, '${inv.date}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
+                        <button onclick="downloadInvoicePDF('${safeInvNum}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button onclick="sendSmartInvoiceReminderWA('${safeInvNum}', '${safeCustName.replace(/'/g, "\\'")}', ${inv.total_amount}, '${safeDate}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
                         ${btnLunasi}
                         ${btnDelete}
                     </div>
@@ -1046,15 +1080,23 @@ function renderTransactionsForActiveSheet() {
     const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
     const rowsHtml = paginatedList.map((t) => {
         const itemProfit = t.profitPerItem * t.qty;
+        const safeCustomer = escapeHtml(t.customer);
+        const safeItemName = escapeHtml(t.itemName);
+        const safeSource = escapeHtml(t.source);
+        const safeBatch = escapeHtml(t.batch);
+        const safeNotes = escapeHtml(t.notes);
+        const safeExtraCostNote = escapeHtml(t.extraCostNote);
+        const safeDate = escapeHtml(t.date);
+
         const statusDropdown = isSuperAdmin ? 
             `<select onchange="updateTrxStatus(${t.id}, this.value)" class="text-[11px] font-bold px-2 py-1 rounded border cursor-pointer outline-none ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-rose-500/20 text-rose-500 border-rose-500/30'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
             (canMarkPaid && t.status !== 'Lunas' ?
                 `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="px-2 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-600 hover:bg-emerald-500/20 hover:text-emerald-600 transition" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
                 `<span class="px-2 py-1 rounded text-xs font-bold ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}">${t.status}</span>`);
 
-        const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${t.batch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${t.source}</span>`;
-        const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${t.notes}</span>` : '';
-        const extraCostDisplay = t.extraCost > 0 ? `<span class="text-amber-500 font-bold">+Rp ${t.extraCost.toLocaleString()}</span><br><span class="text-[9px] opacity-70 italic">(${t.extraCostNote})</span>` : `<span class="opacity-40">-</span>`;
+        const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${safeSource}</span>`;
+        const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${safeNotes}</span>` : '';
+        const extraCostDisplay = t.extraCost > 0 ? `<span class="text-amber-500 font-bold">+Rp ${t.extraCost.toLocaleString()}</span><br><span class="text-[9px] opacity-70 italic">(${safeExtraCostNote})</span>` : `<span class="opacity-40">-</span>`;
         
         const isNegativeOrReturn = t.isReturn || (t.qty < 0);
         const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
@@ -1073,9 +1115,9 @@ function renderTransactionsForActiveSheet() {
 
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit">${t.date}</td>
-                <td class="p-3 border border-inherit font-bold text-indigo-500">${t.customer}</td>
-                <td class="p-3 border border-inherit font-medium">${returBadge}${t.itemName} <br>${srcBadge} ${notesDisplay}</td>
+                <td class="p-3 border border-inherit">${safeDate}</td>
+                <td class="p-3 border border-inherit font-bold text-indigo-500">${safeCustomer}</td>
+                <td class="p-3 border border-inherit font-medium">${returBadge}${safeItemName} <br>${srcBadge} ${notesDisplay}</td>
                 <td class="p-3 border border-inherit text-center font-bold">${t.qty}</td>
                 <td class="p-3 border border-inherit text-center">${extraCostDisplay}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>

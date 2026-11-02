@@ -1,61 +1,67 @@
-// ======================= 1. LOGIN & AUTH ======================= //
+// ======================= 1. LOGIN & SECURE AUTH ======================= //
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const u = document.getElementById('login-username').value.trim();
     const p = document.getElementById('login-password').value.trim();
     
+    if (!u || !p) {
+        showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
+        return;
+    }
+
+    const hashedInput = await hashPassword(p);
     let userInfo = null;
+
     try {
+        // 1. Cari user di Supabase
         const { data, error } = await supabaseClient
             .from('users')
             .select('*')
-            .eq('username', u)
-            .eq('password', p);
+            .ilike('username', u);
             
         if (!error && data && data.length > 0) {
-            userInfo = data[0];
+            const foundUser = data[0];
+            const isMatchHashed = foundUser.password === hashedInput;
+            const isMatchPlain = foundUser.password === p;
+
+            if (isMatchHashed || isMatchPlain) {
+                userInfo = foundUser;
+                // Migrasi otomatis password legacy plaintext ke hash SHA-256
+                if (isMatchPlain && !isMatchHashed) {
+                    supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
+                        console.info("[Auth] Password akun berhasil diamankan dengan enkripsi SHA-256.");
+                    }).catch(() => {});
+                }
+            }
         }
     } catch(err) {
         console.warn("Supabase query error:", err);
     }
 
-    // Auto-provisioning & otentikasi akun admin_kiky (Super Admin / Owner)
-    if (!userInfo && u.toLowerCase() === 'admin_kiky' && (p === '123456' || p === 'password123')) {
-        try {
-            const { data: newAdmin } = await supabaseClient
-                .from('users')
-                .insert([{ username: 'admin_kiky', password: p, role: 'super_admin' }])
-                .select();
-            if (newAdmin && newAdmin.length > 0) {
-                userInfo = newAdmin[0];
-            } else {
-                userInfo = { username: 'admin_kiky', role: 'super_admin' };
+    // 2. Fallback offline: jika sedang offline, periksa cache pengguna lokal
+    if (!userInfo && userData && userData.length > 0) {
+        const localUser = userData.find(usr => usr.username && usr.username.toLowerCase() === u.toLowerCase());
+        if (localUser) {
+            const isMatchHashed = localUser.password === hashedInput;
+            const isMatchPlain = localUser.password === p;
+            if (isMatchHashed || isMatchPlain) {
+                userInfo = localUser;
             }
-        } catch(err) {
-            userInfo = { username: 'admin_kiky', role: 'super_admin' };
         }
     }
 
-    // Auto-provisioning akun staff1 jika belum terdaftar di Supabase
-    if (!userInfo && u.toLowerCase() === 'staff1' && (p === 'password123' || p === '123456')) {
+    // 3. Initial Setup Bootstrap (hanya jika database users sama sekali kosong)
+    if (!userInfo && userData.length === 0) {
         try {
-            const { data: newStaff } = await supabaseClient
-                .from('users')
-                .insert([{ username: 'staff1', password: p, role: 'staff_rekap' }])
-                .select();
-            if (newStaff && newStaff.length > 0) {
-                userInfo = newStaff[0];
-            } else {
-                userInfo = { username: 'staff1', role: 'staff_rekap' };
+            const { count } = await supabaseClient.from('users').select('*', { count: 'exact', head: true });
+            if (count === 0 && u.toLowerCase() === 'admin_kiky' && p === '123456') {
+                const { data: newAdmin } = await supabaseClient
+                    .from('users')
+                    .insert([{ username: 'admin_kiky', password: hashedInput, role: 'super_admin' }])
+                    .select();
+                if (newAdmin && newAdmin.length > 0) userInfo = newAdmin[0];
             }
-        } catch(err) {
-            userInfo = { username: 'staff1', role: 'staff_rekap' };
-        }
-    }
-
-    // Fallback akun default admin
-    if (!userInfo && u.toLowerCase() === 'admin' && (p === 'admin' || p === 'admin123' || p === '123456')) {
-        userInfo = { username: 'admin', role: 'super_admin' };
+        } catch(err) {}
     }
         
     if (!userInfo) {
@@ -68,7 +74,11 @@ document.getElementById('login-form').addEventListener('submit', async function(
     currentRole = userInfo.role || 'staff_rekap';
 
     // Simpan sesi login ke localStorage
-    localStorage.setItem('snackloop_session', JSON.stringify({ username: currentUser, role: currentRole }));
+    localStorage.setItem('snackloop_session', JSON.stringify({ 
+        username: currentUser, 
+        role: currentRole,
+        loginAt: Date.now()
+    }));
     
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
@@ -78,7 +88,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
     
     applyRolePermissions();
     initApp();
-    showNotification("Sukses", `Selamat datang kembali, ${currentUser}!`, "success");
+    showNotification("Sukses", `Selamat datang kembali, ${escapeHtml(currentUser)}!`, "success");
 });
 
 function logoutApp() {
@@ -164,12 +174,12 @@ async function handleForgotPassword(e) {
                     <div>
                         <div class="font-bold">Instruksi Reset Terkirim!</div>
                         <div class="mt-1 leading-relaxed">
-                            Tautan pemulihan kata sandi telah dikirim ke <strong>${identifier}</strong>. Silakan periksa folder <em>Inbox</em> atau <em>Spam</em> Anda dan klik tautan tersebut untuk membuat kata sandi baru.
+                            Tautan pemulihan kata sandi telah dikirim ke <strong>${escapeHtml(identifier)}</strong>. Silakan periksa folder <em>Inbox</em> atau <em>Spam</em> Anda dan klik tautan tersebut untuk membuat kata sandi baru.
                         </div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Sukses", `Tautan reset telah dikirim ke ${identifier}`, "success");
+                showNotification("Sukses", `Tautan reset telah dikirim ke ${escapeHtml(identifier)}`, "success");
                 if (inputEl) inputEl.value = '';
             }
         } else {
@@ -185,7 +195,7 @@ async function handleForgotPassword(e) {
                     <i class="fa-solid fa-circle-exclamation mt-0.5 text-rose-500"></i>
                     <div>
                         <div class="font-bold">Koneksi Database Bermasalah</div>
-                        <div class="mt-0.5 opacity-90">${error.message}</div>
+                        <div class="mt-0.5 opacity-90">${escapeHtml(error.message)}</div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
@@ -197,12 +207,12 @@ async function handleForgotPassword(e) {
                     <div>
                         <div class="font-bold">Akun Tidak Ditemukan</div>
                         <div class="mt-1 leading-relaxed">
-                            Username <strong>${identifier}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
+                            Username <strong>${escapeHtml(identifier)}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
                         </div>
                     </div>
                 </div>`;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Perhatian", `Username "${identifier}" tidak ditemukan.`, "warning");
+                showNotification("Perhatian", `Username "${escapeHtml(identifier)}" tidak ditemukan.`, "warning");
             } else {
                 const u = users[0];
                 const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nUsername: ${u.username}\nRole: ${u.role}\n\nTerima kasih.`);
@@ -212,7 +222,7 @@ async function handleForgotPassword(e) {
                         <i class="fa-solid fa-id-badge text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
                         <div>
                             <div class="font-bold">Akun Staf Ditemukan</div>
-                            <div class="mt-0.5 opacity-90">Username: <strong>${u.username}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${u.role}</span></div>
+                            <div class="mt-0.5 opacity-90">Username: <strong>${escapeHtml(u.username)}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${escapeHtml(u.role)}</span></div>
                         </div>
                     </div>
                     <p class="text-[11px] leading-relaxed opacity-90">

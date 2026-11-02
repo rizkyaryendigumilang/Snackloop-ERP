@@ -14,7 +14,7 @@ async function renderUsers() {
 
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${u.username}</td>
+                <td class="p-3 border border-inherit font-semibold">${escapeHtml(u.username)}</td>
                 <td class="p-3 border border-inherit">${roleBadge}</td>
                 <td class="p-3 border border-inherit text-center">${deleteBtn}</td>
             </tr>`;
@@ -52,7 +52,8 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     
     if(!username || !password) return showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
 
-    const { error } = await supabaseClient.from('users').insert([{ username, password, role }]);
+    const hashedPassword = await hashPassword(password);
+    const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
     if(error) return showNotification("Gagal", error.message, "error");
     
     const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');

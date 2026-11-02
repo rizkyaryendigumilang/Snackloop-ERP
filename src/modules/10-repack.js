@@ -69,10 +69,13 @@ function renderRepackWarehouse() {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteRepackBatch('${r.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
         const modalDisplay = isSuperAdmin ? `Rp ${r.modal_per_pcs.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
 
+        const safeId = escapeHtml(r.id || '');
+        const safeDate = escapeHtml(r.date || '');
+        const safeName = escapeHtml(r.name || '');
         return `
             <tr class="${bgClass}">
-                <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${r.id} <br><span class="text-[9px] opacity-60">${r.date}</span></td>
-                <td class="p-3 border border-inherit font-semibold">${r.name}</td>
+                <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${safeId} <br><span class="text-[9px] opacity-60">${safeDate}</span></td>
+                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${r.sell_target.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${r.initial_qty}</td>
