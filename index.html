@@ -78,7 +78,7 @@
                         <p class="text-[11px] opacity-70">Pemulihan akun via Supabase</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeForgotPasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeForgotPasswordModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -131,7 +131,7 @@
                         <p class="text-[11px] opacity-70">Masukkan kata sandi baru untuk akun Anda</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeResetPasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeResetPasswordModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -1212,7 +1212,7 @@
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Asli (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="c-price" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Total Diskon (Rp)</label><input type="text" inputmode="numeric" id="c-disc" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Biaya Ongkir & Layanan (Rp)</label><input type="text" inputmode="numeric" id="c-fee" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Hasil Qty (Bungkus) <span class="text-rose-500">*</span></label><input type="number" id="c-qty" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Hasil Qty (Bungkus) <span class="text-rose-500">*</span></label><input type="number" inputmode="numeric" id="c-qty" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Plastik /Bungkus (Rp)</label><input type="text" inputmode="numeric" id="c-plastic" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div class="md:col-span-3 border-t border-inherit mt-1 pt-3"></div>
                             <div><label class="block text-[11px] font-bold text-emerald-500 mb-1">Rencana Harga Jual /Bungkus <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="c-sell" class="theme-input w-full border-2 border-emerald-400 rounded-xl p-2.5 outline-none"></div>
@@ -1274,7 +1274,7 @@
                         <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i>Tambah Pelanggan</h3>
                         <form id="cust-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-sm" novalidate>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Pelanggan <span class="text-rose-500">*</span></label><input type="text" id="cu-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">No. WhatsApp <span class="text-rose-500">*</span></label><input type="text" id="cu-phone" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">No. WhatsApp <span class="text-rose-500">*</span></label><input type="text" inputmode="tel" id="cu-phone" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><button type="submit" class="btn-magnetic w-full">Simpan Pelanggan</button></div>
                         </form>
                     </div>
@@ -1525,7 +1525,7 @@
         <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-xl space-y-4 border">
             <div class="flex justify-between items-center border-b pb-3">
                 <h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> Riwayat Perubahan Harga: <span id="history-product-title" class="text-indigo-600"></span></h3>
-                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
+                <button onclick="closeHistoryModal()" aria-label="Tutup riwayat" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
             </div>
             <div class="overflow-x-auto max-h-[350px]">
                 <table class="w-full text-left border-collapse text-xs theme-table">
@@ -1549,7 +1549,7 @@
     <!-- MODAL KONFIRMASI KUSTOM -->
     <div id="custom-confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[999999] p-4">
         <div class="theme-card rounded-2xl p-6 max-w-md w-full shadow-2xl relative border animate-in fade-in zoom-in duration-200">
-            <button id="confirm-btn-close" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-base font-bold">
+            <button id="confirm-btn-close" aria-label="Tutup dialog" title="Tutup (Esc)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-base font-bold">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
@@ -1573,7 +1573,7 @@
     <!-- MODAL INPUT BULAN ARSIR / MIGRASI BARU (BERBASIS KALENDER) -->
     <div id="custom-prompt-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[999999] p-4">
         <div class="theme-card rounded-2xl p-6 max-w-sm w-full shadow-2xl relative border animate-in fade-in zoom-in duration-200 space-y-4">
-            <button onclick="closeCustomPromptModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-base font-bold">
+            <button onclick="closeCustomPromptModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-base font-bold">
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="flex items-start space-x-3">
@@ -1602,7 +1602,7 @@
             <div class="space-y-3 text-xs">
                 <div><label class="block font-semibold mb-1">Tanggal <span class="text-rose-500">*</span></label><input type="date" id="exp-date" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
                 <div><label class="block font-semibold mb-1">Keterangan / Keperluan <span class="text-rose-500">*</span></label><input type="text" id="exp-desc" placeholder="Contoh: Beli plastik kemasan tambahan" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
-                <div><label class="block font-semibold mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label><input type="text" id="exp-amount" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
+                <div><label class="block font-semibold mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="exp-amount" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="closeExpenseModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
@@ -1625,7 +1625,7 @@
                         <p class="text-[11px] opacity-70">Barang rusak/kembali dari warung toko</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeReturnModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeReturnModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -1662,15 +1662,15 @@
                 <div class="grid grid-cols-3 gap-3">
                     <div>
                         <label class="block font-semibold mb-1">Qty Rusak (Pcs) <span class="text-rose-500">*</span></label>
-                        <input type="number" id="ret-qty" min="1" value="1" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-bold text-center">
+                        <input type="number" inputmode="numeric" id="ret-qty" min="1" value="1" required class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-bold text-center">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Harga Beli/Modal (Pcs)</label>
-                        <input type="text" id="ret-buy" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                        <input type="text" inputmode="numeric" id="ret-buy" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Harga Jual Toko (Pcs)</label>
-                        <input type="text" id="ret-sell" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                        <input type="text" inputmode="numeric" id="ret-sell" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
                     </div>
                 </div>
 
@@ -1739,7 +1739,7 @@
                         <p class="text-[11px] opacity-70">Cetak tanda terima barang retur yang dibawa ke agen</p>
                     </div>
                 </div>
-                <button type="button" onclick="closePrintAgentClaimModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closePrintAgentClaimModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -1787,7 +1787,7 @@
                         <p class="text-[11px] opacity-70">Simulasi kurs riil vs buffer, tax refund turis, bea cukai & margin jastip</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeJastipCalculatorModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeJastipCalculatorModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -1809,11 +1809,11 @@
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Harga Beli Toko (Valas)</label>
-                        <input type="number" id="calc-price-valas" oninput="calculateJastipSimulator()" value="1200" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="decimal" id="calc-price-valas" oninput="calculateJastipSimulator()" value="1200" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Kuantitas (Pcs)</label>
-                        <input type="number" id="calc-qty" oninput="calculateJastipSimulator()" value="1" min="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="numeric" id="calc-qty" oninput="calculateJastipSimulator()" value="1" min="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                 </div>
 
@@ -1823,14 +1823,14 @@
                         <label class="block font-semibold mb-1 text-slate-600 dark:text-slate-400">
                             Kurs Riil Kartu Kredit / Kas (IDR)
                         </label>
-                        <input type="number" id="calc-real-rate" oninput="calculateJastipSimulator()" value="105" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold">
+                        <input type="number" inputmode="decimal" id="calc-real-rate" oninput="calculateJastipSimulator()" value="105" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold">
                         <span class="text-[10px] opacity-60">Biaya modal sebenarnya yang terdebet</span>
                     </div>
                     <div>
                         <label class="block font-semibold mb-1 text-indigo-600 dark:text-indigo-400">
                             Kurs Katalog Buffer (Jual ke Pembeli)
                         </label>
-                        <input type="number" id="calc-catalog-rate" oninput="calculateJastipSimulator()" value="116" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                        <input type="number" inputmode="decimal" id="calc-catalog-rate" oninput="calculateJastipSimulator()" value="116" step="any" class="w-full theme-input border rounded-xl p-2 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         <span class="text-[10px] opacity-60">Buffer kurs amankan dari fluktuasi & admin bank</span>
                     </div>
                 </div>
@@ -1839,16 +1839,16 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block font-semibold mb-1">Pajak Toko Asal (%)</label>
-                        <input type="number" id="calc-tax-shop" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="decimal" id="calc-tax-shop" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1 text-emerald-600 dark:text-emerald-400">Tax Refund Turis (%)</label>
-                        <input type="number" id="calc-tax-refund" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                        <input type="number" inputmode="decimal" id="calc-tax-refund" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                         <span class="text-[9px] opacity-60 block">Hidden profit diklaim di bandara</span>
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Biaya Packing / Ops (Rp)</label>
-                        <input type="number" id="calc-ops-cost" oninput="calculateJastipSimulator()" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="numeric" id="calc-ops-cost" oninput="calculateJastipSimulator()" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                 </div>
 
@@ -1856,11 +1856,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block font-semibold mb-1">Logistik / Bagasi per item (Rp)</label>
-                        <input type="number" id="calc-logistics-cost" oninput="calculateJastipSimulator()" value="20000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="numeric" id="calc-logistics-cost" oninput="calculateJastipSimulator()" value="20000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Bea Cukai / Pabean per item (Rp)</label>
-                        <input type="number" id="calc-customs-cost" oninput="calculateJastipSimulator()" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="numeric" id="calc-customs-cost" oninput="calculateJastipSimulator()" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         <span class="text-[9px] opacity-60 block">Bebas jika hand carry &lt; USD 500</span>
                     </div>
                     <div>
@@ -1871,7 +1871,7 @@
                                 <option value="percent">Persentase (%)</option>
                             </select>
                         </div>
-                        <input type="number" id="calc-fee-amount" oninput="calculateJastipSimulator()" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                        <input type="number" inputmode="numeric" id="calc-fee-amount" oninput="calculateJastipSimulator()" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                 </div>
 
@@ -1923,7 +1923,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span id="jastip-generated-code" class="px-2.5 py-1 rounded-lg font-mono text-xs font-semibold theme-input border text-slate-700 dark:text-slate-300">JST-NEW</span>
-                    <button type="button" onclick="closeJastipOrderModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    <button type="button" onclick="closeJastipOrderModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                         <i class="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>
@@ -1945,7 +1945,7 @@
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">No. WhatsApp <span class="text-rose-500">*</span></label>
-                            <input type="text" id="jastip-cust-phone" placeholder="Contoh: 08123456789 atau 6281234..." class="w-full theme-input border rounded-xl p-2.5 outline-none" required>
+                            <input type="text" inputmode="tel" id="jastip-cust-phone" placeholder="Contoh: 08123456789 atau 6281234..." class="w-full theme-input border rounded-xl p-2.5 outline-none" required>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -2003,29 +2003,29 @@
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Harga Beli Valas <span class="text-rose-500">*</span></label>
-                            <input type="number" id="jastip-price-valas" step="any" placeholder="1180" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
+                            <input type="number" inputmode="decimal" id="jastip-price-valas" step="any" placeholder="1180" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Qty (Pcs) <span class="text-rose-500">*</span></label>
-                            <input type="number" id="jastip-item-qty" min="1" value="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
+                            <input type="number" inputmode="numeric" id="jastip-item-qty" min="1" value="1" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono" required>
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Tax Refund (%)</label>
-                            <input type="number" id="jastip-tax-refund" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                            <input type="number" inputmode="decimal" id="jastip-tax-refund" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block font-semibold mb-1">Kurs Riil Kas/CC (IDR)</label>
-                            <input type="number" id="jastip-real-rate" step="any" value="105" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="decimal" id="jastip-real-rate" step="any" value="105" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
                             <label class="block font-semibold mb-1 text-indigo-600 dark:text-indigo-400">Kurs Jual Buffer (IDR)</label>
-                            <input type="number" id="jastip-catalog-rate" step="any" value="116" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            <input type="number" inputmode="decimal" id="jastip-catalog-rate" step="any" value="116" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Pajak Toko Asal (%)</label>
-                            <input type="number" id="jastip-tax-percent" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="decimal" id="jastip-tax-percent" step="any" value="10" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                     </div>
                 </div>
@@ -2039,25 +2039,25 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block font-semibold mb-1">Biaya Ops / Packing (Rp)</label>
-                            <input type="number" id="jastip-ops-cost" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="numeric" id="jastip-ops-cost" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Logistik / Bagasi / item (Rp)</label>
-                            <input type="number" id="jastip-logistics-cost" value="25000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="numeric" id="jastip-logistics-cost" value="25000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Bea Cukai / item (Rp)</label>
-                            <input type="number" id="jastip-customs-cost" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="numeric" id="jastip-customs-cost" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block font-semibold mb-1">Fee Jastip per Item (Rp)</label>
-                            <input type="number" id="jastip-fee-amount" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
+                            <input type="number" inputmode="numeric" id="jastip-fee-amount" value="35000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
                             <label class="block font-semibold mb-1 text-amber-600 dark:text-amber-400">DP Diterima (Rp) <span class="text-rose-500">*</span></label>
-                            <input type="number" id="jastip-dp-amount" placeholder="Min. 50% estimasi harga" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold" required>
+                            <input type="number" inputmode="numeric" id="jastip-dp-amount" placeholder="Min. 50% estimasi harga" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono font-bold" required>
                         </div>
                         <div>
                             <label class="block font-semibold mb-1">Status Tahapan Alur</label>
@@ -2133,7 +2133,7 @@
                         <p class="text-[11px] opacity-70">Checklist belanja instan per toko saat berkeliling di luar negeri</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeJastipChecklistModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeJastipChecklistModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -2179,7 +2179,7 @@
                         <p class="text-[11px] opacity-70">Simulasi batas pembebasan bea masuk penumpang USD 500 (Jalur Hijau vs Merah)</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeJastipCustomsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeJastipCustomsModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -2251,7 +2251,7 @@
                     <i class="fa-solid fa-receipt text-emerald-500"></i>
                     <h3 class="text-xs font-bold truncate max-w-[280px]" id="jastip-photo-preview-label">Foto Struk Pembelian</h3>
                 </div>
-                <button type="button" onclick="closeJastipPhotoModal()" class="text-slate-400 hover:text-white transition">
+                <button type="button" onclick="closeJastipPhotoModal()" aria-label="Tutup foto" title="Tutup (Esc)" class="text-slate-400 hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -2301,7 +2301,7 @@
                         <p class="text-[10px] opacity-70">Akses cepat 1-klik & bekerja offline</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeInstallGuideModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeInstallGuideModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -2420,7 +2420,7 @@
                         <p class="text-[11px] opacity-70">Profil usaha, rekening pembayaran nota, dan pencadangan</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                <button type="button" onclick="closeSettingsModal()" aria-label="Tutup dialog" title="Tutup (Esc)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -2456,7 +2456,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block font-semibold mb-1">No. WhatsApp Admin / CS</label>
-                            <input type="text" id="set-biz-phone" placeholder="Contoh: 628123456789" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                            <input type="text" inputmode="tel" id="set-biz-phone" placeholder="Contoh: 628123456789" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
                             <span class="text-[10px] opacity-60">Awali dengan 62 (tanpa tanda +)</span>
                         </div>
                         <div>

@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-03T03:11:09.286Z from 17 source modules in src/modules/
+// Generated on 2026-11-03T03:29:41.774Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1884,6 +1884,102 @@ function toggleDarkMode() {
     const isDark = document.body.classList.contains('dark-theme');
     setAppTheme(isDark ? 'light' : 'dark');
 }
+
+
+// =========================================================================
+// ERGONOMI KASIR & AKSESIBILITAS DIALOG (ESC, BACKDROP CLICK, SHORTCUT CTRL+K)
+// =========================================================================
+function closeTopmostModal() {
+    // 1. Modal konfirmasi & prompt
+    const confirmModal = document.getElementById('custom-confirm-modal');
+    if (confirmModal && !confirmModal.classList.contains('hidden')) {
+        confirmModal.classList.remove('flex');
+        confirmModal.classList.add('hidden');
+        return true;
+    }
+    const promptModal = document.getElementById('custom-prompt-modal');
+    if (promptModal && !promptModal.classList.contains('hidden')) {
+        closeCustomPromptModal();
+        return true;
+    }
+
+    // 2. Seluruh modal operasional terdaftar
+    const modalHandlers = [
+        { id: 'modal-settings', closeFn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
+        { id: 'modal-return', closeFn: () => typeof closeReturnModal === 'function' && closeReturnModal() },
+        { id: 'modal-print-agent-claim', closeFn: () => typeof closePrintAgentClaimModal === 'function' && closePrintAgentClaimModal() },
+        { id: 'modal-jastip-calculator', closeFn: () => typeof closeJastipCalculatorModal === 'function' && closeJastipCalculatorModal() },
+        { id: 'modal-jastip-order', closeFn: () => typeof closeJastipOrderModal === 'function' && closeJastipOrderModal() },
+        { id: 'modal-jastip-checklist', closeFn: () => typeof closeJastipChecklistModal === 'function' && closeJastipChecklistModal() },
+        { id: 'modal-jastip-customs', closeFn: () => typeof closeJastipCustomsModal === 'function' && closeJastipCustomsModal() },
+        { id: 'modal-jastip-photo-preview', closeFn: () => typeof closeJastipPhotoModal === 'function' && closeJastipPhotoModal() },
+        { id: 'modal-install-guide', closeFn: () => typeof closeInstallGuideModal === 'function' && closeInstallGuideModal() },
+        { id: 'edit-master-modal', closeFn: () => typeof closeEditMasterModal === 'function' && closeEditMasterModal() },
+        { id: 'history-master-modal', closeFn: () => typeof closeHistoryModal === 'function' && closeHistoryModal() },
+        { id: 'modal-forgot-password', closeFn: () => typeof closeForgotPasswordModal === 'function' && closeForgotPasswordModal() },
+        { id: 'modal-reset-password', closeFn: () => typeof closeResetPasswordModal === 'function' && closeResetPasswordModal() },
+        { id: 'modal-expense', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() }
+    ];
+
+    for (const m of modalHandlers) {
+        const el = document.getElementById(m.id);
+        if (el && !el.classList.contains('hidden')) {
+            if (m.closeFn) m.closeFn();
+            el.classList.remove('flex');
+            el.classList.add('hidden');
+            return true;
+        }
+    }
+
+    // 3. Fallback selector generik
+    const genericModal = document.querySelector('.fixed.flex[id*="modal"], .fixed.flex[id*="custom-"]');
+    if (genericModal) {
+        genericModal.classList.remove('flex');
+        genericModal.classList.add('hidden');
+        return true;
+    }
+    return false;
+}
+
+function focusActiveSearchInput() {
+    const activeTab = document.querySelector('.tab-content:not(.hidden)');
+    if (activeTab) {
+        const input = activeTab.querySelector('input[type="search"], input[id*="search"], input[placeholder*="Cari"], input[placeholder*="cari"]');
+        if (input) {
+            input.focus();
+            if (input.select) input.select();
+            return;
+        }
+    }
+    const fallbackSearch = document.getElementById('t-search') || document.querySelector('input[id*="search"]');
+    if (fallbackSearch) {
+        fallbackSearch.focus();
+        if (fallbackSearch.select) fallbackSearch.select();
+    }
+}
+
+// Global Keyboard Listener: [Esc] to Close & [Ctrl+K] / [/] to Quick Search
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const closed = closeTopmostModal();
+        if (closed) e.preventDefault();
+        return;
+    }
+
+    const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+    if ((e.ctrlKey && e.key.toLowerCase() === 'k') || (e.key === '/' && !isEditing)) {
+        e.preventDefault();
+        focusActiveSearchInput();
+    }
+});
+
+// Global Backdrop Click to Close Modal
+document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.classList) return;
+    if (e.target.classList.contains('fixed') && (e.target.id?.startsWith('modal-') || e.target.id?.includes('-modal')) && !e.target.classList.contains('hidden')) {
+        closeTopmostModal();
+    }
+});
 
 
 // --- [MODULE: 06-auth.js] ---

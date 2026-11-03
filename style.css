@@ -375,4 +375,29 @@ a:active,
 .eco-mode .theme-card,
 .eco-mode .btn-magnetic {
   box-shadow: none !important;
-}
+}
+
+/* ==================== 11. WCAG 2.2 AA FOCUS-VISIBLE ACCESSIBILITY ==================== */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* ==================== 12. PHYSICAL MICRO-TRANSITIONS (EMIL KOWALSKI CRAFT) ==================== */
+.fixed[id*="modal"] > div,
+.fixed[id*="custom-"] > div {
+  transform: scale(0.96) translateY(-4px);
+  opacity: 0;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fixed.flex[id*="modal"] > div,
+.fixed.flex[id*="custom-"] > div {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
