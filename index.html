@@ -242,18 +242,18 @@
         <!-- MAIN CONTENT -->
         <main id="main-content" class="flex-grow flex flex-col min-h-screen transition-all duration-400 w-full overflow-hidden p-6">
             
-            <header class="theme-header border px-6 py-4 flex justify-between items-center shadow-sm no-print rounded-2xl mb-6">
-                <div class="flex items-center space-x-3">
+            <header class="theme-header border px-3.5 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shadow-sm no-print rounded-2xl mb-4 sm:mb-6">
+                <div class="flex items-center space-x-2 sm:space-x-3">
                 <div id="brand-logo-container" class="flex items-center justify-center cursor-pointer">
-    <img src="Snackloop-logo.png" alt="Logo" class="h-10 w-auto object-contain">
+    <img src="Snackloop-logo.png" alt="Logo" class="h-8 sm:h-10 w-auto object-contain">
 </div>
                     <div>
-                        <h2 id="page-title" class="text-xl font-bold">Dashboard</h2>
+                        <h2 id="page-title" class="text-lg sm:text-xl font-bold leading-tight">Dashboard</h2>
                         <span class="text-[10px] opacity-60">SnackLoop ERP</span>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2.5 text-sm">
+                <div class="flex items-center space-x-2 sm:space-x-2.5 text-sm">
                     <!-- Indikator Status Online/Offline & Sync Outbox (Kompak & Minimal) -->
                     <div id="sync-status-container" class="cursor-pointer" onclick="handleSyncBadgeClick()" title="Status: Online - Terhubung (Klik untuk info)">
                         <span id="sync-status-badge" class="w-8 h-8 md:w-9 md:h-9 rounded-lg border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 transition-colors">
@@ -263,9 +263,9 @@
                     </div>
 
                     <!-- Mode Ringkas -->
-                    <button id="toggle-compact-btn" onclick="toggleCompactView()" class="text-xs theme-input px-3 py-2 rounded-xl border transition flex items-center gap-1.5 shadow-sm">
+                    <button id="toggle-compact-btn" onclick="toggleCompactView()" class="text-xs theme-input px-2.5 py-2 sm:px-3 rounded-xl border transition flex items-center gap-1.5 shadow-sm" title="Mode Ringkas Tabel">
                         <i class="fa-solid fa-table-cells text-indigo-500"></i>
-                        <span>Mode Ringkas: <strong id="compact-status" class="opacity-50">OFF</strong></span>
+                        <span class="hidden md:inline">Mode Ringkas: <strong id="compact-status" class="opacity-50">OFF</strong></span>
                     </button>
 
                     <!-- User Badge (Disembunyikan agar header bersih) -->

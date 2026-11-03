@@ -260,16 +260,17 @@ body {
 }
 
 /* Safe Area Insets (Notch, Dynamic Island, Android Navigation Bar) */
+header.theme-header,
 header {
-  padding-top: max(0.75rem, env(safe-area-inset-top));
-  padding-left: max(1rem, env(safe-area-inset-left));
-  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-top: max(0.75rem, calc(0.5rem + env(safe-area-inset-top, 0px)));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
 }
 
 #toast-container {
-  top: max(1.25rem, env(safe-area-inset-top));
-  right: max(1.25rem, env(safe-area-inset-right));
-  left: max(1.25rem, env(safe-area-inset-left));
+  top: max(1.25rem, env(safe-area-inset-top, 0px));
+  right: max(1.25rem, env(safe-area-inset-right, 0px));
+  left: max(1.25rem, env(safe-area-inset-left, 0px));
 }
 
 @media screen and (max-width: 768px) {
@@ -317,19 +318,39 @@ a:active,
   overscroll-behavior: contain;
 }
 
+/* Scroll Affordance: Bayangan halus di tepi tabel saat ada kolom tersembunyi */
 .overflow-x-auto {
   touch-action: pan-x pan-y;
+  background-image: 
+    linear-gradient(to right, var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)),
+    linear-gradient(to left, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0));
+  background-position: left center, right center, left center, right center;
+  background-repeat: no-repeat;
+  background-color: var(--card-bg);
+  background-size: 24px 100%, 24px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+body.dark-theme .overflow-x-auto {
+  background-image: 
+    linear-gradient(to right, var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, var(--card-bg), var(--card-bg)),
+    linear-gradient(to right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+    linear-gradient(to left, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
 }
 
 /* Mencegah bug auto-zoom iOS Safari saat fokus pada input */
 @media (pointer: coarse), screen and (max-width: 768px) {
-  input, select, textarea {
+  input, select, textarea, .theme-input {
     font-size: 16px !important;
+    line-height: 1.5 !important;
   }
   
   /* Ukuran sentuhan minimal ramah jari (Fitts's Law) */
   button, input, select {
-    min-height: 42px;
+    min-height: 40px;
   }
 }
 
@@ -393,18 +414,32 @@ textarea:focus-visible,
   outline-offset: 2px !important;
 }
 
-/* ==================== 12. PHYSICAL MICRO-TRANSITIONS (EMIL KOWALSKI CRAFT) ==================== */
+/* ==================== 12. PHYSICAL MICRO-TRANSITIONS & RESPONSIVE MODAL VIEWPORT ==================== */
 .fixed[id*="modal"] > div,
 .fixed[id*="custom-"] > div {
   transform: scale(0.96) translateY(-4px);
   opacity: 0;
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: min(92dvh, 92vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fixed.flex[id*="modal"] > div,
 .fixed.flex[id*="custom-"] > div {
   transform: scale(1) translateY(0);
   opacity: 1;
+}
+
+@media screen and (max-width: 640px) {
+  .fixed[id*="modal"] > div,
+  .fixed[id*="custom-"] > div {
+    max-height: calc(100dvh - 1.5rem);
+    padding: 1.15rem !important;
+    margin: 0.5rem auto !important;
+    width: 100% !important;
+  }
 }
 
 /* ==================== 13. MOBILE TOUCH ERGONOMICS & KEYBOARD SHORTCUT BADGES ==================== */
