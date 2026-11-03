@@ -273,6 +273,11 @@
                         <span id="current-user-label">-</span>
                     </span>
 
+                    <!-- Panduan Pintasan Keyboard Kasir (F1 / ?) -->
+                    <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Pintasan Keyboard (? / F1)" aria-label="Panduan Pintasan Keyboard">
+                        <i class="fa-solid fa-keyboard text-xs text-indigo-500"></i>
+                    </button>
+
                     <!-- Tombol Pengaturan Header (Kecil, Elegan & Selaras) -->
                     <button id="btn-open-settings" onclick="openSettingsModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 group text-slate-600 dark:text-slate-300 shrink-0" title="Pengaturan Sistem & Profil Usaha" data-i18n-title="set_modal_title">
                         <i class="fa-solid fa-gear text-xs md:text-sm group-hover:rotate-45 transition-transform duration-300"></i>
@@ -2652,6 +2657,168 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL PANDUAN PINTASAN KEYBOARD KASIR ==================== -->
+    <div id="modal-shortcuts-guide" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="theme-card border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-6 space-y-5">
+            <div class="flex justify-between items-center pb-3 border-b border-inherit">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-600/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-keyboard"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base leading-tight">Panduan Pintasan Keyboard Kasir</h3>
+                        <p class="text-[11px] opacity-70">Akselerasi operasional kasir & navigasi tanpa mouse</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeShortcutsGuideModal()" class="w-8 h-8 rounded-xl theme-input border flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup dialog" title="Tutup (Esc)">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-xmark text-rose-500 text-sm"></i>
+                        <span>Tutup dialog / modal yang sedang terbuka</span>
+                    </div>
+                    <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Esc</kbd>
+                </div>
+
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass text-indigo-500 text-sm"></i>
+                        <span>Pencarian cepat / fokus kolom filter</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Ctrl + K</kbd>
+                        <span class="opacity-50 text-[10px]">atau</span>
+                        <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">/</kbd>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-question text-amber-500 text-sm"></i>
+                        <span>Buka jendela bantuan tombol pintas ini</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">?</kbd>
+                        <span class="opacity-50 text-[10px]">atau</span>
+                        <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">F1</kbd>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-left-right text-emerald-500 text-sm"></i>
+                        <span>Pindah kolom isian form kasir berikutnya</span>
+                    </div>
+                    <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Tab</kbd>
+                </div>
+
+                <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk text-indigo-500 text-sm"></i>
+                        <span>Simpan formulir transaksi / konfirmasi</span>
+                    </div>
+                    <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Enter</kbd>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-inherit flex justify-end">
+                <button type="button" onclick="closeShortcutsGuideModal()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 text-xs font-semibold rounded-xl">
+                    Mengerti (Esc)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL KOLEKSI TEMPLATE PENAGIHAN WHATSAPP ==================== -->
+    <div id="modal-wa-invoice-templates" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="theme-card border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-inherit shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow-sm">
+                        <i class="fa-brands fa-whatsapp text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base leading-tight">Koleksi Template WhatsApp Penagihan</h3>
+                        <p class="text-[11px] opacity-70">Pilih template pesan, salin teks (*clip-to-copy*), atau kirim via WA</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeWaInvoiceTemplatesModal()" class="w-8 h-8 rounded-xl theme-input border flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup dialog" title="Tutup (Esc)">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Target Nota & Telepon Info -->
+            <div class="p-3 rounded-xl border border-inherit bg-slate-50/70 dark:bg-slate-900/40 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shrink-0">
+                <div>
+                    <span class="text-[10px] opacity-60 block">Nomor Faktur:</span>
+                    <strong id="wa-modal-inv-num" class="font-mono text-indigo-600 dark:text-indigo-400 block truncate">-</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] opacity-60 block">Pelanggan:</span>
+                    <strong id="wa-modal-cust-name" class="block truncate">-</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] opacity-60 block">Total Tagihan:</span>
+                    <strong id="wa-modal-amount" class="text-emerald-600 dark:text-emerald-400 block">-</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] opacity-60 block">Nomor WhatsApp:</span>
+                    <input type="tel" id="wa-modal-phone" inputmode="tel" class="theme-input border rounded px-1.5 py-0.5 text-xs font-semibold w-full outline-none" placeholder="628xxx">
+                </div>
+            </div>
+
+            <!-- Pilihan Kategori Template -->
+            <div class="space-y-1.5 shrink-0">
+                <label class="text-[11px] font-bold opacity-75 block">Pilih Karakter Template:</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                    <button type="button" onclick="selectWaTemplate('soft')" id="btn-wa-tpl-soft" class="px-2.5 py-1.5 rounded-lg border font-semibold text-center transition bg-indigo-600 text-white shadow-sm text-[11px]">
+                        🌿 Ramah
+                    </button>
+                    <button type="button" onclick="selectWaTemplate('due')" id="btn-wa-tpl-due" class="px-2.5 py-1.5 rounded-lg border font-semibold text-center transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] opacity-80">
+                        ⏰ Hari-H
+                    </button>
+                    <button type="button" onclick="selectWaTemplate('overdue')" id="btn-wa-tpl-overdue" class="px-2.5 py-1.5 rounded-lg border font-semibold text-center transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] opacity-80">
+                        ⚠️ Teguran
+                    </button>
+                    <button type="button" onclick="selectWaTemplate('paid')" id="btn-wa-tpl-paid" class="px-2.5 py-1.5 rounded-lg border font-semibold text-center transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] opacity-80">
+                        🧾 Lunas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Text Area Editor & Preview -->
+            <div class="space-y-1 flex-1 flex flex-col min-h-[140px]">
+                <div class="flex items-center justify-between text-[11px] opacity-75">
+                    <span>Pratinjau Pesan (Dapat Anda sesuaikan sebelum dikirim/disalin):</span>
+                    <span id="wa-copy-feedback" class="text-emerald-500 font-bold hidden items-center gap-1"><i class="fa-solid fa-check"></i> Tersalin!</span>
+                </div>
+                <textarea id="wa-modal-textarea" rows="7" class="w-full flex-1 theme-input border rounded-xl p-3 text-xs font-mono leading-relaxed outline-none focus:ring-2 focus:ring-emerald-500 resize-none shadow-inner"></textarea>
+            </div>
+
+            <!-- Footer Actions: Clip-to-Copy & Open WhatsApp -->
+            <div class="pt-3 border-t border-inherit flex items-center justify-between gap-2 shrink-0">
+                <button type="button" onclick="closeWaInvoiceTemplatesModal()" class="px-3.5 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Batal
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-wa-clip-copy" onclick="copyWaMessageToClipboard()" class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-regular fa-copy text-xs"></i>
+                        <span id="btn-wa-clip-copy-label">Salin Teks (Clip to Copy)</span>
+                    </button>
+                    <button type="button" onclick="openWaWithCurrentMessage()" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                        <span>Buka WhatsApp</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

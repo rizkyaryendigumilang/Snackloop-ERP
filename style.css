@@ -39,6 +39,11 @@ body.dark-theme {
   --text: #8b949e;
 }
 
+html, body {
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: #ffffff;
   color: var(--text-main);
@@ -400,4 +405,21 @@ textarea:focus-visible,
 .fixed.flex[id*="custom-"] > div {
   transform: scale(1) translateY(0);
   opacity: 1;
+}
+
+/* ==================== 13. MOBILE TOUCH ERGONOMICS & KEYBOARD SHORTCUT BADGES ==================== */
+@media (hover: none) and (pointer: coarse) {
+  button, select, input[type="button"], input[type="submit"] {
+    min-height: 38px;
+  }
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }

@@ -160,6 +160,20 @@ function toggleDarkMode() {
 // =========================================================================
 // ERGONOMI KASIR & AKSESIBILITAS DIALOG (ESC, BACKDROP CLICK, SHORTCUT CTRL+K)
 // =========================================================================
+function openShortcutsGuideModal() {
+    const modal = document.getElementById('modal-shortcuts-guide');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeShortcutsGuideModal() {
+    const modal = document.getElementById('modal-shortcuts-guide');
+    if (!modal) return;
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
 function closeTopmostModal() {
     // 1. Modal konfirmasi & prompt
     const confirmModal = document.getElementById('custom-confirm-modal');
@@ -176,6 +190,8 @@ function closeTopmostModal() {
 
     // 2. Seluruh modal operasional terdaftar
     const modalHandlers = [
+        { id: 'modal-shortcuts-guide', closeFn: () => typeof closeShortcutsGuideModal === 'function' && closeShortcutsGuideModal() },
+        { id: 'modal-wa-invoice-templates', closeFn: () => typeof closeWaInvoiceTemplatesModal === 'function' && closeWaInvoiceTemplatesModal() },
         { id: 'modal-settings', closeFn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
         { id: 'modal-return', closeFn: () => typeof closeReturnModal === 'function' && closeReturnModal() },
         { id: 'modal-print-agent-claim', closeFn: () => typeof closePrintAgentClaimModal === 'function' && closePrintAgentClaimModal() },
@@ -229,7 +245,7 @@ function focusActiveSearchInput() {
     }
 }
 
-// Global Keyboard Listener: [Esc] to Close & [Ctrl+K] / [/] to Quick Search
+// Global Keyboard Listener: [Esc] to Close, [Ctrl+K] / [/] to Quick Search, [?] / [F1] for Guide
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const closed = closeTopmostModal();
@@ -238,6 +254,14 @@ document.addEventListener('keydown', function(e) {
     }
 
     const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+    
+    // F1 or [?] to open shortcuts guide modal
+    if ((e.key === 'F1' || (e.key === '?' && !isEditing)) && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        openShortcutsGuideModal();
+        return;
+    }
+
     if ((e.ctrlKey && e.key.toLowerCase() === 'k') || (e.key === '/' && !isEditing)) {
         e.preventDefault();
         focusActiveSearchInput();

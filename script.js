@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-03T04:31:21.586Z from 17 source modules in src/modules/
+// Generated on 2026-11-03T05:30:43.525Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1889,6 +1889,20 @@ function toggleDarkMode() {
 // =========================================================================
 // ERGONOMI KASIR & AKSESIBILITAS DIALOG (ESC, BACKDROP CLICK, SHORTCUT CTRL+K)
 // =========================================================================
+function openShortcutsGuideModal() {
+    const modal = document.getElementById('modal-shortcuts-guide');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeShortcutsGuideModal() {
+    const modal = document.getElementById('modal-shortcuts-guide');
+    if (!modal) return;
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
+
 function closeTopmostModal() {
     // 1. Modal konfirmasi & prompt
     const confirmModal = document.getElementById('custom-confirm-modal');
@@ -1905,6 +1919,8 @@ function closeTopmostModal() {
 
     // 2. Seluruh modal operasional terdaftar
     const modalHandlers = [
+        { id: 'modal-shortcuts-guide', closeFn: () => typeof closeShortcutsGuideModal === 'function' && closeShortcutsGuideModal() },
+        { id: 'modal-wa-invoice-templates', closeFn: () => typeof closeWaInvoiceTemplatesModal === 'function' && closeWaInvoiceTemplatesModal() },
         { id: 'modal-settings', closeFn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
         { id: 'modal-return', closeFn: () => typeof closeReturnModal === 'function' && closeReturnModal() },
         { id: 'modal-print-agent-claim', closeFn: () => typeof closePrintAgentClaimModal === 'function' && closePrintAgentClaimModal() },
@@ -1958,7 +1974,7 @@ function focusActiveSearchInput() {
     }
 }
 
-// Global Keyboard Listener: [Esc] to Close & [Ctrl+K] / [/] to Quick Search
+// Global Keyboard Listener: [Esc] to Close, [Ctrl+K] / [/] to Quick Search, [?] / [F1] for Guide
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         const closed = closeTopmostModal();
@@ -1967,6 +1983,14 @@ document.addEventListener('keydown', function(e) {
     }
 
     const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+    
+    // F1 or [?] to open shortcuts guide modal
+    if ((e.key === 'F1' || (e.key === '?' && !isEditing)) && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        openShortcutsGuideModal();
+        return;
+    }
+
     if ((e.ctrlKey && e.key.toLowerCase() === 'k') || (e.key === '/' && !isEditing)) {
         e.preventDefault();
         focusActiveSearchInput();
@@ -2797,58 +2821,96 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
 function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
-    const backupObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, jastipData: jData, auditLogData };
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
+    const timestamp = new Date().toISOString();
+    const dateFormatted = timestamp.slice(0, 10);
+    const backupObj = {
+        meta: {
+            system: "SnackLoop ERP",
+            version: "2.5-Enterprise",
+            exportDate: timestamp,
+            exportedBy: currentUser || 'super_admin'
+        },
+        appSettings: typeof appSettings !== 'undefined' ? appSettings : null,
+        agentData: typeof agentData !== 'undefined' ? agentData : [],
+        masterData: typeof masterData !== 'undefined' ? masterData : [],
+        customerData: typeof customerData !== 'undefined' ? customerData : [],
+        repackData: typeof repackData !== 'undefined' ? repackData : [],
+        transactionData: typeof transactionData !== 'undefined' ? transactionData : {},
+        expenseData: typeof expenseData !== 'undefined' ? expenseData : [],
+        invoiceData: typeof invoiceData !== 'undefined' ? invoiceData : [],
+        priceHistoryData: typeof priceHistoryData !== 'undefined' ? priceHistoryData : {},
+        returnData: typeof returnData !== 'undefined' ? returnData : [],
+        jastipData: jData,
+        auditLogData: typeof auditLogData !== 'undefined' ? auditLogData : []
+    };
+
+    const jsonStr = JSON.stringify(backupObj, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `SnackLoop_Backup_${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchor.href = url;
+    dlAnchor.download = `SnackLoop_Backup_Lengkap_${dateFormatted}.json`;
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    logAuditActivity('DATA_BACKUP', `Backup-${new Date().toISOString().slice(0, 10)}`, "Mengunduh file cadangan database JSON lengkap");
-    showNotification("Sukses", "File backup lokal berhasil diunduh.", "success");
+    logAuditActivity('DATA_BACKUP', `Backup-${dateFormatted}`, "Mengunduh file cadangan database JSON lengkap");
+    showNotification("Sukses", "Pencadangan penuh berhasil diunduh ke perangkat Anda!", "success");
 }
 
 function restoreDataJSON(event) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
-    const file = event.target.files[0];
+    const file = event.target.files && event.target.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (data.transactionData) transactionData = data.transactionData;
-            if (data.masterData) masterData = data.masterData;
-            if (data.customerData) customerData = data.customerData;
-            if (data.agentData) agentData = data.agentData;
-            if (data.repackData) repackData = data.repackData;
-            if (data.expenseData) expenseData = data.expenseData;
-            if (data.invoiceData) invoiceData = data.invoiceData;
-            if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
-            if (data.returnData) returnData = data.returnData;
-            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
-            if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
 
-            saveCacheToLocal();
-            renderMonthTabs();
-            renderMaster();
-            renderCustomer();
-            renderAgents();
-            renderRepackWarehouse();
-            renderInvoicesTable();
-            renderReturns();
-            updateDashboard();
-            if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
+    showConfirmModal("Konfirmasi Pemulihan Database", `Apakah Anda yakin ingin memulihkan sistem dari file "${file.name}"? Data di sistem saat ini akan digantikan oleh isi file cadangan.`, () => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data || typeof data !== 'object') throw new Error("Format JSON tidak valid");
 
-            logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);
-            showNotification("Sukses", "Data backup berhasil dipulihkan secara penuh ke sistem!", "success");
-        } catch(err) {
-            console.error("Gagal restore:", err);
-            showNotification("Gagal", "Format file backup JSON tidak valid.", "error");
-        }
-    };
-    reader.readAsText(file);
+                if (data.transactionData) transactionData = data.transactionData;
+                if (data.masterData) masterData = data.masterData;
+                if (data.customerData) customerData = data.customerData;
+                if (data.agentData) agentData = data.agentData;
+                if (data.repackData) repackData = data.repackData;
+                if (data.expenseData) expenseData = data.expenseData;
+                if (data.invoiceData) invoiceData = data.invoiceData;
+                if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
+                if (data.returnData) returnData = data.returnData;
+                if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+                if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
+
+                if (data.appSettings && typeof appSettings !== 'undefined') {
+                    appSettings = { ...DEFAULT_APP_SETTINGS, ...data.appSettings };
+                    localStorage.setItem('snackloop_settings', JSON.stringify(appSettings));
+                    if (typeof applyAppSettingsUI === 'function') applyAppSettingsUI();
+                }
+
+                saveCacheToLocal();
+                renderMonthTabs();
+                renderMaster();
+                renderCustomer();
+                renderAgents();
+                renderRepackWarehouse();
+                renderInvoicesTable();
+                renderReturns();
+                updateDashboard();
+                if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
+
+                logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);
+                showNotification("Sukses", "Data backup berhasil dipulihkan secara penuh ke sistem!", "success");
+            } catch(err) {
+                console.error("Gagal restore:", err);
+                showNotification("Gagal", "Format file backup JSON tidak valid atau rusak.", "error");
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    });
 }
 
 
@@ -3924,7 +3986,7 @@ async function renderInvoicesTable() {
                 <td class="p-3 border border-inherit text-center">
                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
                         <button onclick="downloadInvoicePDF('${safeInvNum}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button onclick="sendSmartInvoiceReminderWA('${safeInvNum}', '${safeCustName.replace(/'/g, "\\'")}', ${inv.total_amount}, '${safeDate}', '${inv.status}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm" title="Tagih via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
+                        <button onclick="openWaInvoiceTemplatesModal('${safeInvNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1" title="Koleksi Template Tagih WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
                         ${btnLunasi}
                         ${btnDelete}
                     </div>
@@ -3936,73 +3998,210 @@ async function renderInvoicesTable() {
     renderInvoicePaginationControls(totalPages, filteredInvoices.length, startIndex + 1, Math.min(startIndex + invoiceRowsPerPage, filteredInvoices.length));
 }
 
-function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
-    const custObj = customerData.find(c => c.name && c.name.toLowerCase() === custName.toLowerCase());
+// =========================================================================
+// KOLEKSI TEMPLATE PENAGIHAN WHATSAPP DENGAN CLIP-TO-COPY
+// =========================================================================
+let currentWaInvoiceContext = null;
+let currentWaSelectedTemplate = 'soft';
+
+function openWaInvoiceTemplatesModal(invNumber) {
+    const inv = invoiceData.find(i => i.invoice_number === invNumber);
+    if (!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
+
+    const custObj = customerData.find(c => c.name && c.name.toLowerCase() === (inv.customer_name || '').toLowerCase());
     let phone = (custObj && custObj.phone) ? custObj.phone : '';
     phone = phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+    if (!phone && appSettings?.whatsappPhone) phone = appSettings.whatsappPhone.replace(/\D/g, '');
+    if (phone && phone.startsWith('0')) phone = '62' + phone.substring(1);
 
-    const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
-    const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
-    
-    let msg = '';
-    if (statusInv === 'Lunas') {
-        msg = `*FAKTUR LUNAS (KWITANSI RESMI)* - ${biz}\n` +
-              `-----------------------------------------\n` +
-              `Yth. Kak *${custName}*,\n\n` +
-              `Terima kasih. Pembayaran untuk transaksi berikut telah kami terima:\n` +
-              `• No. Faktur : *${invNumber}*\n` +
-              `• Tanggal    : *${invDate}*\n` +
-              `• Jumlah     : *Rp ${Number(amount).toLocaleString()}*\n` +
-              `• Status     : *LUNAS*\n\n` +
-              `Pembayaran telah tercatat di sistem kami. Terima kasih atas kerjasamanya.`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(inv.date); d.setHours(0,0,0,0);
+    const days = Math.max(0, Math.floor((today - d) / (1000 * 60 * 60 * 24)));
+
+    currentWaInvoiceContext = {
+        invoiceNumber: inv.invoice_number,
+        customerName: inv.customer_name || 'Pelanggan',
+        amount: Number(inv.total_amount) || 0,
+        date: inv.date,
+        status: inv.status || 'Belum Lunas',
+        days: days,
+        phone: phone
+    };
+
+    // Prefill summary info
+    const invEl = document.getElementById('wa-modal-inv-num');
+    const custEl = document.getElementById('wa-modal-cust-name');
+    const amtEl = document.getElementById('wa-modal-amount');
+    const phoneEl = document.getElementById('wa-modal-phone');
+
+    if (invEl) invEl.innerText = currentWaInvoiceContext.invoiceNumber;
+    if (custEl) custEl.innerText = currentWaInvoiceContext.customerName;
+    if (amtEl) amtEl.innerText = 'Rp ' + currentWaInvoiceContext.amount.toLocaleString('id-ID');
+    if (phoneEl) phoneEl.value = currentWaInvoiceContext.phone;
+
+    // Default template based on status & aging
+    if (currentWaInvoiceContext.status === 'Lunas') {
+        currentWaSelectedTemplate = 'paid';
+    } else if (days > 14) {
+        currentWaSelectedTemplate = 'overdue';
+    } else if (days > 7) {
+        currentWaSelectedTemplate = 'due';
     } else {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const d = new Date(invDate);
-        d.setHours(0,0,0,0);
-        const days = Math.max(0, Math.floor((today - d) / (1000 * 60 * 60 * 24)));
-
-        if (days <= 7) {
-            msg = `Halo Kak *${custName}*, salam dari *${biz}*.\n\n` +
-                  `Berikut adalah rincian nota pesanan snack Anda:\n` +
-                  `• No. Nota : *${invNumber}*\n` +
-                  `• Tanggal  : *${invDate}*\n` +
-                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
-                  `Pembayaran dapat ditransfer ke rekening resmi kami:\n` +
-                  `*${bank}*\n\n` +
-                  `Mohon konfirmasi jika pembayaran telah dilakukan. Terima kasih.`;
-        } else if (days <= 14) {
-            msg = `Halo Kak *${custName}*, semoga usaha Anda berjalan lancar.\n\n` +
-                  `Kami mengonfirmasi bahwa nota pesanan SnackLoop berikut:\n` +
-                  `• No. Nota : *${invNumber}*\n` +
-                  `• Tanggal  : *${invDate}* (${days} hari berjalan)\n` +
-                  `• Tagihan  : *Rp ${Number(amount).toLocaleString()}*\n\n` +
-                  `Jika snack di toko/warung sudah terjual, mohon kesediaannya untuk melakukan transfer pelunasan ke:\n` +
-                  `*${bank}*\n\n` +
-                  `Mohon kirimkan bukti transfer ke nomor ini. Terima kasih atas kerjasamanya.`;
-        } else {
-            msg = `*PEMBERITAHUAN JATUH TEMPO* - ${biz}\n` +
-                  `Kepada Yth. Kak *${custName}*,\n\n` +
-                  `Tagihan transaksi Anda di *${biz}* telah melewati batas tempo pembayaran (${days} hari tertunggak):\n` +
-                  `• No. Nota : *${invNumber}*\n` +
-                  `• Tanggal  : *${invDate}*\n` +
-                  `• Total    : *Rp ${Number(amount).toLocaleString()}*\n\n` +
-                  `Mohon segera melakukan pelunasan ke rekening resmi kami:\n` +
-                  `*${bank}*\n\n` +
-                  `Harap konfirmasikan bukti transfer hari ini agar pencatatan administrasi dan pengiriman order berikutnya berjalan lancar. Terima kasih atas perhatiannya.`;
-        }
+        currentWaSelectedTemplate = 'soft';
     }
+
+    selectWaTemplate(currentWaSelectedTemplate);
+
+    const modal = document.getElementById('modal-wa-invoice-templates');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeWaInvoiceTemplatesModal() {
+    const modal = document.getElementById('modal-wa-invoice-templates');
+    if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+}
+
+function selectWaTemplate(tplKey) {
+    currentWaSelectedTemplate = tplKey;
+    const tplKeys = ['soft', 'due', 'overdue', 'paid'];
+    tplKeys.forEach(k => {
+        const btn = document.getElementById('btn-wa-tpl-' + k);
+        if (btn) {
+            if (k === tplKey) {
+                btn.className = "px-2.5 py-1.5 rounded-lg border font-semibold text-center transition bg-indigo-600 text-white shadow-sm text-[11px]";
+            } else {
+                btn.className = "px-2.5 py-1.5 rounded-lg border font-semibold text-center transition theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] opacity-80";
+            }
+        }
+    });
+
+    generateWaTemplateMessage();
+}
+
+function generateWaTemplateMessage() {
+    if (!currentWaInvoiceContext) return;
+    const biz = (appSettings?.businessName || 'SnackLoop ERP').trim();
+    const bank = (appSettings?.bankAccount || 'BCA 12345678 a/n SnackLoop').trim();
+    const { customerName, invoiceNumber, date, amount, days } = currentWaInvoiceContext;
+    const formattedAmount = amount.toLocaleString('id-ID');
+
+    let msg = '';
+    switch (currentWaSelectedTemplate) {
+        case 'soft':
+            msg = `Halo Kak *${customerName}*, salam hangat dari *${biz}* 🙏\n\n` +
+                  `Berikut kami kirimkan rincian nota pesanan snack Anda:\n` +
+                  `• No. Nota  : *${invoiceNumber}*\n` +
+                  `• Tanggal   : *${date}*\n` +
+                  `• Tagihan   : *Rp ${formattedAmount}*\n\n` +
+                  `Pembayaran dapat ditransfer ke rekening resmi kami:\n` +
+                  `🏦 *${bank}*\n\n` +
+                  `Mohon konfirmasi bukti transfer jika sudah melakukan pembayaran ya Kak. Terima kasih banyak atas kerjasamanya! 😊`;
+            break;
+        case 'due':
+            msg = `Halo Kak *${customerName}*, semoga usaha dan toko Anda semakin laris berkah.\n\n` +
+                  `Kami mengonfirmasikan bahwa nota pesanan SnackLoop berikut hari ini telah jatuh tempo pembayaran:\n` +
+                  `• No. Nota  : *${invoiceNumber}*\n` +
+                  `• Tanggal   : *${date}* (${days} hari berjalan)\n` +
+                  `• Tagihan   : *Rp ${formattedAmount}*\n\n` +
+                  `Mohon kesediaannya untuk melakukan transfer pelunasan ke rekening resmi:\n` +
+                  `🏦 *${bank}*\n\n` +
+                  `Jika snack di toko sudah habis terjual atau ada retur yang perlu dicatat, silakan kabari kami. Terima kasih! 🙏`;
+            break;
+        case 'overdue':
+            msg = `*PEMBERITAHUAN JATUH TEMPO & PENAGIHAN PIUTANG*\n` +
+                  `*${biz}*\n` +
+                  `-----------------------------------------\n` +
+                  `Kepada Yth. Kak *${customerName}*,\n\n` +
+                  `Sistem kami mencatat tagihan transaksi Anda telah melewati batas tempo pembayaran (*${days} hari tertunggak*):\n` +
+                  `• No. Nota  : *${invoiceNumber}*\n` +
+                  `• Tanggal   : *${date}*\n` +
+                  `• Total     : *Rp ${formattedAmount}*\n\n` +
+                  `Mohon segera melakukan pelunasan ke rekening resmi kami:\n` +
+                  `🏦 *${bank}*\n\n` +
+                  `Harap kirimkan foto bukti transfer agar pengiriman dan proses pesanan snack berikutnya dapat kami jadwalkan tanpa kendala. Terima kasih atas pengertian dan kerjasamanya.`;
+            break;
+        case 'paid':
+            msg = `*KWITANSI PEMBAYARAN RESMI*\n` +
+                  `*${biz}*\n` +
+                  `-----------------------------------------\n` +
+                  `Yth. Kak *${customerName}*,\n\n` +
+                  `Alhamdulillah, pembayaran untuk nota pesanan berikut telah kami terima dengan baik:\n` +
+                  `• No. Nota  : *${invoiceNumber}*\n` +
+                  `• Tanggal   : *${date}*\n` +
+                  `• Jumlah    : *Rp ${formattedAmount}*\n` +
+                  `• Status    : *LUNAS (Lunas Penuh)* ✅\n\n` +
+                  `Pembayaran sudah tercatat rapi di sistem kami. Terima kasih banyak telah bermitra dengan *${biz}*! 🙏`;
+            break;
+    }
+
+    const textarea = document.getElementById('wa-modal-textarea');
+    if (textarea) textarea.value = msg;
+}
+
+async function copyWaMessageToClipboard() {
+    const textarea = document.getElementById('wa-modal-textarea');
+    if (!textarea || !textarea.value) return;
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(textarea.value);
+        } else {
+            textarea.select();
+            document.execCommand('copy');
+        }
+
+        const label = document.getElementById('btn-wa-clip-copy-label');
+        const feedback = document.getElementById('wa-copy-feedback');
+        if (label) label.innerText = "Tersalin ke Clipboard!";
+        if (feedback) {
+            feedback.classList.remove('hidden');
+            feedback.classList.add('inline-flex');
+        }
+
+        showNotification("Tersalin", "Teks penagihan WhatsApp berhasil disalin!", "success");
+
+        setTimeout(() => {
+            if (label) label.innerText = "Salin Teks (Clip to Copy)";
+            if (feedback) {
+                feedback.classList.remove('inline-flex');
+                feedback.classList.add('hidden');
+            }
+        }, 2000);
+    } catch (err) {
+        showNotification("Gagal", "Gagal menyalin teks secara otomatis.", "error");
+    }
+}
+
+function openWaWithCurrentMessage() {
+    const textarea = document.getElementById('wa-modal-textarea');
+    const msg = textarea ? textarea.value : '';
+    const phoneInput = document.getElementById('wa-modal-phone');
+    let phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
+    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+    if (!phone && appSettings?.whatsappPhone) {
+        phone = appSettings.whatsappPhone.replace(/\D/g, '');
+        if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+    }
+    if (!phone) phone = '628123456789';
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+// Fallback untuk kompatibilitas panggilan modul lain
+function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
+    openWaInvoiceTemplatesModal(invNumber);
+}
+
 // Alias untuk kompatibilitas mundur
 function sendInvoiceWA(invNumber, custName, amount, statusInv) {
-    const inv = invoiceData.find(i => i.invoice_number === invNumber);
-    const date = inv ? inv.date : new Date().toISOString().split('T')[0];
-    sendSmartInvoiceReminderWA(invNumber, custName, amount, date, statusInv);
+    openWaInvoiceTemplatesModal(invNumber);
 }
 
 // =========================================================================
