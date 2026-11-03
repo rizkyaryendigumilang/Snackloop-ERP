@@ -68,7 +68,7 @@ function renderAgentPerformanceOverview() {
         const estProfit = stat.totalRevenue - stat.totalModal;
         const safeAgName = escapeHtml(ag.name || '');
         const safeBestItem = escapeHtml(bestItem || '-');
-        const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
+        const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`).replace(/'/g, "%27");
 
         return `
             <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
@@ -140,7 +140,7 @@ function updateAgentDropdowns() {
             if(selId === 't-source') {
                 options += `<option value="Repack">Gudang Repack</option>`;
             }
-            options += agentData.map(ag => `<option value="${ag.name}">${ag.name}</option>`).join('');
+            options += agentData.map(ag => `<option value="${escapeHtml(ag.name)}">${escapeHtml(ag.name)}</option>`).join('');
             el.innerHTML = options;
             el.value = currentVal;
         }

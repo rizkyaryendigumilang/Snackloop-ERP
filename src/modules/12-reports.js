@@ -277,7 +277,7 @@ function renderReportSales(data) {
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
                         <td class="p-2.5 font-medium flex items-center gap-2">
                             <span class="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${idx < 3 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">${idx + 1}</span>
-                            <span>${p.name}</span>
+                            <span>${escapeHtml(p.name)}</span>
                         </td>
                         <td class="p-2.5 text-center font-bold font-mono">${p.qty}</td>
                         <td class="p-2.5 text-right font-medium">Rp ${p.omzet.toLocaleString('id-ID')}</td>
@@ -312,7 +312,7 @@ function renderReportSales(data) {
                     `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Tertib</span>`;
                 return `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                        <td class="p-2.5 font-medium">${c.name}</td>
+                        <td class="p-2.5 font-medium">${escapeHtml(c.name)}</td>
                         <td class="p-2.5 text-center font-mono">${c.count} trx</td>
                         <td class="p-2.5 text-right font-medium">Rp ${c.omzet.toLocaleString('id-ID')}</td>
                         <td class="p-2.5 text-center">${statusBadge}</td>
@@ -369,18 +369,18 @@ function renderReportReceivables(data) {
     tbody.innerHTML = list.map(item => {
         const cleanPhone = (item.phone || '').replace(/[^0-9]/g, '');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
-            <button onclick="sendReportWhatsApp('${cleanPhone}', '${item.name}', ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
+            <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
                 <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
             </button>
         ` : `<span class="opacity-40 text-[10px]">No WA kosong</span>`;
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                <td class="p-3 font-semibold text-slate-800 dark:text-slate-100">${item.name}</td>
-                <td class="p-3 font-mono opacity-70">${item.phone || '-'}</td>
+                <td class="p-3 font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(item.name)}</td>
+                <td class="p-3 font-mono opacity-70">${escapeHtml(item.phone || '-')}</td>
                 <td class="p-3 text-center font-bold text-amber-600 font-mono">${item.count}</td>
                 <td class="p-3 text-right font-bold text-rose-500 font-mono">Rp ${item.total.toLocaleString('id-ID')}</td>
-                <td class="p-3 font-mono opacity-60 text-xs">${item.lastDate || '-'}</td>
+                <td class="p-3 font-mono opacity-60 text-xs">${escapeHtml(item.lastDate || '-')}</td>
                 <td class="p-3 text-center">${waBtn}</td>
             </tr>
         `;
@@ -446,8 +446,8 @@ function renderReportInventory() {
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                <td class="p-3 font-mono text-indigo-500 font-bold">${r.id} <br><span class="text-[10px] opacity-60 text-slate-500">${r.date || '-'}</span></td>
-                <td class="p-3 font-medium">${r.name}</td>
+                <td class="p-3 font-mono text-indigo-500 font-bold">${escapeHtml(r.id || '')} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(r.date || '-')}</span></td>
+                <td class="p-3 font-medium">${escapeHtml(r.name || '')}</td>
                 <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-center font-bold font-mono">${rem} / ${r.initial_qty || rem}</td>
@@ -698,7 +698,7 @@ function exportToPdf(reportType) {
                         ${topProds.map((p, i) => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
                                 <td style="padding: 5px 8px; text-align: center;">${i+1}</td>
-                                <td style="padding: 5px 8px; font-weight: 500;">${p.name}</td>
+                                <td style="padding: 5px 8px; font-weight: 500;">${escapeHtml(p.name)}</td>
                                 <td style="padding: 5px 8px; text-align: center; font-weight: bold;">${p.qty} pcs</td>
                                 <td style="padding: 5px 8px; text-align: right;">Rp ${p.omzet.toLocaleString('id-ID')}</td>
                             </tr>

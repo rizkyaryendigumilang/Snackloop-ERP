@@ -1188,17 +1188,21 @@ async function renderSnapshotListUI() {
         return;
     }
 
-    container.innerHTML = snapshots.map(s => `
+    container.innerHTML = snapshots.map(s => {
+        const safeDate = escapeHtml(s.date || '');
+        const safeDisplay = escapeHtml(s.displayDate || s.createdAt || '-');
+        const encodedDate = encodeURIComponent(s.date || '').replace(/'/g, "%27");
+        return `
         <div class="p-2.5 rounded-lg border theme-input flex items-center justify-between gap-2">
             <div>
-                <strong class="font-mono text-xs block text-slate-800 dark:text-slate-200">${s.date}</strong>
-                <span class="text-[10px] opacity-60">${s.displayDate || s.createdAt} | ${s.itemCount || 0} transaksi</span>
+                <strong class="font-mono text-xs block text-slate-800 dark:text-slate-200">${safeDate}</strong>
+                <span class="text-[10px] opacity-60">${safeDisplay} | ${s.itemCount || 0} transaksi</span>
             </div>
-            <button type="button" onclick="restoreDailySnapshot('${s.date}')" class="px-2.5 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition" title="Pulihkan data ke snapshot ini">
+            <button type="button" onclick="restoreDailySnapshot(decodeURIComponent('${encodedDate}'))" class="px-2.5 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition" title="Pulihkan data ke snapshot ini">
                 <i class="fa-solid fa-rotate-left mr-1"></i> Pulihkan
             </button>
         </div>
-    `).join('');
+    `;}).join('');
 }
 
 async function triggerManualSnapshot() {

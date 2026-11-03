@@ -217,6 +217,17 @@ CREATE POLICY "Allow user insert via admin or service role"
         current_setting('role', true) = 'service_role'
     );
 
+
+DROP POLICY IF EXISTS "Allow user delete via admin or service role" ON users;
+CREATE POLICY "Allow user delete via admin or service role"
+    ON users FOR DELETE
+    USING (
+        current_user = 'service_role' OR 
+        (auth.jwt() ->> 'role') = 'super_admin' OR
+        current_setting('request.jwt.claim.role', true) = 'super_admin' OR
+        current_setting('role', true) = 'service_role'
+    );
+
 DROP POLICY IF EXISTS "Allow user update for admin" ON users;
 DROP POLICY IF EXISTS "Allow user update via admin or service role" ON users;
 CREATE POLICY "Allow user update via admin or service role"

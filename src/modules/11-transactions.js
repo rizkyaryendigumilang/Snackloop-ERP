@@ -13,7 +13,7 @@ function renderDropdowns() {
     const tCust = document.getElementById('t-customer');
     if(tCust) {
         let opts = `<option value="" disabled selected>Pilih Pelanggan</option>`;
-        opts += customerData.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        opts += customerData.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
         tCust.innerHTML = opts;
     }
     updateAgentDropdowns();
@@ -34,7 +34,7 @@ function onSourceChange() {
             prodSel.innerHTML = `<option value="" disabled selected>Gudang Repack Kosong</option>`;
         } else {
             let opts = `<option value="" disabled selected>Pilih Produk</option>`;
-            opts += inStock.map(r => `<option value="REPACK|${r.id}">[Sisa: ${r.remaining_qty}] ${r.name}</option>`).join('');
+            opts += inStock.map(r => `<option value="REPACK|${escapeHtml(r.id)}">[Sisa: ${r.remaining_qty}] ${escapeHtml(r.name)}</option>`).join('');
             prodSel.innerHTML = opts;
         }
     } else {
@@ -43,7 +43,7 @@ function onSourceChange() {
         let opts = `<option value="" disabled selected>Pilih Produk</option>`;
         opts += filtered.map(m => {
             const modalLabel = isSuperAdmin ? ` (Modal: Rp${m.buy.toLocaleString()})` : '';
-            return `<option value="MASTER|${m.id}">${m.name}${modalLabel}</option>`;
+            return `<option value="MASTER|${m.id}">${escapeHtml(m.name)}${modalLabel}</option>`;
         }).join('');
         prodSel.innerHTML = opts;
     }
@@ -585,7 +585,7 @@ async function renderInvoicesTable() {
         const switchHint = activeInvoiceMonthSheet !== 'all' 
             ? `<div class="mt-2 text-xs"><button onclick="selectInvoiceMonthSheet('all')" class="text-indigo-600 dark:text-indigo-400 font-bold underline hover:opacity-80">Klik di sini untuk melihat Semua Bulan</button></div>` 
             : '';
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${activeInvoiceMonthSheet}</b>` : ''}.${switchHint}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${escapeHtml(activeInvoiceMonthSheet)}</b>` : ''}.${switchHint}</td></tr>`;
         renderInvoicePaginationControls(0, 0, 0, 0);
         return;
     }
@@ -805,13 +805,18 @@ function renderCustomerLeaderboard() {
             }
         }
 
+        const safeCustName = escapeHtml(cust.name);
+        const safeFavItem = escapeHtml(favoriteItem);
+        const safeLastDate = escapeHtml(cust.lastDate || '-');
+        const encodedCustName = encodeURIComponent(cust.name).replace(/'/g, "%27");
+
         return `
             <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2">
                         ${rankBadge}
                         <div>
-                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${cust.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${safeCustName}</h4>
                             <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
                         </div>
                     </div>
@@ -833,12 +838,12 @@ function renderCustomerLeaderboard() {
 
                 <div class="text-[11px] opacity-75 truncate">
                     <span class="opacity-60 text-[10px] block">Snack Paling Sering:</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${favoriteItem}</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${safeFavItem}</span>
                 </div>
 
                 <div class="pt-2 border-t border-inherit flex items-center justify-between">
-                    <span class="text-[10px] opacity-50">Terakhir: ${cust.lastDate || '-'}</span>
-                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                    <span class="text-[10px] opacity-50">Terakhir: ${safeLastDate}</span>
+                    <button type="button" onclick="sendCustomerRewardWA(decodeURIComponent('${encodedCustName}'), ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
                         <i class="fa-brands fa-whatsapp text-emerald-500"></i> Hubungi
                     </button>
                 </div>
@@ -1423,15 +1428,19 @@ function loadMemos() {
         list.innerHTML = '<p class="text-slate-400 italic">Belum ada memo tersimpan.</p>';
         return;
     }
-    list.innerHTML = memos.map((m, idx) => `
+    list.innerHTML = memos.map((m, idx) => {
+        const safeText = escapeHtml(m.text || '');
+        const safeDate = escapeHtml(m.date || '');
+        const safePriority = escapeHtml(m.priority || 'Normal');
+        return `
         <div class="p-2.5 theme-input border rounded-xl flex justify-between items-center">
             <div>
-                <span class="font-medium block">${m.text}</span>
-                <span class="text-[10px] opacity-60">${m.date} • <strong class="${m.priority === 'Urgent' ? 'text-red-500' : 'text-amber-500'}">${m.priority}</strong></span>
+                <span class="font-medium block">${safeText}</span>
+                <span class="text-[10px] opacity-60">${safeDate} • <strong class="${m.priority === 'Urgent' ? 'text-red-500' : 'text-amber-500'}">${safePriority}</strong></span>
             </div>
             <button onclick="deleteMemo(${idx})" class="text-slate-400 hover:text-rose-500 text-xs px-1.5">✕</button>
         </div>
-    `).join('');
+    `;}).join('');
 }
 
 function deleteMemo(idx) {
@@ -1565,16 +1574,22 @@ function updateDashboard() {
 
                 const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
-                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${encodeURIComponent(waText)}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
+                const safeWaParam = encodeURIComponent(waText).replace(/'/g, "%27");
+                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${safeWaParam}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
                 
+                const safeDate = escapeHtml(t.date || '');
+                const safeMonthKey = escapeHtml(t.monthKey || '');
+                const safeCustomer = escapeHtml(t.customer || '');
+                const safeItemName = escapeHtml(t.itemName || '');
+
                 return `
                     <tr class="hover:bg-slate-50/50 transition">
-                        <td class="p-2.5 border border-inherit">${t.date} <br><span class="text-[9px] opacity-60">${t.monthKey}</span></td>
+                        <td class="p-2.5 border border-inherit">${safeDate} <br><span class="text-[9px] opacity-60">${safeMonthKey}</span></td>
                         <td class="p-2.5 border border-inherit">
-                            <span class="font-bold text-indigo-500 block">${t.customer}</span>
+                            <span class="font-bold text-indigo-500 block">${safeCustomer}</span>
                             ${agingBadge}
                         </td>
-                        <td class="p-2.5 border border-inherit font-medium">${t.itemName} (${t.qty}x)</td>
+                        <td class="p-2.5 border border-inherit font-medium">${safeItemName} (${t.qty}x)</td>
                         <td class="p-2.5 border border-inherit font-bold text-rose-500">Rp ${t.totalSell.toLocaleString()}</td>
                         <td class="p-2.5 border border-inherit text-center">${waBtn}</td>
                         <td class="p-2.5 border border-inherit text-center">${btnLunasi}</td>
@@ -1602,14 +1617,16 @@ function renderDashboardHistory() {
             `<span class="text-rose-500 font-bold">+Rp ${diff.toLocaleString()} (Naik)</span>` : 
             diff < 0 ? `<span class="text-emerald-500 font-bold">-Rp ${Math.abs(diff).toLocaleString()} (Turun)</span>` : `<span class="opacity-50">Tetap</span>`;
 
+        const safeProdName = escapeHtml(h.product_name || '');
+        const safeChangedBy = escapeHtml(h.changed_by || 'admin');
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-2.5 border border-inherit opacity-70">${new Date(h.changed_at).toLocaleString('id-ID')}</td>
-                <td class="p-2.5 border border-inherit font-bold text-indigo-500">${h.product_name}</td>
+                <td class="p-2.5 border border-inherit font-bold text-indigo-500">${safeProdName}</td>
                 <td class="p-2.5 border border-inherit opacity-70">Rp ${h.old_buy.toLocaleString()}</td>
                 <td class="p-2.5 border border-inherit font-bold">Rp ${h.new_buy.toLocaleString()}</td>
                 <td class="p-2.5 border border-inherit">${diffBadge}</td>
-                <td class="p-2.5 border border-inherit font-medium">${h.changed_by || 'admin'}</td>
+                <td class="p-2.5 border border-inherit font-medium">${safeChangedBy}</td>
             </tr>`;
     }).join('');
 
@@ -1638,7 +1655,7 @@ function renderTopProducts(salesMap) {
                 <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 font-bold rounded text-[10px]">${p.qty} Terjual</span>
             </div>
             <div>
-                <h4 class="font-bold text-sm line-clamp-1">${p.name}</h4>
+                <h4 class="font-bold text-sm line-clamp-1">${escapeHtml(p.name)}</h4>
                 <p class="text-xs font-semibold text-indigo-500 mt-0.5">Rp ${p.revenue.toLocaleString()}</p>
             </div>
         </div>

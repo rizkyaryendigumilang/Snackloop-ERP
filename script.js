@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-03T02:47:40.430Z from 17 source modules in src/modules/
+// Generated on 2026-11-03T03:11:09.286Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -379,12 +379,14 @@ function showNotification(title, message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `pointer-events-auto theme-card rounded-xl shadow-md border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-all duration-200 ease-out z-[99999] w-full`;
+    const safeTitle = typeof escapeHtml === 'function' ? escapeHtml(title) : title;
+    const safeMsg = typeof escapeHtml === 'function' ? escapeHtml(message) : message;
     toast.innerHTML = `
         <div class="flex items-start gap-2.5">
             <i class="${iconClass} text-base mt-0.5 shrink-0"></i>
             <div>
-                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${title}</h4>
-                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${message}</p>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${safeTitle}</h4>
+                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${safeMsg}</p>
             </div>
         </div>
         <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0">&times;</button>
@@ -1698,17 +1700,21 @@ async function renderSnapshotListUI() {
         return;
     }
 
-    container.innerHTML = snapshots.map(s => `
+    container.innerHTML = snapshots.map(s => {
+        const safeDate = escapeHtml(s.date || '');
+        const safeDisplay = escapeHtml(s.displayDate || s.createdAt || '-');
+        const encodedDate = encodeURIComponent(s.date || '').replace(/'/g, "%27");
+        return `
         <div class="p-2.5 rounded-lg border theme-input flex items-center justify-between gap-2">
             <div>
-                <strong class="font-mono text-xs block text-slate-800 dark:text-slate-200">${s.date}</strong>
-                <span class="text-[10px] opacity-60">${s.displayDate || s.createdAt} | ${s.itemCount || 0} transaksi</span>
+                <strong class="font-mono text-xs block text-slate-800 dark:text-slate-200">${safeDate}</strong>
+                <span class="text-[10px] opacity-60">${safeDisplay} | ${s.itemCount || 0} transaksi</span>
             </div>
-            <button type="button" onclick="restoreDailySnapshot('${s.date}')" class="px-2.5 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition" title="Pulihkan data ke snapshot ini">
+            <button type="button" onclick="restoreDailySnapshot(decodeURIComponent('${encodedDate}'))" class="px-2.5 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition" title="Pulihkan data ke snapshot ini">
                 <i class="fa-solid fa-rotate-left mr-1"></i> Pulihkan
             </button>
         </div>
-    `).join('');
+    `;}).join('');
 }
 
 async function triggerManualSnapshot() {
@@ -2488,7 +2494,7 @@ function renderAgentPerformanceOverview() {
         const estProfit = stat.totalRevenue - stat.totalModal;
         const safeAgName = escapeHtml(ag.name || '');
         const safeBestItem = escapeHtml(bestItem || '-');
-        const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`);
+        const waMsg = encodeURIComponent(`Halo ${ag.name}, kami dari SnackLoop ingin menanyakan ketersediaan stok snack untuk repeat order. Terima kasih!`).replace(/'/g, "%27");
 
         return `
             <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
@@ -2560,7 +2566,7 @@ function updateAgentDropdowns() {
             if(selId === 't-source') {
                 options += `<option value="Repack">Gudang Repack</option>`;
             }
-            options += agentData.map(ag => `<option value="${ag.name}">${ag.name}</option>`).join('');
+            options += agentData.map(ag => `<option value="${escapeHtml(ag.name)}">${escapeHtml(ag.name)}</option>`).join('');
             el.innerHTML = options;
             el.value = currentVal;
         }
@@ -2627,8 +2633,23 @@ function confirmDeleteUser(id) {
     const username = targetUser ? targetUser.username : `User #${id}`;
 
     showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus akun pengguna "${username}"?`, async () => {
-        const { error } = await supabaseClient.from('users').delete().eq('id', id);
-        if(error) return showNotification("Gagal", error.message, "error");
+        let delError = null;
+        try {
+            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('admin_delete_user', {
+                p_admin_username: currentUser || 'admin',
+                p_target_id: id
+            });
+            if (rpcErr || (rpcRes && !rpcRes.success)) {
+                delError = rpcErr || new Error(rpcRes?.message || 'Gagal menghapus user');
+            }
+        } catch (e) {
+            delError = e;
+        }
+
+        if (delError) {
+            const { error: directErr } = await supabaseClient.from('users').delete().eq('id', id);
+            if (directErr) return showNotification("Gagal", directErr.message, "error");
+        }
 
         logAuditActivity('USER_DELETE', username, `Menghapus akun pengguna: ${username} (ID: ${id})`);
         await loadDataFromCloud(); 
@@ -3134,7 +3155,7 @@ function renderDropdowns() {
     const tCust = document.getElementById('t-customer');
     if(tCust) {
         let opts = `<option value="" disabled selected>Pilih Pelanggan</option>`;
-        opts += customerData.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        opts += customerData.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
         tCust.innerHTML = opts;
     }
     updateAgentDropdowns();
@@ -3155,7 +3176,7 @@ function onSourceChange() {
             prodSel.innerHTML = `<option value="" disabled selected>Gudang Repack Kosong</option>`;
         } else {
             let opts = `<option value="" disabled selected>Pilih Produk</option>`;
-            opts += inStock.map(r => `<option value="REPACK|${r.id}">[Sisa: ${r.remaining_qty}] ${r.name}</option>`).join('');
+            opts += inStock.map(r => `<option value="REPACK|${escapeHtml(r.id)}">[Sisa: ${r.remaining_qty}] ${escapeHtml(r.name)}</option>`).join('');
             prodSel.innerHTML = opts;
         }
     } else {
@@ -3164,7 +3185,7 @@ function onSourceChange() {
         let opts = `<option value="" disabled selected>Pilih Produk</option>`;
         opts += filtered.map(m => {
             const modalLabel = isSuperAdmin ? ` (Modal: Rp${m.buy.toLocaleString()})` : '';
-            return `<option value="MASTER|${m.id}">${m.name}${modalLabel}</option>`;
+            return `<option value="MASTER|${m.id}">${escapeHtml(m.name)}${modalLabel}</option>`;
         }).join('');
         prodSel.innerHTML = opts;
     }
@@ -3706,7 +3727,7 @@ async function renderInvoicesTable() {
         const switchHint = activeInvoiceMonthSheet !== 'all' 
             ? `<div class="mt-2 text-xs"><button onclick="selectInvoiceMonthSheet('all')" class="text-indigo-600 dark:text-indigo-400 font-bold underline hover:opacity-80">Klik di sini untuk melihat Semua Bulan</button></div>` 
             : '';
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${activeInvoiceMonthSheet}</b>` : ''}.${switchHint}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${escapeHtml(activeInvoiceMonthSheet)}</b>` : ''}.${switchHint}</td></tr>`;
         renderInvoicePaginationControls(0, 0, 0, 0);
         return;
     }
@@ -3926,13 +3947,18 @@ function renderCustomerLeaderboard() {
             }
         }
 
+        const safeCustName = escapeHtml(cust.name);
+        const safeFavItem = escapeHtml(favoriteItem);
+        const safeLastDate = escapeHtml(cust.lastDate || '-');
+        const encodedCustName = encodeURIComponent(cust.name).replace(/'/g, "%27");
+
         return `
             <div class="theme-card rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                 <div class="flex items-start justify-between gap-2">
                     <div class="flex items-center gap-2">
                         ${rankBadge}
                         <div>
-                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${cust.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${safeCustName}</h4>
                             <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
                         </div>
                     </div>
@@ -3954,12 +3980,12 @@ function renderCustomerLeaderboard() {
 
                 <div class="text-[11px] opacity-75 truncate">
                     <span class="opacity-60 text-[10px] block">Snack Paling Sering:</span>
-                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${favoriteItem}</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200 truncate block">${safeFavItem}</span>
                 </div>
 
                 <div class="pt-2 border-t border-inherit flex items-center justify-between">
-                    <span class="text-[10px] opacity-50">Terakhir: ${cust.lastDate || '-'}</span>
-                    <button type="button" onclick="sendCustomerRewardWA('${cust.name}', ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
+                    <span class="text-[10px] opacity-50">Terakhir: ${safeLastDate}</span>
+                    <button type="button" onclick="sendCustomerRewardWA(decodeURIComponent('${encodedCustName}'), ${cust.totalSpent}, ${cust.orderCount})" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-[10px] font-semibold flex items-center gap-1.5 transition-colors">
                         <i class="fa-brands fa-whatsapp text-emerald-500"></i> Hubungi
                     </button>
                 </div>
@@ -4544,15 +4570,19 @@ function loadMemos() {
         list.innerHTML = '<p class="text-slate-400 italic">Belum ada memo tersimpan.</p>';
         return;
     }
-    list.innerHTML = memos.map((m, idx) => `
+    list.innerHTML = memos.map((m, idx) => {
+        const safeText = escapeHtml(m.text || '');
+        const safeDate = escapeHtml(m.date || '');
+        const safePriority = escapeHtml(m.priority || 'Normal');
+        return `
         <div class="p-2.5 theme-input border rounded-xl flex justify-between items-center">
             <div>
-                <span class="font-medium block">${m.text}</span>
-                <span class="text-[10px] opacity-60">${m.date} • <strong class="${m.priority === 'Urgent' ? 'text-red-500' : 'text-amber-500'}">${m.priority}</strong></span>
+                <span class="font-medium block">${safeText}</span>
+                <span class="text-[10px] opacity-60">${safeDate} • <strong class="${m.priority === 'Urgent' ? 'text-red-500' : 'text-amber-500'}">${safePriority}</strong></span>
             </div>
             <button onclick="deleteMemo(${idx})" class="text-slate-400 hover:text-rose-500 text-xs px-1.5">✕</button>
         </div>
-    `).join('');
+    `;}).join('');
 }
 
 function deleteMemo(idx) {
@@ -4686,16 +4716,22 @@ function updateDashboard() {
 
                 const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
-                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${encodeURIComponent(waText)}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
+                const safeWaParam = encodeURIComponent(waText).replace(/'/g, "%27");
+                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${safeWaParam}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
                 
+                const safeDate = escapeHtml(t.date || '');
+                const safeMonthKey = escapeHtml(t.monthKey || '');
+                const safeCustomer = escapeHtml(t.customer || '');
+                const safeItemName = escapeHtml(t.itemName || '');
+
                 return `
                     <tr class="hover:bg-slate-50/50 transition">
-                        <td class="p-2.5 border border-inherit">${t.date} <br><span class="text-[9px] opacity-60">${t.monthKey}</span></td>
+                        <td class="p-2.5 border border-inherit">${safeDate} <br><span class="text-[9px] opacity-60">${safeMonthKey}</span></td>
                         <td class="p-2.5 border border-inherit">
-                            <span class="font-bold text-indigo-500 block">${t.customer}</span>
+                            <span class="font-bold text-indigo-500 block">${safeCustomer}</span>
                             ${agingBadge}
                         </td>
-                        <td class="p-2.5 border border-inherit font-medium">${t.itemName} (${t.qty}x)</td>
+                        <td class="p-2.5 border border-inherit font-medium">${safeItemName} (${t.qty}x)</td>
                         <td class="p-2.5 border border-inherit font-bold text-rose-500">Rp ${t.totalSell.toLocaleString()}</td>
                         <td class="p-2.5 border border-inherit text-center">${waBtn}</td>
                         <td class="p-2.5 border border-inherit text-center">${btnLunasi}</td>
@@ -4723,14 +4759,16 @@ function renderDashboardHistory() {
             `<span class="text-rose-500 font-bold">+Rp ${diff.toLocaleString()} (Naik)</span>` : 
             diff < 0 ? `<span class="text-emerald-500 font-bold">-Rp ${Math.abs(diff).toLocaleString()} (Turun)</span>` : `<span class="opacity-50">Tetap</span>`;
 
+        const safeProdName = escapeHtml(h.product_name || '');
+        const safeChangedBy = escapeHtml(h.changed_by || 'admin');
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-2.5 border border-inherit opacity-70">${new Date(h.changed_at).toLocaleString('id-ID')}</td>
-                <td class="p-2.5 border border-inherit font-bold text-indigo-500">${h.product_name}</td>
+                <td class="p-2.5 border border-inherit font-bold text-indigo-500">${safeProdName}</td>
                 <td class="p-2.5 border border-inherit opacity-70">Rp ${h.old_buy.toLocaleString()}</td>
                 <td class="p-2.5 border border-inherit font-bold">Rp ${h.new_buy.toLocaleString()}</td>
                 <td class="p-2.5 border border-inherit">${diffBadge}</td>
-                <td class="p-2.5 border border-inherit font-medium">${h.changed_by || 'admin'}</td>
+                <td class="p-2.5 border border-inherit font-medium">${safeChangedBy}</td>
             </tr>`;
     }).join('');
 
@@ -4759,7 +4797,7 @@ function renderTopProducts(salesMap) {
                 <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 font-bold rounded text-[10px]">${p.qty} Terjual</span>
             </div>
             <div>
-                <h4 class="font-bold text-sm line-clamp-1">${p.name}</h4>
+                <h4 class="font-bold text-sm line-clamp-1">${escapeHtml(p.name)}</h4>
                 <p class="text-xs font-semibold text-indigo-500 mt-0.5">Rp ${p.revenue.toLocaleString()}</p>
             </div>
         </div>
@@ -5165,7 +5203,7 @@ function renderReportSales(data) {
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
                         <td class="p-2.5 font-medium flex items-center gap-2">
                             <span class="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${idx < 3 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}">${idx + 1}</span>
-                            <span>${p.name}</span>
+                            <span>${escapeHtml(p.name)}</span>
                         </td>
                         <td class="p-2.5 text-center font-bold font-mono">${p.qty}</td>
                         <td class="p-2.5 text-right font-medium">Rp ${p.omzet.toLocaleString('id-ID')}</td>
@@ -5200,7 +5238,7 @@ function renderReportSales(data) {
                     `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Tertib</span>`;
                 return `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                        <td class="p-2.5 font-medium">${c.name}</td>
+                        <td class="p-2.5 font-medium">${escapeHtml(c.name)}</td>
                         <td class="p-2.5 text-center font-mono">${c.count} trx</td>
                         <td class="p-2.5 text-right font-medium">Rp ${c.omzet.toLocaleString('id-ID')}</td>
                         <td class="p-2.5 text-center">${statusBadge}</td>
@@ -5257,18 +5295,18 @@ function renderReportReceivables(data) {
     tbody.innerHTML = list.map(item => {
         const cleanPhone = (item.phone || '').replace(/[^0-9]/g, '');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
-            <button onclick="sendReportWhatsApp('${cleanPhone}', '${item.name}', ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
+            <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
                 <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
             </button>
         ` : `<span class="opacity-40 text-[10px]">No WA kosong</span>`;
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                <td class="p-3 font-semibold text-slate-800 dark:text-slate-100">${item.name}</td>
-                <td class="p-3 font-mono opacity-70">${item.phone || '-'}</td>
+                <td class="p-3 font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(item.name)}</td>
+                <td class="p-3 font-mono opacity-70">${escapeHtml(item.phone || '-')}</td>
                 <td class="p-3 text-center font-bold text-amber-600 font-mono">${item.count}</td>
                 <td class="p-3 text-right font-bold text-rose-500 font-mono">Rp ${item.total.toLocaleString('id-ID')}</td>
-                <td class="p-3 font-mono opacity-60 text-xs">${item.lastDate || '-'}</td>
+                <td class="p-3 font-mono opacity-60 text-xs">${escapeHtml(item.lastDate || '-')}</td>
                 <td class="p-3 text-center">${waBtn}</td>
             </tr>
         `;
@@ -5334,8 +5372,8 @@ function renderReportInventory() {
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
-                <td class="p-3 font-mono text-indigo-500 font-bold">${r.id} <br><span class="text-[10px] opacity-60 text-slate-500">${r.date || '-'}</span></td>
-                <td class="p-3 font-medium">${r.name}</td>
+                <td class="p-3 font-mono text-indigo-500 font-bold">${escapeHtml(r.id || '')} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(r.date || '-')}</span></td>
+                <td class="p-3 font-medium">${escapeHtml(r.name || '')}</td>
                 <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-center font-bold font-mono">${rem} / ${r.initial_qty || rem}</td>
@@ -5586,7 +5624,7 @@ function exportToPdf(reportType) {
                         ${topProds.map((p, i) => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
                                 <td style="padding: 5px 8px; text-align: center;">${i+1}</td>
-                                <td style="padding: 5px 8px; font-weight: 500;">${p.name}</td>
+                                <td style="padding: 5px 8px; font-weight: 500;">${escapeHtml(p.name)}</td>
                                 <td style="padding: 5px 8px; text-align: center; font-weight: bold;">${p.qty} pcs</td>
                                 <td style="padding: 5px 8px; text-align: right;">Rp ${p.omzet.toLocaleString('id-ID')}</td>
                             </tr>
@@ -5916,7 +5954,7 @@ function openReturnModal(prefill = null) {
     // Populate Pelanggan Datalist
     const custListEl = document.getElementById('ret-cust-list');
     if (custListEl) {
-        custListEl.innerHTML = customerData.map(c => `<option value="${c.name}">${c.name} (${c.phone || '-'})</option>`).join('');
+        custListEl.innerHTML = customerData.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.phone || '-')})</option>`).join('');
     }
 
     // Populate Agen Select
@@ -5930,7 +5968,7 @@ function openReturnModal(prefill = null) {
     // Populate Master Products Datalist
     const masterListEl = document.getElementById('ret-master-list');
     if (masterListEl) {
-        masterListEl.innerHTML = masterData.map(m => `<option value="${m.name}">${m.name} [${m.source || 'Gudang'}]</option>`).join('');
+        masterListEl.innerHTML = masterData.map(m => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)} [${escapeHtml(m.source || 'Gudang')}]</option>`).join('');
     }
 
     // Setup formatters
@@ -6269,16 +6307,20 @@ function previewAgentClaimItems() {
     }
 
     const items = returnData.filter(r => r.agent === selAgent && r.claim_status === 'menunggu_agen');
+    const safeAgent = escapeHtml(selAgent);
     if (items.length === 0) {
-        previewList.innerHTML = `<p class="text-emerald-500 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Tidak ada antrean barang retur untuk ${selAgent}.</p>`;
+        previewList.innerHTML = `<p class="text-emerald-500 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Tidak ada antrean barang retur untuk ${safeAgent}.</p>`;
         return;
     }
 
     let html = `<ul class="space-y-1">`;
     items.forEach(r => {
+        const safeItem = escapeHtml(r.item_name || '');
+        const safeReason = escapeHtml(r.reason || '');
+        const safeCust = escapeHtml(r.customer || '');
         html += `<li class="flex justify-between items-center border-b border-inherit pb-1">
-            <span><strong>${r.qty} pcs</strong> ${r.item_name} <span class="opacity-60 text-[10px]">(${r.reason})</span></span>
-            <span class="font-mono text-[10px] opacity-75">Toko: ${r.customer}</span>
+            <span><strong>${r.qty} pcs</strong> ${safeItem} <span class="opacity-60 text-[10px]">(${safeReason})</span></span>
+            <span class="font-mono text-[10px] opacity-75">Toko: ${safeCust}</span>
         </li>`;
     });
     html += `</ul>`;
@@ -6311,13 +6353,16 @@ function generateAgentClaimPDF() {
     items.forEach((r, idx) => {
         totalQty += (r.qty || 0);
         totalModal += (r.total_modal || (r.qty * (r.buy || 0)));
+        const safeItem = escapeHtml(r.item_name || '');
+        const safeReason = escapeHtml(r.reason || '');
+        const safeCust = escapeHtml(r.customer || '');
         rowsHtml += `
             <tr style="border-bottom: 1px solid #cbd5e1;">
                 <td style="padding: 6px 8px; text-align: center;">${idx + 1}</td>
-                <td style="padding: 6px 8px; font-weight: 600;">${r.item_name}</td>
+                <td style="padding: 6px 8px; font-weight: 600;">${safeItem}</td>
                 <td style="padding: 6px 8px; text-align: center; font-weight: bold; color: #e11d48;">${r.qty} pcs</td>
-                <td style="padding: 6px 8px;">${r.reason}</td>
-                <td style="padding: 6px 8px; opacity: 75;">${r.customer}</td>
+                <td style="padding: 6px 8px;">${safeReason}</td>
+                <td style="padding: 6px 8px; opacity: 75;">${safeCust}</td>
                 <td style="padding: 6px 8px; text-align: right; font-family: monospace;">Rp ${(r.total_modal || (r.qty * (r.buy||0))).toLocaleString('id-ID')}</td>
             </tr>
         `;
@@ -6345,11 +6390,11 @@ function generateAgentClaimPDF() {
             <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 11px; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <div>
                     <span style="color: #64748b; display: block; font-size: 10px;">Kepada Supplier / Agen:</span>
-                    <strong style="font-size: 13px; color: #1e293b;">${selAgent}</strong>
+                    <strong style="font-size: 13px; color: #1e293b;">${escapeHtml(selAgent)}</strong>
                 </div>
                 <div style="text-align: right;">
                     <span style="color: #64748b; display: block; font-size: 10px;">Petugas Pembawa Barang (Kurir/Sales):</span>
-                    <strong style="font-size: 12px; color: #1e293b;">${driverName}</strong>
+                    <strong style="font-size: 12px; color: #1e293b;">${escapeHtml(driverName)}</strong>
                 </div>
             </div>
 
@@ -6384,13 +6429,13 @@ function generateAgentClaimPDF() {
             <div style="display: flex; justify-content: space-between; font-size: 10.5px;">
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 50px;">Diserahkan Oleh (SnackLoop),</p>
-                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${driverName}</p>
+                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${escapeHtml(driverName)}</p>
                     <span style="font-size: 9px; opacity: 60;">Driver / Petugas Lapangan</span>
                 </div>
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 50px;">Diterima Oleh (Agen Supplier),</p>
                     <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">( .................................... )</p>
-                    <span style="font-size: 9px; opacity: 60;">Pihak ${selAgent}</span>
+                    <span style="font-size: 9px; opacity: 60;">Pihak ${escapeHtml(selAgent)}</span>
                 </div>
             </div>
         </div>
@@ -7534,27 +7579,32 @@ function renderJastipChecklist() {
                     <span class="text-[10px] opacity-60 font-mono">(${items.length} item)</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    ${items.map(it => `
+                    ${items.map(it => {
+                        const safeItemName = escapeHtml(it.item_name || '-');
+                        const safeVariant = escapeHtml(it.item_variant || '-');
+                        const safeExp = escapeHtml(it.expiry_date_note || '');
+                        const safeNotes = escapeHtml(it.notes || '');
+                        return `
                         <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-colors">
                             <div class="space-y-1">
                                 <div class="font-bold text-xs flex items-center gap-1.5 ${it.is_purchased ? 'line-through opacity-70 text-emerald-700 dark:text-emerald-400' : ''}">
                                     ${it.is_purchased ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : ''}
-                                    <span>${it.item_name}</span>
+                                    <span>${safeItemName}</span>
                                 </div>
                                 <div class="text-[11px] opacity-70">
-                                    Varian: <strong>${it.item_variant || '-'}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
+                                    Varian: <strong>${safeVariant}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
                                 </div>
                                 <div class="text-[10px] tabular-nums font-semibold">
                                     Target: ${rateInfo.symbol} ${(it.price_valas || 0).toLocaleString()} / pcs
                                 </div>
-                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
-                                ${it.notes ? `<div class="text-[9px] italic opacity-60">"${it.notes}"</div>` : ''}
+                                ${safeExp ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${safeExp}</div>` : ''}
+                                ${safeNotes ? `<div class="text-[9px] italic opacity-60">"${safeNotes}"</div>` : ''}
                             </div>
                             <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
                                 ${it.is_purchased ? '<i class="fa-solid fa-check"></i> <span>Terbeli</span>' : '<i class="fa-solid fa-plus"></i> <span>Ambil</span>'}
                             </button>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -7705,7 +7755,12 @@ function viewJastipReceiptImage(id) {
     const labelEl = document.getElementById('jastip-photo-preview-label');
 
     if (modal && imgEl) {
-        imgEl.src = item.purchase_receipt_image;
+        const imgSrc = String(item.purchase_receipt_image || '');
+        if (imgSrc.startsWith('data:image/') || imgSrc.startsWith('https://') || imgSrc.startsWith('http://')) {
+            imgEl.src = imgSrc;
+        } else {
+            return showNotification("Keamanan", "Format tautan gambar tidak valid.", "warning");
+        }
         if (labelEl) labelEl.innerText = `${item.id} - ${item.item_name} (${item.purchase_receipt_note || 'Struk Kasir'})`;
         modal.classList.remove('hidden');
         modal.classList.add('flex');

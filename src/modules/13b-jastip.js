@@ -1112,27 +1112,32 @@ function renderJastipChecklist() {
                     <span class="text-[10px] opacity-60 font-mono">(${items.length} item)</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    ${items.map(it => `
+                    ${items.map(it => {
+                        const safeItemName = escapeHtml(it.item_name || '-');
+                        const safeVariant = escapeHtml(it.item_variant || '-');
+                        const safeExp = escapeHtml(it.expiry_date_note || '');
+                        const safeNotes = escapeHtml(it.notes || '');
+                        return `
                         <div class="p-3 rounded-xl border ${it.is_purchased ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900' : 'theme-card border-inherit'} flex items-start justify-between gap-3 transition-colors">
                             <div class="space-y-1">
                                 <div class="font-bold text-xs flex items-center gap-1.5 ${it.is_purchased ? 'line-through opacity-70 text-emerald-700 dark:text-emerald-400' : ''}">
                                     ${it.is_purchased ? '<i class="fa-solid fa-circle-check text-emerald-500"></i>' : ''}
-                                    <span>${it.item_name}</span>
+                                    <span>${safeItemName}</span>
                                 </div>
                                 <div class="text-[11px] opacity-70">
-                                    Varian: <strong>${it.item_variant || '-'}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
+                                    Varian: <strong>${safeVariant}</strong> | Jml: <strong class="text-indigo-600 dark:text-indigo-400">${it.item_qty} pcs</strong>
                                 </div>
                                 <div class="text-[10px] tabular-nums font-semibold">
                                     Target: ${rateInfo.symbol} ${(it.price_valas || 0).toLocaleString()} / pcs
                                 </div>
-                                ${it.expiry_date_note ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${it.expiry_date_note}</div>` : ''}
-                                ${it.notes ? `<div class="text-[9px] italic opacity-60">"${it.notes}"</div>` : ''}
+                                ${safeExp ? `<div class="text-[9px] text-amber-600 dark:text-amber-400"><i class="fa-solid fa-shield-halved mr-1"></i>${safeExp}</div>` : ''}
+                                ${safeNotes ? `<div class="text-[9px] italic opacity-60">"${safeNotes}"</div>` : ''}
                             </div>
                             <button onclick="toggleChecklistPurchased('${it.id}')" class="shrink-0 px-3.5 py-2 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 ${it.is_purchased ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'theme-input border hover:border-indigo-400 text-indigo-600'}">
                                 ${it.is_purchased ? '<i class="fa-solid fa-check"></i> <span>Terbeli</span>' : '<i class="fa-solid fa-plus"></i> <span>Ambil</span>'}
                             </button>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -1283,7 +1288,12 @@ function viewJastipReceiptImage(id) {
     const labelEl = document.getElementById('jastip-photo-preview-label');
 
     if (modal && imgEl) {
-        imgEl.src = item.purchase_receipt_image;
+        const imgSrc = String(item.purchase_receipt_image || '');
+        if (imgSrc.startsWith('data:image/') || imgSrc.startsWith('https://') || imgSrc.startsWith('http://')) {
+            imgEl.src = imgSrc;
+        } else {
+            return showNotification("Keamanan", "Format tautan gambar tidak valid.", "warning");
+        }
         if (labelEl) labelEl.innerText = `${item.id} - ${item.item_name} (${item.purchase_receipt_note || 'Struk Kasir'})`;
         modal.classList.remove('hidden');
         modal.classList.add('flex');

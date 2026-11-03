@@ -32,8 +32,23 @@ function confirmDeleteUser(id) {
     const username = targetUser ? targetUser.username : `User #${id}`;
 
     showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus akun pengguna "${username}"?`, async () => {
-        const { error } = await supabaseClient.from('users').delete().eq('id', id);
-        if(error) return showNotification("Gagal", error.message, "error");
+        let delError = null;
+        try {
+            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('admin_delete_user', {
+                p_admin_username: currentUser || 'admin',
+                p_target_id: id
+            });
+            if (rpcErr || (rpcRes && !rpcRes.success)) {
+                delError = rpcErr || new Error(rpcRes?.message || 'Gagal menghapus user');
+            }
+        } catch (e) {
+            delError = e;
+        }
+
+        if (delError) {
+            const { error: directErr } = await supabaseClient.from('users').delete().eq('id', id);
+            if (directErr) return showNotification("Gagal", directErr.message, "error");
+        }
 
         logAuditActivity('USER_DELETE', username, `Menghapus akun pengguna: ${username} (ID: ${id})`);
         await loadDataFromCloud(); 

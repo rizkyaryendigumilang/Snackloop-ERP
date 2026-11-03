@@ -48,12 +48,14 @@ function showNotification(title, message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `pointer-events-auto theme-card rounded-xl shadow-md border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-all duration-200 ease-out z-[99999] w-full`;
+    const safeTitle = typeof escapeHtml === 'function' ? escapeHtml(title) : title;
+    const safeMsg = typeof escapeHtml === 'function' ? escapeHtml(message) : message;
     toast.innerHTML = `
         <div class="flex items-start gap-2.5">
             <i class="${iconClass} text-base mt-0.5 shrink-0"></i>
             <div>
-                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${title}</h4>
-                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${message}</p>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">${safeTitle}</h4>
+                <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${safeMsg}</p>
             </div>
         </div>
         <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0">&times;</button>

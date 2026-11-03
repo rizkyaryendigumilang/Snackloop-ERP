@@ -176,7 +176,7 @@ function openReturnModal(prefill = null) {
     // Populate Pelanggan Datalist
     const custListEl = document.getElementById('ret-cust-list');
     if (custListEl) {
-        custListEl.innerHTML = customerData.map(c => `<option value="${c.name}">${c.name} (${c.phone || '-'})</option>`).join('');
+        custListEl.innerHTML = customerData.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${escapeHtml(c.phone || '-')})</option>`).join('');
     }
 
     // Populate Agen Select
@@ -190,7 +190,7 @@ function openReturnModal(prefill = null) {
     // Populate Master Products Datalist
     const masterListEl = document.getElementById('ret-master-list');
     if (masterListEl) {
-        masterListEl.innerHTML = masterData.map(m => `<option value="${m.name}">${m.name} [${m.source || 'Gudang'}]</option>`).join('');
+        masterListEl.innerHTML = masterData.map(m => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)} [${escapeHtml(m.source || 'Gudang')}]</option>`).join('');
     }
 
     // Setup formatters
@@ -529,16 +529,20 @@ function previewAgentClaimItems() {
     }
 
     const items = returnData.filter(r => r.agent === selAgent && r.claim_status === 'menunggu_agen');
+    const safeAgent = escapeHtml(selAgent);
     if (items.length === 0) {
-        previewList.innerHTML = `<p class="text-emerald-500 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Tidak ada antrean barang retur untuk ${selAgent}.</p>`;
+        previewList.innerHTML = `<p class="text-emerald-500 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Tidak ada antrean barang retur untuk ${safeAgent}.</p>`;
         return;
     }
 
     let html = `<ul class="space-y-1">`;
     items.forEach(r => {
+        const safeItem = escapeHtml(r.item_name || '');
+        const safeReason = escapeHtml(r.reason || '');
+        const safeCust = escapeHtml(r.customer || '');
         html += `<li class="flex justify-between items-center border-b border-inherit pb-1">
-            <span><strong>${r.qty} pcs</strong> ${r.item_name} <span class="opacity-60 text-[10px]">(${r.reason})</span></span>
-            <span class="font-mono text-[10px] opacity-75">Toko: ${r.customer}</span>
+            <span><strong>${r.qty} pcs</strong> ${safeItem} <span class="opacity-60 text-[10px]">(${safeReason})</span></span>
+            <span class="font-mono text-[10px] opacity-75">Toko: ${safeCust}</span>
         </li>`;
     });
     html += `</ul>`;
@@ -571,13 +575,16 @@ function generateAgentClaimPDF() {
     items.forEach((r, idx) => {
         totalQty += (r.qty || 0);
         totalModal += (r.total_modal || (r.qty * (r.buy || 0)));
+        const safeItem = escapeHtml(r.item_name || '');
+        const safeReason = escapeHtml(r.reason || '');
+        const safeCust = escapeHtml(r.customer || '');
         rowsHtml += `
             <tr style="border-bottom: 1px solid #cbd5e1;">
                 <td style="padding: 6px 8px; text-align: center;">${idx + 1}</td>
-                <td style="padding: 6px 8px; font-weight: 600;">${r.item_name}</td>
+                <td style="padding: 6px 8px; font-weight: 600;">${safeItem}</td>
                 <td style="padding: 6px 8px; text-align: center; font-weight: bold; color: #e11d48;">${r.qty} pcs</td>
-                <td style="padding: 6px 8px;">${r.reason}</td>
-                <td style="padding: 6px 8px; opacity: 75;">${r.customer}</td>
+                <td style="padding: 6px 8px;">${safeReason}</td>
+                <td style="padding: 6px 8px; opacity: 75;">${safeCust}</td>
                 <td style="padding: 6px 8px; text-align: right; font-family: monospace;">Rp ${(r.total_modal || (r.qty * (r.buy||0))).toLocaleString('id-ID')}</td>
             </tr>
         `;
@@ -605,11 +612,11 @@ function generateAgentClaimPDF() {
             <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 11px; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <div>
                     <span style="color: #64748b; display: block; font-size: 10px;">Kepada Supplier / Agen:</span>
-                    <strong style="font-size: 13px; color: #1e293b;">${selAgent}</strong>
+                    <strong style="font-size: 13px; color: #1e293b;">${escapeHtml(selAgent)}</strong>
                 </div>
                 <div style="text-align: right;">
                     <span style="color: #64748b; display: block; font-size: 10px;">Petugas Pembawa Barang (Kurir/Sales):</span>
-                    <strong style="font-size: 12px; color: #1e293b;">${driverName}</strong>
+                    <strong style="font-size: 12px; color: #1e293b;">${escapeHtml(driverName)}</strong>
                 </div>
             </div>
 
@@ -644,13 +651,13 @@ function generateAgentClaimPDF() {
             <div style="display: flex; justify-content: space-between; font-size: 10.5px;">
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 50px;">Diserahkan Oleh (SnackLoop),</p>
-                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${driverName}</p>
+                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${escapeHtml(driverName)}</p>
                     <span style="font-size: 9px; opacity: 60;">Driver / Petugas Lapangan</span>
                 </div>
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 50px;">Diterima Oleh (Agen Supplier),</p>
                     <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">( .................................... )</p>
-                    <span style="font-size: 9px; opacity: 60;">Pihak ${selAgent}</span>
+                    <span style="font-size: 9px; opacity: 60;">Pihak ${escapeHtml(selAgent)}</span>
                 </div>
             </div>
         </div>

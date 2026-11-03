@@ -167,3 +167,84 @@ BEGIN
     );
 END;
 $$;
+
+
+-- -------------------------------------------------------------------------
+-- 3. PROSEDUR PENGHAPUSAN AKUN OLEH SUPER ADMIN (ANTI UNAUTHORIZED USER DELETION)
+-- -------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION admin_delete_user(
+    p_admin_username TEXT,
+    p_target_id BIGINT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_admin RECORD;
+    v_target RECORD;
+BEGIN
+    p_admin_username := TRIM(p_admin_username);
+
+    -- 1. Verifikasi Super Admin
+    SELECT id, username, role INTO v_admin
+    FROM users
+    WHERE LOWER(username) = LOWER(p_admin_username)
+      AND role = 'super_admin'
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Akses Ditolak: Hanya Super Admin yang berhak menghapus akun.';
+    END IF;
+
+    -- 2. Dapatkan info user yang akan dihapus
+    SELECT id, username, role INTO v_target
+    FROM users
+    WHERE id = p_target_id
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'message', 'Akun pengguna tidak ditemukan'
+        );
+    END IF;
+
+    -- Cegah penghapusan akun super admin utama
+    IF LOWER(v_target.username) = 'admin' OR LOWER(v_target.username) = 'admin_kiky' THEN
+        RAISE EXCEPTION 'Akses Ditolak: Akun Super Admin utama tidak boleh dihapus.';
+    END IF;
+
+    -- 3. Hapus user
+    DELETE FROM users WHERE id = p_target_id;
+
+    -- 4. Catat aktivitas audit
+    INSERT INTO audit_logs (
+        timestamp,
+        "user",
+        role,
+        action,
+        target,
+        details
+    ) VALUES (
+        NOW()::TEXT,
+        v_admin.username,
+        v_admin.role,
+        'USER_DELETE',
+        v_target.username,
+        format('Menghapus akun pengguna: %s (ID: %s)', v_target.username, p_target_id)
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'message', format('Pengguna %s berhasil dihapus', v_target.username)
+    );
+END;
+$$;
+
+-- -------------------------------------------------------------------------
+-- 4. IZIN EKSEKUSI RPC OLEH KLIEN SUPABASE (ANON & AUTHENTICATED)
+-- -------------------------------------------------------------------------
+GRANT EXECUTE ON FUNCTION verify_user_login(TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION admin_create_user(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION admin_delete_user(TEXT, BIGINT) TO anon, authenticated, service_role;
