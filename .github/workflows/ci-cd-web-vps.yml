@@ -138,7 +138,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USERNAME }}
           VPS_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
-          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '22' }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '2222' }}
         run: |
           set -euo pipefail
 
@@ -152,9 +152,9 @@ jobs:
           printf '%s\n' "$VPS_KEY" | tr -d '\r' > "$HOME/.ssh/id_deploy"
           chmod 600 "$HOME/.ssh/id_deploy"
 
-          # Deteksi port SSH aktif (coba port konfigurasi, lalu 22, lalu 2222)
+          # Deteksi port SSH aktif (coba port konfigurasi, lalu 2222, lalu 22)
           CHOSEN_PORT="$VPS_PORT"
-          for test_port in "$VPS_PORT" 22 2222; do
+          for test_port in "$VPS_PORT" 2222 22; do
             if nc -z -w 3 "$VPS_HOST" "$test_port" 2>/dev/null; then
               CHOSEN_PORT="$test_port"
               echo "SSH Port aktif terdeteksi: $CHOSEN_PORT"
@@ -177,7 +177,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USERNAME }}
-          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '22' }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '2222' }}
         run: |
           TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
           scp -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -P "$TARGET_PORT" ./artifact/web-dist.tar.gz "$VPS_USER@$VPS_HOST:web-dist-${GITHUB_SHA}.tar.gz"
@@ -186,7 +186,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USERNAME }}
-          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '22' }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '2222' }}
         run: |
           set -euo pipefail
           TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
