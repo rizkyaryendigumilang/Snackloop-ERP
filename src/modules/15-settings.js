@@ -160,34 +160,36 @@ function saveAppSettings(e) {
 }
 
 function resetAppSettingsToDefault() {
-    if (!confirm("Kembalikan semua pengaturan sistem ke standar default?")) return;
-    appSettings = { ...DEFAULT_APP_SETTINGS };
-    localStorage.setItem('snackloop_settings', JSON.stringify(appSettings));
-    openSettingsModal();
-    applyAppSettingsUI();
-    showNotification("Pengaturan Direset", "Pengaturan telah dikembalikan ke standar awal.", "info");
+    showConfirmModal("Konfirmasi Reset Pengaturan", "Kembalikan semua pengaturan sistem ke standar default?", () => {
+        appSettings = { ...DEFAULT_APP_SETTINGS };
+        localStorage.setItem('snackloop_settings', JSON.stringify(appSettings));
+        openSettingsModal();
+        applyAppSettingsUI();
+        showNotification("Pengaturan Direset", "Pengaturan telah dikembalikan ke standar awal.", "info");
+    });
 }
 
 function clearLocalAppCache() {
-    if (!confirm("Bersihkan cache lokal browser? Data Anda di database cloud tetap aman.")) return;
-    try {
-        localStorage.removeItem('snackloop_cache');
-        localStorage.removeItem('snackloop_storage_mode');
-        if (window.indexedDB) {
-            indexedDB.deleteDatabase('snackloop_erp_db');
+    showConfirmModal("Konfirmasi Bersihkan Cache", "Bersihkan cache lokal browser? Data Anda di database cloud tetap aman.", () => {
+        try {
+            localStorage.removeItem('snackloop_cache');
+            localStorage.removeItem('snackloop_storage_mode');
+            if (window.indexedDB) {
+                indexedDB.deleteDatabase('snackloop_erp_db');
+            }
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            showNotification("Sukses", "Cache lokal browser berhasil dibersihkan! Memuat ulang...", "success");
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } catch(e) {
+            showNotification("Error", "Gagal membersihkan cache: " + e.message, "error");
         }
-        if ('caches' in window) {
-            caches.keys().then(names => {
-                names.forEach(name => caches.delete(name));
-            });
-        }
-        showNotification("Sukses", "Cache lokal browser berhasil dibersihkan! Memuat ulang...", "success");
-        setTimeout(() => {
-            window.location.reload();
-        }, 1200);
-    } catch(err) {
-        showNotification("Gagal", "Gagal membersihkan cache lokal.", "error");
-    }
+    });
 }
 
 // Inisialisasi pengaturan saat DOM siap

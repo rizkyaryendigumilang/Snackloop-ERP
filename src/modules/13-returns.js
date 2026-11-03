@@ -460,31 +460,31 @@ function confirmDeleteReturn(returnId) {
     const item = returnData.find(r => r.id === returnId);
     if (!item) return;
 
-    if (!confirm(`Hapus catatan retur "${item.return_code || item.item_name}"?`)) return;
-
-    // Bersihkan transaksi koreksi jika ada
-    for (let mk in transactionData) {
-        const idx = (transactionData[mk] || []).findIndex(t => t.returnId === returnId);
-        if (idx !== -1) {
-            transactionData[mk].splice(idx, 1);
+    showConfirmModal("Konfirmasi Hapus Retur", `Apakah Anda yakin ingin menghapus catatan retur "${item.return_code || item.item_name}"?`, () => {
+        // Bersihkan transaksi koreksi jika ada
+        for (let mk in transactionData) {
+            const idx = (transactionData[mk] || []).findIndex(t => t.returnId === returnId);
+            if (idx !== -1) {
+                transactionData[mk].splice(idx, 1);
+            }
         }
-    }
 
-    const retIdx = returnData.findIndex(r => r.id === returnId);
-    if (retIdx !== -1) returnData.splice(retIdx, 1);
+        const retIdx = returnData.findIndex(r => r.id === returnId);
+        if (retIdx !== -1) returnData.splice(retIdx, 1);
 
-    saveCacheToLocal();
-    dispatchOutboxMutation('returns', 'delete', { id: returnId });
+        saveCacheToLocal();
+        dispatchOutboxMutation('returns', 'delete', { id: returnId });
 
-    logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
+        logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
 
-    renderReturns();
-    renderTransactionsForActiveSheet();
-    updateDashboard();
-    renderFinancialChart();
-    renderInvoicesTable();
+        renderReturns();
+        renderTransactionsForActiveSheet();
+        updateDashboard();
+        renderFinancialChart();
+        renderInvoicesTable();
 
-    showNotification("Sukses", "Catatan retur berhasil dihapus.", "success");
+        showNotification("Sukses", "Catatan retur berhasil dihapus.", "success");
+    });
 }
 
 // ------------------- CETAK SURAT JALAN KLAIM AGEN ------------------- //

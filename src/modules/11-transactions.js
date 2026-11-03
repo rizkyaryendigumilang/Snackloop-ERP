@@ -147,7 +147,31 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
 
         const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
         const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-        const invNumber = generateInvoiceNumber(date);
+        // Cek atau buat 1 invoice per pelanggan per tanggal
+        let existingInv = invoiceData.find(i => i.customer_name === customer && i.date === date);
+        let invNumber;
+        let isNewInvoice = false;
+        let targetInv = null;
+
+        if (existingInv) {
+            invNumber = existingInv.invoice_number;
+            existingInv.total_amount = (Number(existingInv.total_amount) || 0) + totalSellComputed;
+            if (status === 'Belum Lunas') existingInv.status = 'Belum Lunas';
+            targetInv = existingInv;
+        } else {
+            invNumber = generateInvoiceNumber(date);
+            isNewInvoice = true;
+            targetInv = {
+                id: 'inv_' + Date.now(),
+                invoice_number: invNumber,
+                date: date,
+                customer_name: customer,
+                total_amount: totalSellComputed,
+                status: status,
+                notes: notes
+            };
+            invoiceData.unshift(targetInv);
+        }
 
         const newTrxData = {
             id: tempTrxId,
@@ -166,23 +190,12 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             totalSell: totalSellComputed,
             status: status,
             profitPerItem: netProfitItem,
-            notes: notes
-        };
-
-        const newInvData = {
-            id: 'inv_' + Date.now(),
-            invoice_number: invNumber,
-            date: date,
-            customer_name: customer,
-            total_amount: totalSellComputed,
-            status: status,
-            notes: notes
+            notes: notes ? `${notes} (Invoice: ${invNumber})` : `Invoice: ${invNumber}`
         };
 
         // 1. Optimistic in-memory update
         if(!transactionData[monthKey]) transactionData[monthKey] = [];
         transactionData[monthKey].push(newTrxData);
-        invoiceData.unshift(newInvData);
         saveCacheToLocal();
 
         // 2. Render UI instan
@@ -206,12 +219,14 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes
         };
         const dbInvPayload = {
+            id: targetInv ? targetInv.id : undefined,
             invoice_number: invNumber,
             date: date,
             customer_name: customer,
-            total_amount: totalSellComputed,
-            status: status,
-            notes: notes
+            total_amount: targetInv ? targetInv.total_amount : totalSellComputed,
+            status: targetInv ? targetInv.status : status,
+            notes: notes,
+            isNew: isNewInvoice
         };
 
         dispatchMutation({
@@ -224,20 +239,22 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             }
         }, async () => {
             let atomicSuccess = false;
-            try {
-                // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
-                const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
-                    p_trx: dbTrxPayload,
-                    p_inv: dbInvPayload,
-                    p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
-                    p_repack_deduct_qty: repackUpdateInfo ? qty : 0
-                });
-                if (!rpcErr && rpcRes && rpcRes.trx_id) {
-                    newTrxData.id = rpcRes.trx_id;
-                    atomicSuccess = true;
+            if (isNewInvoice) {
+                try {
+                    // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
+                    const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                        p_trx: dbTrxPayload,
+                        p_inv: dbInvPayload,
+                        p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
+                        p_repack_deduct_qty: repackUpdateInfo ? qty : 0
+                    });
+                    if (!rpcErr && rpcRes && rpcRes.trx_id) {
+                        newTrxData.id = rpcRes.trx_id;
+                        atomicSuccess = true;
+                    }
+                } catch(e) {
+                    atomicSuccess = false;
                 }
-            } catch(e) {
-                atomicSuccess = false;
             }
 
             if (!atomicSuccess) {
@@ -247,7 +264,22 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
                 const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
                 if(trxErr) throw trxErr;
                 if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
-                await supabaseClient.from('invoices').insert([dbInvPayload]);
+                
+                if (isNewInvoice) {
+                    await supabaseClient.from('invoices').insert([{
+                        invoice_number: invNumber,
+                        date: date,
+                        customer_name: customer,
+                        total_amount: dbInvPayload.total_amount,
+                        status: dbInvPayload.status,
+                        notes: notes
+                    }]);
+                } else if (targetInv && targetInv.id) {
+                    await supabaseClient.from('invoices').update({
+                        total_amount: targetInv.total_amount,
+                        status: targetInv.status
+                    }).eq('id', targetInv.id);
+                }
             }
         });
 
@@ -1139,14 +1171,34 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     document.getElementById('inv-subtotal').innerText = 'Rp ' + inv.total_amount.toLocaleString();
     document.getElementById('inv-grand-total').innerText = 'Rp ' + inv.total_amount.toLocaleString();
 
+    let matchingTrx = [];
+    for (let mk in transactionData) {
+        (transactionData[mk] || []).forEach(t => {
+            if (t.customer === inv.customer_name && t.date === inv.date) {
+                matchingTrx.push(t);
+            }
+        });
+    }
+
     let tbody = document.getElementById('inv-cart-body');
-    tbody.innerHTML = `
-        <tr class="border-b border-slate-200">
-            <td class="py-3 pr-2 font-medium">Pembelian / Titipan Produk SnackLoop</td>
-            <td class="py-3 px-2 text-center">1</td>
-            <td class="py-3 px-2 text-right">Rp ${inv.total_amount.toLocaleString()}</td>
-            <td class="py-3 pl-2 text-right font-bold">Rp ${inv.total_amount.toLocaleString()}</td>
-        </tr>`;
+    if (matchingTrx.length > 0) {
+        tbody.innerHTML = matchingTrx.map(t => `
+            <tr class="border-b border-slate-200">
+                <td class="py-2.5 pr-2 font-medium">${escapeHtml(t.itemName)} <span class="text-[10px] opacity-60 block">${escapeHtml(t.source || '')}</span></td>
+                <td class="py-2.5 px-2 text-center font-mono">${t.qty}</td>
+                <td class="py-2.5 px-2 text-right font-mono">Rp ${(t.sell || 0).toLocaleString()}</td>
+                <td class="py-2.5 pl-2 text-right font-bold font-mono">Rp ${(t.totalSell || 0).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = `
+            <tr class="border-b border-slate-200">
+                <td class="py-3 pr-2 font-medium">Pembelian / Titipan Produk SnackLoop</td>
+                <td class="py-3 px-2 text-center">1</td>
+                <td class="py-3 px-2 text-right">Rp ${inv.total_amount.toLocaleString()}</td>
+                <td class="py-3 pl-2 text-right font-bold">Rp ${inv.total_amount.toLocaleString()}</td>
+            </tr>`;
+    }
 
     html2pdf().from(document.querySelector('.print-area')).set({
         margin: 10, filename: `${inv.invoice_number}_${inv.customer_name}.pdf`, image: { type: 'jpeg', quality: 0.98 },
@@ -1170,7 +1222,7 @@ function sendInvoiceWA(invNumber, custName, amount, statusInv) {
 function renderMonthTabs() {
     const container = document.getElementById('month-tabs-container');
     if(!container) return;
-    let keys = Object.keys(transactionData).sort();
+    let keys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
     if(keys.length === 0) { keys = [getCurrentMonthKey(new Date())]; transactionData[keys[0]] = []; }
     if(!activeMonthSheet || !transactionData[activeMonthSheet]) activeMonthSheet = keys[keys.length-1];
 
@@ -1205,14 +1257,41 @@ function filterTrxStatus(st) {
     renderTransactionsForActiveSheet();
 }
 
-// ======================= INTERACTIVE DATE SORTING ======================= //
-function toggleDateSorting() {
-    transactionDateSortAsc = !transactionDateSortAsc;
-    const sortIcon = document.getElementById('date-sort-icon');
-    if(sortIcon) {
-        sortIcon.className = transactionDateSortAsc ? 'fa-solid fa-arrow-up-short-wide text-[10px] text-indigo-500' : 'fa-solid fa-arrow-down-wide-short text-[10px] text-indigo-500';
+// ======================= INTERACTIVE COLUMN SORTING ======================= //
+function toggleTrxSort(field) {
+    if (transactionSortField === field) {
+        transactionSortOrder = transactionSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        transactionSortField = field;
+        transactionSortOrder = (field === 'date' || field === 'totalSell') ? 'desc' : 'asc';
     }
+    updateTrxSortIcons();
     renderTransactionsForActiveSheet();
+}
+
+function updateTrxSortIcons() {
+    const fields = ['date', 'customer', 'itemName', 'totalSell'];
+    fields.forEach(f => {
+        const icon = document.getElementById(`${f}-sort-icon`);
+        if (!icon) return;
+        if (transactionSortField === f) {
+            if (f === 'date' || f === 'totalSell') {
+                icon.className = transactionSortOrder === 'asc'
+                    ? 'fa-solid fa-arrow-up-short-wide text-[10px] text-indigo-500 opacity-100'
+                    : 'fa-solid fa-arrow-down-wide-short text-[10px] text-indigo-500 opacity-100';
+            } else {
+                icon.className = transactionSortOrder === 'asc'
+                    ? 'fa-solid fa-arrow-down-a-z text-[10px] text-indigo-500 opacity-100'
+                    : 'fa-solid fa-arrow-up-z-a text-[10px] text-indigo-500 opacity-100';
+            }
+        } else {
+            icon.className = 'fa-solid fa-sort text-[10px] opacity-40';
+        }
+    });
+}
+
+function toggleDateSorting() {
+    toggleTrxSort('date');
 }
 
 // ======================= OPTIMIZED RENDER TRANSACTIONS WITH PAGINATION & IN-MEMORY SEARCH ======================= //
@@ -1257,10 +1336,18 @@ function renderTransactionsForActiveSheet() {
     });
 
     filteredList.sort((a, b) => {
-        if (a.date !== b.date) {
-            return transactionDateSortAsc 
-                ? (a.date > b.date ? 1 : -1) 
-                : (b.date > a.date ? 1 : -1);
+        let cmp = 0;
+        if (transactionSortField === 'customer') {
+            cmp = (a.customer || '').localeCompare(b.customer || '', 'id', { sensitivity: 'base' });
+        } else if (transactionSortField === 'itemName') {
+            cmp = (a.itemName || '').localeCompare(b.itemName || '', 'id', { sensitivity: 'base' });
+        } else if (transactionSortField === 'totalSell') {
+            cmp = (a.totalSell || 0) - (b.totalSell || 0);
+        } else {
+            cmp = (a.date || '').localeCompare(b.date || '');
+        }
+        if (cmp !== 0) {
+            return transactionSortOrder === 'asc' ? cmp : -cmp;
         }
         return (b.id || 0) - (a.id || 0);
     });
@@ -1875,7 +1962,7 @@ function renderFinancialChart() {
     const ctx = document.getElementById('financialChart');
     if(!ctx) return;
 
-    let months = Object.keys(transactionData).sort();
+    let months = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
     let pendapatanData = [];
     let keuntunganData = [];
 
@@ -1984,5 +2071,411 @@ async function exportActiveSheetToExcelLocal() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Data_Penjualan_${activeMonthSheet.replace(' ', '_')}.xlsx`;
     document.body.appendChild(a); a.click(); a.remove();
     showNotification("Sukses", "Data Excel berhasil diexport.", "success");
+}
+
+// ======================= BULK CHECKLIST MASTER PRODUK TO TRANSACTIONS ======================= //
+let bulkOrderMasterCache = [];
+
+function openBulkOrderModal() {
+    const modal = document.getElementById('modal-bulk-order');
+    if (!modal) return;
+
+    // Prefill date with today or active form date
+    const tDateInput = document.getElementById('t-date');
+    const bulkDate = document.getElementById('bulk-date');
+    if (bulkDate) {
+        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : new Date().toISOString().split('T')[0];
+    }
+
+    // Populate Customers
+    const custSelect = document.getElementById('bulk-customer');
+    if (custSelect) {
+        const tCustomer = document.getElementById('t-customer');
+        const selectedCust = tCustomer ? tCustomer.value : '';
+        custSelect.innerHTML = (customerData || []).map(c => `
+            <option value="${escapeHtml(c.name)}" ${c.name === selectedCust ? 'selected' : ''}>${escapeHtml(c.name)}</option>
+        `).join('');
+    }
+
+    // Populate Agents
+    const agentSelect = document.getElementById('bulk-agent');
+    if (agentSelect) {
+        const tSource = document.getElementById('t-source');
+        const selectedSource = tSource ? tSource.value : '';
+        agentSelect.innerHTML = (agentData || []).map(a => `
+            <option value="${a.id}" data-name="${escapeHtml(a.name)}" ${a.name === selectedSource ? 'selected' : ''}>${escapeHtml(a.name)}</option>
+        `).join('');
+    }
+
+    // Reset search
+    const searchInput = document.getElementById('bulk-product-search');
+    if (searchInput) searchInput.value = '';
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    renderBulkProductChecklist();
+}
+
+function closeBulkOrderModal() {
+    const modal = document.getElementById('modal-bulk-order');
+    if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+}
+
+function renderBulkProductChecklist() {
+    const tbody = document.getElementById('bulk-products-tbody');
+    const agentSelect = document.getElementById('bulk-agent');
+    if (!tbody || !agentSelect) return;
+
+    const selectedAgentId = parseInt(agentSelect.value, 10);
+    const selectedAgentObj = (agentData || []).find(a => a.id === selectedAgentId);
+    const selectedAgentName = selectedAgentObj ? selectedAgentObj.name : '';
+
+    // Filter masterData for this agent
+    const items = (masterData || []).filter(m => {
+        if (m.agent_id && selectedAgentId) {
+            return Number(m.agent_id) === selectedAgentId;
+        }
+        return m.source === selectedAgentName || m.agent === selectedAgentName;
+    });
+
+    bulkOrderMasterCache = items.map(m => ({
+        id: m.id,
+        name: m.name,
+        buy: Number(m.buy) || 0,
+        sell: Number(m.sell) || 0,
+        qty: 1,
+        checked: false
+    }));
+
+    renderBulkTableRows();
+}
+
+function renderBulkTableRows() {
+    const tbody = document.getElementById('bulk-products-tbody');
+    if (!tbody) return;
+
+    const searchInput = document.getElementById('bulk-product-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    const filtered = bulkOrderMasterCache.filter(item => {
+        if (!query) return true;
+        return item.name.toLowerCase().includes(query);
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center opacity-60">Tidak ada produk ditemukan untuk agen ini.</td></tr>`;
+        calculateBulkSummary();
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(item => {
+        const subtotal = item.sell * item.qty;
+        const rowBg = item.checked ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40';
+        return `
+            <tr class="border-b border-inherit transition ${rowBg}">
+                <td class="p-2.5 text-center">
+                    <input type="checkbox" onchange="toggleBulkItemCheck(${item.id}, this.checked)" ${item.checked ? 'checked' : ''} class="w-4 h-4 rounded cursor-pointer accent-indigo-600">
+                </td>
+                <td class="p-2.5 font-semibold text-slate-800 dark:text-slate-100">
+                    ${escapeHtml(item.name)}
+                </td>
+                <td class="p-2.5 text-right tabular-nums opacity-70">
+                    Rp ${item.buy.toLocaleString('id-ID')}
+                </td>
+                <td class="p-2.5 text-right">
+                    <input type="number" inputmode="numeric" onchange="updateBulkItemSellPrice(${item.id}, this.value)" value="${item.sell}" class="w-24 text-right px-2 py-1 theme-input border rounded-lg text-xs tabular-nums outline-none focus:border-indigo-500">
+                </td>
+                <td class="p-2.5 text-center">
+                    <div class="inline-flex items-center border border-inherit rounded-lg overflow-hidden theme-input">
+                        <button type="button" onclick="updateBulkItemQty(${item.id}, -1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">-</button>
+                        <input type="number" inputmode="numeric" onchange="setBulkItemQty(${item.id}, this.value)" value="${item.qty}" min="1" class="w-12 text-center bg-transparent border-none text-xs tabular-nums font-bold outline-none">
+                        <button type="button" onclick="updateBulkItemQty(${item.id}, 1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">+</button>
+                    </div>
+                </td>
+                <td class="p-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
+                    Rp ${subtotal.toLocaleString('id-ID')}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    calculateBulkSummary();
+}
+
+function filterBulkProductChecklist() {
+    renderBulkTableRows();
+}
+
+function toggleBulkItemCheck(id, checked) {
+    const item = bulkOrderMasterCache.find(x => x.id === id);
+    if (item) {
+        item.checked = checked;
+        renderBulkTableRows();
+    }
+}
+
+function updateBulkItemQty(id, delta) {
+    const item = bulkOrderMasterCache.find(x => x.id === id);
+    if (item) {
+        item.qty = Math.max(1, item.qty + delta);
+        item.checked = true;
+        renderBulkTableRows();
+    }
+}
+
+function setBulkItemQty(id, val) {
+    const item = bulkOrderMasterCache.find(x => x.id === id);
+    if (item) {
+        item.qty = Math.max(1, parseInt(val, 10) || 1);
+        item.checked = true;
+        renderBulkTableRows();
+    }
+}
+
+function updateBulkItemSellPrice(id, val) {
+    const item = bulkOrderMasterCache.find(x => x.id === id);
+    if (item) {
+        item.sell = Math.max(0, parseInt(val, 10) || 0);
+        renderBulkTableRows();
+    }
+}
+
+function toggleSelectAllBulk(checked) {
+    const searchInput = document.getElementById('bulk-product-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    bulkOrderMasterCache.forEach(item => {
+        if (!query || item.name.toLowerCase().includes(query)) {
+            item.checked = checked;
+        }
+    });
+    const masterCheck = document.getElementById('bulk-check-master');
+    if (masterCheck) masterCheck.checked = checked;
+    renderBulkTableRows();
+}
+
+function calculateBulkSummary() {
+    const checkedItems = bulkOrderMasterCache.filter(x => x.checked);
+    const totalPcs = checkedItems.reduce((acc, it) => acc + it.qty, 0);
+    const totalModal = checkedItems.reduce((acc, it) => acc + (it.buy * it.qty), 0);
+    const totalSell = checkedItems.reduce((acc, it) => acc + (it.sell * it.qty), 0);
+    const totalProfit = totalSell - totalModal;
+
+    const countEl = document.getElementById('bulk-summary-count');
+    const totalEl = document.getElementById('bulk-summary-total');
+    const profitEl = document.getElementById('bulk-summary-profit');
+    const btnTextEl = document.getElementById('bulk-submit-btn-text');
+    const submitBtn = document.getElementById('bulk-submit-btn');
+
+    if (countEl) countEl.innerText = `${checkedItems.length} Produk (${totalPcs} pcs)`;
+    if (totalEl) totalEl.innerText = 'Rp ' + totalSell.toLocaleString('id-ID');
+    if (profitEl) profitEl.innerText = (totalProfit >= 0 ? '+' : '') + 'Rp ' + totalProfit.toLocaleString('id-ID');
+    if (btnTextEl) btnTextEl.innerText = `Simpan ${checkedItems.length} Produk (Rp ${totalSell.toLocaleString('id-ID')})`;
+    if (submitBtn) submitBtn.disabled = checkedItems.length === 0;
+}
+
+async function saveBulkTransactions() {
+    const checkedItems = bulkOrderMasterCache.filter(x => x.checked);
+    if (checkedItems.length === 0) {
+        return showNotification("Peringatan", "Pilih minimal 1 produk master terlebih dahulu.", "warning");
+    }
+
+    const date = document.getElementById('bulk-date').value;
+    const customer = document.getElementById('bulk-customer').value;
+    const agentSelect = document.getElementById('bulk-agent');
+    const agentId = parseInt(agentSelect.value, 10);
+    const agentObj = (agentData || []).find(a => a.id === agentId);
+    const source = agentObj ? agentObj.name : 'Master';
+    const status = document.getElementById('bulk-status').value;
+
+    if (!date || !customer || !source) {
+        return showNotification("Validasi Gagal", "Mohon lengkapi tanggal, pelanggan, dan sumber agen.", "error");
+    }
+
+    const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
+    if (!transactionData[monthKey]) transactionData[monthKey] = [];
+
+    // 1. Cek atau Buat 1 Master Invoice Terpadu
+    let existingInv = invoiceData.find(i => i.customer_name === customer && i.date === date);
+    let invNumber;
+    let isNewInvoice = false;
+    const grandTotalSell = checkedItems.reduce((sum, it) => sum + (it.sell * it.qty), 0);
+
+    if (existingInv) {
+        invNumber = existingInv.invoice_number;
+        existingInv.total_amount = (Number(existingInv.total_amount) || 0) + grandTotalSell;
+        if (status === 'Belum Lunas') existingInv.status = 'Belum Lunas';
+    } else {
+        invNumber = generateInvoiceNumber(date);
+        isNewInvoice = true;
+        existingInv = {
+            id: 'inv_' + Date.now(),
+            invoice_number: invNumber,
+            date: date,
+            customer_name: customer,
+            total_amount: grandTotalSell,
+            status: status,
+            notes: `Checklist ${checkedItems.length} item dari ${source}`
+        };
+        invoiceData.unshift(existingInv);
+    }
+
+    // 2. Simpan setiap item yang dicentang ke Buku Transaksi
+    const newTrxList = [];
+    const dbTrxRows = [];
+
+    checkedItems.forEach(it => {
+        const totalModalComputed = it.buy * it.qty;
+        const totalSellComputed = it.sell * it.qty;
+        const netProfitItem = (totalSellComputed - totalModalComputed) / it.qty;
+        const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+        const trxData = {
+            id: tempTrxId,
+            monthKey: monthKey,
+            date: date,
+            customer: customer,
+            itemName: it.name,
+            source: source,
+            qty: it.qty,
+            batch: '-',
+            buy: it.buy,
+            extraCost: 0,
+            extraCostNote: '',
+            totalModal: totalModalComputed,
+            sell: it.sell,
+            totalSell: totalSellComputed,
+            status: status,
+            profitPerItem: netProfitItem,
+            notes: `Invoice: ${invNumber}`
+        };
+
+        transactionData[monthKey].push(trxData);
+        newTrxList.push(trxData);
+
+        dbTrxRows.push({
+            month_key: monthKey, date, customer, item_name: it.name, source, qty: it.qty, batch: '-',
+            buy: it.buy, extra_cost: 0, extra_cost_note: '', total_modal: totalModalComputed,
+            sell: it.sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: `Invoice: ${invNumber}`
+        });
+    });
+
+    // 3. Simpan ke local cache & perbarui UI instan
+    saveCacheToLocal();
+    activeMonthSheet = monthKey;
+    renderMonthTabs();
+    updateDashboard();
+    renderFinancialChart();
+    renderInvoicesTable();
+    renderTransactionsForActiveSheet();
+
+    // 4. Sinkronisasi Outbox / Supabase
+    dispatchMutation({
+        type: 'INSERT_BULK_TRANSACTIONS',
+        payload: {
+            transactions: dbTrxRows,
+            invoice: {
+                id: existingInv.id,
+                invoice_number: invNumber,
+                date: date,
+                customer_name: customer,
+                total_amount: existingInv.total_amount,
+                status: existingInv.status,
+                notes: existingInv.notes,
+                isNew: isNewInvoice
+            }
+        }
+    }, async () => {
+        if (dbTrxRows.length > 0) {
+            const { error: trxErr } = await supabaseClient.from('transactions').insert(dbTrxRows);
+            if (trxErr) throw trxErr;
+        }
+        if (isNewInvoice) {
+            await supabaseClient.from('invoices').insert([{
+                invoice_number: invNumber,
+                date: date,
+                customer_name: customer,
+                total_amount: existingInv.total_amount,
+                status: existingInv.status,
+                notes: existingInv.notes
+            }]);
+        } else {
+            await supabaseClient.from('invoices').update({
+                total_amount: existingInv.total_amount,
+                status: existingInv.status
+            }).eq('id', existingInv.id);
+        }
+    });
+
+    logAuditActivity('TRANSACTION_BULK_CREATE', invNumber, `Input kilat ${checkedItems.length} produk untuk ${customer} (${source}) total Rp ${grandTotalSell.toLocaleString('id-ID')}`);
+    showNotification("Sukses!", `${checkedItems.length} produk berhasil ditambahkan ke Buku Transaksi dalam 1 Invoice (${invNumber}).`, "success");
+    closeBulkOrderModal();
+}
+
+// ======================= KONSOLIDASI INVOICE HARIAN ======================= //
+async function consolidateDailyInvoices() {
+    const groupMap = {};
+    invoiceData.forEach(inv => {
+        const key = `${inv.customer_name}__${inv.date}`;
+        if (!groupMap[key]) groupMap[key] = [];
+        groupMap[key].push(inv);
+    });
+
+    const duplicateGroups = Object.entries(groupMap).filter(([k, list]) => list.length > 1);
+
+    if (duplicateGroups.length === 0) {
+        return showNotification("Info", "Seluruh invoice harian sudah rapi (1 invoice per pelanggan per hari). Tidak ada invoice terpisah yang perlu digabung.", "info");
+    }
+
+    const totalInvoicesToMerge = duplicateGroups.reduce((acc, [k, list]) => acc + list.length, 0);
+
+    showConfirmModal(
+        "Konsolidasi Invoice Harian",
+        `Ditemukan ${duplicateGroups.length} grup (${totalInvoicesToMerge} nota) yang memiliki pelanggan & tanggal yang sama. Apakah Anda ingin menggabungkannya menjadi 1 nota utuh per hari per pelanggan?`,
+        async () => {
+            let mergedCount = 0;
+            const idsToDelete = [];
+
+            duplicateGroups.forEach(([key, list]) => {
+                const masterInv = list[0];
+                let totalAmount = 0;
+                let hasUnpaid = false;
+
+                list.forEach((inv, idx) => {
+                    totalAmount += (Number(inv.total_amount) || 0);
+                    if (inv.status !== 'Lunas') hasUnpaid = true;
+                    if (idx > 0) {
+                        idsToDelete.push(inv.id);
+                    }
+                });
+
+                masterInv.total_amount = totalAmount;
+                masterInv.status = hasUnpaid ? 'Belum Lunas' : 'Lunas';
+                mergedCount++;
+            });
+
+            invoiceData = invoiceData.filter(inv => !idsToDelete.includes(inv.id));
+
+            saveCacheToLocal();
+            renderInvoicesTable();
+            updateDashboard();
+
+            if (idsToDelete.length > 0) {
+                dispatchMutation({
+                    type: 'DELETE_CONSOLIDATED_INVOICES',
+                    payload: { ids: idsToDelete }
+                }, async () => {
+                    await supabaseClient.from('invoices').delete().in('id', idsToDelete);
+                });
+            }
+
+            logAuditActivity('INVOICE_CONSOLIDATE', 'DAILY_MERGE', `Mengonsolidasikan ${totalInvoicesToMerge} nota menjadi ${duplicateGroups.length} invoice harian.`);
+            showNotification("Berhasil", `Berhasil menggabungkan ${totalInvoicesToMerge} nota menjadi ${duplicateGroups.length} invoice harian terpadu!`, "success");
+        }
+    );
 }
 

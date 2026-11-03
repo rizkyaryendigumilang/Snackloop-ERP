@@ -35,6 +35,8 @@ let currentRepackCalcResult = null;
 let financialChartInstance = null;
 let isCompact = false;
 let transactionDateSortAsc = true; 
+let transactionSortField = 'date';
+let transactionSortOrder = 'desc';
 let isSyncing = false;
 
 // State Pagination & In-Memory Search

@@ -463,7 +463,14 @@
                     </div>
                     
                     <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-transaksi-card">
-                        <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-plus-circle text-indigo-500 mr-2"></i>Catat Transaksi Baru</h3>
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <h3 class="text-base font-bold"><i class="fa-solid fa-plus-circle text-indigo-500 mr-2"></i>Catat Transaksi Baru</h3>
+                            <button type="button" onclick="openBulkOrderModal()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-1.5 !px-3.5 !text-xs flex items-center gap-2 shadow-sm" title="Buka checklist untuk memilih banyak snack sekaligus">
+                                <i class="fa-solid fa-list-check text-sm"></i>
+                                <span>Mode Cepat (Checklist Produk)</span>
+                                <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">Multi-Item</span>
+                            </button>
+                        </div>
                         <form id="trx-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-sm" novalidate>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Tanggal <span class="text-rose-500">*</span></label><input type="date" id="t-date" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Pelanggan <span class="text-rose-500">*</span></label><select id="t-customer" class="theme-input w-full border rounded-xl p-2.5 outline-none" required></select></div>
@@ -526,18 +533,33 @@
                             <table id="main-table" class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
-                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleDateSorting()">
-                                            <div class="flex items-center justify-between">
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleTrxSort('date')" title="Urutkan Tanggal">
+                                            <div class="flex items-center justify-between gap-1">
                                                 <span data-i18n="th_date">Tgl</span>
-                                                <i id="date-sort-icon" class="fa-solid fa-sort text-[10px] opacity-60"></i>
+                                                <i id="date-sort-icon" class="fa-solid fa-arrow-down-wide-short text-[10px] text-indigo-500"></i>
                                             </div>
                                         </th>
-                                        <th class="p-3 border border-inherit" data-i18n="th_customer">Pelanggan</th>
-                                        <th class="p-3 border border-inherit" data-i18n="th_item">Barang & Catatan</th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleTrxSort('customer')" title="Urutkan Pelanggan (A-Z / Z-A)">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span data-i18n="th_customer">Pelanggan</span>
+                                                <i id="customer-sort-icon" class="fa-solid fa-sort text-[10px] opacity-40"></i>
+                                            </div>
+                                        </th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleTrxSort('itemName')" title="Urutkan Barang (A-Z / Z-A)">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span data-i18n="th_item">Barang & Catatan</span>
+                                                <i id="itemName-sort-icon" class="fa-solid fa-sort text-[10px] opacity-40"></i>
+                                            </div>
+                                        </th>
                                         <th class="p-3 border border-inherit" data-i18n="th_qty">Qty</th>
                                         <th class="p-3 border border-inherit" data-i18n="th_extracost">Biaya Operasional & Catatan</th>
                                         <th class="p-3 border border-inherit" data-i18n="th_totalmodal">Total Modal</th>
-                                        <th class="p-3 border border-inherit" data-i18n="th_totalsell">Total Jual</th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleTrxSort('totalSell')" title="Urutkan Total Jual">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span data-i18n="th_totalsell">Total Jual</span>
+                                                <i id="totalSell-sort-icon" class="fa-solid fa-sort text-[10px] opacity-40"></i>
+                                            </div>
+                                        </th>
                                         <th class="p-3 border border-inherit" data-i18n="th_status">Status</th>
                                         <th class="p-3 border border-inherit" data-i18n="th_profit">Keuntungan</th>
                                         <th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi & WhatsApp</th>
@@ -563,7 +585,10 @@
                                 </h3>
                                 <p class="text-xs opacity-70">Pantau jatuh tempo nota tagihan agen/toko dan kirim penagihan cerdas via WhatsApp 1-klik.</p>
                             </div>
-                            <div class="flex items-center space-x-2 text-xs">
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <button onclick="consolidateDailyInvoices()" class="px-3 py-2 rounded-xl text-xs font-semibold border theme-input hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 transition shadow-sm" title="Gabungkan beberapa nota untuk pelanggan yang sama di hari yang sama menjadi 1 invoice utuh">
+                                    <i class="fa-solid fa-layer-group"></i> <span>Gabungkan Invoice Harian</span>
+                                </button>
                                 <button onclick="renderInvoicesTable()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Refresh Data</button>
                             </div>
                         </div>
@@ -1563,14 +1588,14 @@
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div class="flex-1 pr-6">
-                    <h3 id="confirm-title" class="text-base font-bold text-slate-900 dark:text-white">Your Confirmation Message</h3>
-                    <p id="confirm-message" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Your body text goes here.</p>
+                    <h3 id="confirm-title" class="text-base font-bold text-slate-900 dark:text-white">Konfirmasi Tindakan</h3>
+                    <p id="confirm-message" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Apakah Anda yakin ingin melanjutkan tindakan ini?</p>
                 </div>
             </div>
 
             <div class="flex justify-end space-x-3 pt-6 mt-2">
-                <button id="confirm-btn-cancel" class="px-5 py-2.5 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Cancel</button>
-                <button id="confirm-btn-yes" class="px-5 py-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition shadow-md shadow-indigo-500/25">Yes</button>
+                <button id="confirm-btn-cancel" class="px-5 py-2.5 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Batal</button>
+                <button id="confirm-btn-yes" class="px-5 py-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition shadow-sm active:scale-95">Ya, Lanjutkan</button>
             </div>
         </div>
     </div> 
@@ -2816,6 +2841,113 @@
                     <button type="button" onclick="openWaWithCurrentMessage()" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
                         <i class="fa-brands fa-whatsapp text-sm"></i>
                         <span>Buka WhatsApp</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MODE CEPAT CHECKLIST MASTER PRODUK (MULTI-ITEM) -->
+    <div id="modal-bulk-order" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-3 sm:p-4 backdrop-blur-sm">
+        <div class="theme-card border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 max-h-[92dvh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center pb-3 border-b border-inherit shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm shadow-sm">
+                        <i class="fa-solid fa-list-check text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base leading-tight">Mode Cepat Checklist Produk (Multi-Item)</h3>
+                        <p class="text-[11px] opacity-70">Pilih beberapa produk master sekaligus dan simpan ke buku transaksi dalam 1 invoice</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeBulkOrderModal()" class="w-8 h-8 rounded-lg border theme-input flex items-center justify-center opacity-70 hover:opacity-100 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Context Filter Bar (Sticky Top Form) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-xl border border-inherit shrink-0 text-xs">
+                <div>
+                    <label class="block text-[11px] font-bold opacity-70 mb-1">Tanggal Transaksi <span class="text-rose-500">*</span></label>
+                    <input type="date" id="bulk-date" class="w-full theme-input border rounded-xl p-2 outline-none font-medium">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold opacity-70 mb-1">Pelanggan / Toko <span class="text-rose-500">*</span></label>
+                    <select id="bulk-customer" class="w-full theme-input border rounded-xl p-2 outline-none font-medium"></select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-indigo-500 mb-1">Sumber Agen <span class="text-rose-500">*</span></label>
+                    <select id="bulk-agent" onchange="renderBulkProductChecklist()" class="w-full theme-input border rounded-xl p-2 outline-none font-bold"></select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold opacity-70 mb-1">Status Pembayaran</label>
+                    <select id="bulk-status" class="w-full theme-input border rounded-xl p-2 outline-none font-medium">
+                        <option value="Belum Lunas" selected>Belum Lunas (Piutang)</option>
+                        <option value="Lunas">Lunas</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Search and Action Bar -->
+            <div class="flex flex-wrap justify-between items-center gap-2 shrink-0">
+                <div class="relative flex-1 min-w-[200px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs opacity-50"></i>
+                    <input type="text" id="bulk-product-search" oninput="filterBulkProductChecklist()" placeholder="Cari nama snack / produk..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <button type="button" onclick="toggleSelectAllBulk(true)" class="px-2.5 py-1.5 rounded-lg border theme-input hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium transition">
+                        <i class="fa-solid fa-check-double mr-1"></i>Pilih Semua
+                    </button>
+                    <button type="button" onclick="toggleSelectAllBulk(false)" class="px-2.5 py-1.5 rounded-lg border theme-input hover:opacity-80 font-medium transition">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table / Checklist Container (Scrollable) -->
+            <div class="flex-1 overflow-y-auto border border-inherit rounded-xl theme-table overscroll-contain">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10 border-b border-inherit shadow-sm">
+                        <tr>
+                            <th class="p-2.5 w-10 text-center">
+                                <input type="checkbox" id="bulk-check-master" onchange="toggleSelectAllBulk(this.checked)" class="rounded cursor-pointer">
+                            </th>
+                            <th class="p-2.5">Nama Produk</th>
+                            <th class="p-2.5 text-right w-28">Harga Modal</th>
+                            <th class="p-2.5 text-right w-32">Harga Jual (Rp)</th>
+                            <th class="p-2.5 text-center w-36">Qty (Pcs)</th>
+                            <th class="p-2.5 text-right w-32">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulk-products-tbody">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sticky Bottom Summary & Submit Bar -->
+            <div class="pt-3 border-t border-inherit flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0 text-xs">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="opacity-70">Dipilih:</span>
+                        <span id="bulk-summary-count" class="font-bold text-indigo-600 dark:text-indigo-400">0 Produk (0 pcs)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="opacity-70">Total Tagihan:</span>
+                        <span id="bulk-summary-total" class="font-bold text-slate-900 dark:text-white tabular-nums text-sm">Rp 0</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <span class="opacity-80">Estimasi Laba:</span>
+                        <span id="bulk-summary-profit" class="tabular-nums">+Rp 0</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                    <button type="button" onclick="closeBulkOrderModal()" class="px-4 py-2 theme-input border rounded-xl font-semibold hover:opacity-80 transition">Batal</button>
+                    <button type="button" id="bulk-submit-btn" onclick="saveBulkTransactions()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2 !px-4 !text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span id="bulk-submit-btn-text">Simpan Transaksi</span>
                     </button>
                 </div>
             </div>

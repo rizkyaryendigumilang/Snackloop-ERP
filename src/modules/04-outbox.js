@@ -241,51 +241,49 @@ async function restoreDailySnapshot(dateKey) {
     if (currentRole !== 'super_admin') {
         return showNotification("Akses Ditolak", "Hanya Super Admin / Owner yang dapat memulihkan snapshot.", "error");
     }
-    if (!confirm(`Pulihkan seluruh database sistem ke snapshot tanggal ${dateKey}? Perubahan setelah tanggal ini akan ditimpa.`)) {
-        return;
-    }
+    showConfirmModal("Konfirmasi Pemulihan Database", `Pulihkan seluruh database sistem ke snapshot tanggal ${dateKey}? Perubahan setelah tanggal ini akan ditimpa.`, async () => {
+        const db = await getIndexedDB();
+        if (!db) return showNotification("Gagal", "Database IndexedDB tidak tersedia.", "error");
 
-    const db = await getIndexedDB();
-    if (!db) return showNotification("Gagal", "Database IndexedDB tidak tersedia.", "error");
+        const tx = db.transaction('snapshots', 'readonly');
+        const store = tx.objectStore('snapshots');
+        const req = store.get(dateKey);
 
-    const tx = db.transaction('snapshots', 'readonly');
-    const store = tx.objectStore('snapshots');
-    const req = store.get(dateKey);
+        req.onsuccess = async () => {
+            const snap = req.result;
+            if (!snap || !snap.data) {
+                return showNotification("Gagal", "Data snapshot tidak ditemukan.", "error");
+            }
 
-    req.onsuccess = async () => {
-        const snap = req.result;
-        if (!snap || !snap.data) {
-            return showNotification("Gagal", "Data snapshot tidak ditemukan.", "error");
-        }
+            const data = snap.data;
+            if (data.transactionData) transactionData = data.transactionData;
+            if (data.masterData) masterData = data.masterData;
+            if (data.customerData) customerData = data.customerData;
+            if (data.agentData) agentData = data.agentData;
+            if (data.repackData) repackData = data.repackData;
+            if (data.expenseData) expenseData = data.expenseData;
+            if (data.invoiceData) invoiceData = data.invoiceData;
+            if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
+            if (data.returnData) returnData = data.returnData;
+            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
 
-        const data = snap.data;
-        if (data.transactionData) transactionData = data.transactionData;
-        if (data.masterData) masterData = data.masterData;
-        if (data.customerData) customerData = data.customerData;
-        if (data.agentData) agentData = data.agentData;
-        if (data.repackData) repackData = data.repackData;
-        if (data.expenseData) expenseData = data.expenseData;
-        if (data.invoiceData) invoiceData = data.invoiceData;
-        if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
-        if (data.returnData) returnData = data.returnData;
-        if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+            await saveCacheToLocal();
 
-        await saveCacheToLocal();
+            if (typeof renderMonthTabs === 'function') renderMonthTabs();
+            if (typeof renderMaster === 'function') renderMaster();
+            if (typeof renderCustomer === 'function') renderCustomer();
+            if (typeof renderAgents === 'function') renderAgents();
+            if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+            if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+            if (typeof renderReturns === 'function') renderReturns();
+            if (typeof updateDashboard === 'function') updateDashboard();
+            if (typeof renderFinancialChart === 'function') renderFinancialChart();
+            if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
 
-        if (typeof renderMonthTabs === 'function') renderMonthTabs();
-        if (typeof renderMaster === 'function') renderMaster();
-        if (typeof renderCustomer === 'function') renderCustomer();
-        if (typeof renderAgents === 'function') renderAgents();
-        if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
-        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
-        if (typeof renderReturns === 'function') renderReturns();
-        if (typeof updateDashboard === 'function') updateDashboard();
-        if (typeof renderFinancialChart === 'function') renderFinancialChart();
-        if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
-
-        logAuditActivity('DATA_RESTORE', `Snapshot ${dateKey}`, `Memulihkan database dari snapshot otomatis tanggal ${dateKey}`);
-        showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
-    };
+            logAuditActivity('DATA_RESTORE', `Snapshot ${dateKey}`, `Memulihkan database dari snapshot otomatis tanggal ${dateKey}`);
+            showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
+        };
+    });
 }
 
 // ----------------- LOCAL / INDEXEDDB CACHING ----------------- //

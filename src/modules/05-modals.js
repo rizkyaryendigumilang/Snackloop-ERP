@@ -103,7 +103,7 @@ function confirmDeleteMonthSheet(monthKey) {
     showConfirmModal("Konfirmasi Hapus Sheet", `Apakah Anda yakin ingin menghapus seluruh arsip sheet bulan "${monthKey}" beserta data transaksinya secara permanen?`, async () => {
         delete transactionData[monthKey];
 
-        const remainingKeys = Object.keys(transactionData).sort();
+        const remainingKeys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
         activeMonthSheet = remainingKeys[remainingKeys.length - 1];
 
         renderMonthTabs();

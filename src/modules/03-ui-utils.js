@@ -35,10 +35,12 @@ async function hashPassword(plainText, salt = 'snackloop_sec_salt_2026') {
 
 // ======================= SISTEM TOAST NOTIFIKASI MODERN ======================= //
 function showNotification(title, message, type = 'success') {
-    const container = document.getElementById('toast-container');
+    let container = document.getElementById('toast-container');
     if (!container) {
-        alert(`${title}: ${message}`);
-        return;
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed top-5 right-5 z-[9999999] space-y-3 pointer-events-none w-80 max-w-full';
+        document.body.appendChild(container);
     }
 
     let iconClass = 'fa-solid fa-circle-check text-emerald-600 dark:text-emerald-400';
@@ -47,7 +49,7 @@ function showNotification(title, message, type = 'success') {
     if (type === 'error') { iconClass = 'fa-solid fa-circle-xmark text-rose-600 dark:text-rose-400'; }
 
     const toast = document.createElement('div');
-    toast.className = `pointer-events-auto theme-card rounded-xl shadow-md border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-all duration-200 ease-out z-[99999] w-full`;
+    toast.className = `pointer-events-auto theme-card rounded-xl shadow-lg border border-inherit p-3.5 flex items-start justify-between gap-3 transform translate-x-4 opacity-0 transition-[transform,opacity] duration-200 ease-out z-[9999999] w-full`;
     const safeTitle = typeof escapeHtml === 'function' ? escapeHtml(title) : title;
     const safeMsg = typeof escapeHtml === 'function' ? escapeHtml(message) : message;
     toast.innerHTML = `
@@ -58,15 +60,38 @@ function showNotification(title, message, type = 'success') {
                 <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${safeMsg}</p>
             </div>
         </div>
-        <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0">&times;</button>
+        <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0 leading-none p-1">&times;</button>
     `;
 
     container.appendChild(toast);
-    setTimeout(() => { toast.classList.remove('translate-x-10', 'opacity-0'); }, 10);
+    setTimeout(() => { toast.classList.remove('translate-x-4', 'opacity-0'); }, 10);
     setTimeout(() => {
-        toast.classList.add('translate-x-10', 'opacity-0');
-        setTimeout(() => toast.remove(), 300);
+        toast.classList.add('translate-x-4', 'opacity-0');
+        setTimeout(() => toast.remove(), 250);
     }, 4000);
+}
+
+// ======================= CHRONOLOGICAL MONTH PARSING & SORTING ======================= //
+const INDO_MONTHS_MAP = {
+    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5,
+    'Jul': 6, 'Agu': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11
+};
+
+function parseMonthKey(mk) {
+    if (!mk || typeof mk !== 'string') return 0;
+    const parts = mk.trim().split(/\s+/);
+    if (parts.length < 2) return 0;
+    const m = INDO_MONTHS_MAP[parts[0]] !== undefined ? INDO_MONTHS_MAP[parts[0]] : 0;
+    const y = parseInt(parts[1], 10) || 2000;
+    return y * 12 + m;
+}
+
+function sortMonthKeys(keys, asc = true) {
+    if (!Array.isArray(keys)) return [];
+    return [...keys].sort((a, b) => {
+        const diff = parseMonthKey(a) - parseMonthKey(b);
+        return asc ? diff : -diff;
+    });
 }
 
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
