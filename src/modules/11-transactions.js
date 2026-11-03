@@ -74,9 +74,12 @@ function fillProductData() {
     }
 }
 
+let isSubmittingTrx = false;
+
 document.getElementById('trx-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     if(currentRole === 'view') return showNotification("Peringatan", "Akun View tidak diizinkan mencatat transaksi.", "warning");
+    if(isSubmittingTrx) return;
     
     const date = document.getElementById('t-date').value;
     const customer = document.getElementById('t-customer').value;
@@ -117,122 +120,146 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         itemName = mItem.name;
     }
 
-    const totalModalComputed = (buy * qty) + extraCost;
-    const totalSellComputed = sell * qty;
-    const netProfitItem = (totalSellComputed - totalModalComputed) / qty;
+    // Lock submission & tampilkan feedback visual
+    isSubmittingTrx = true;
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+    }
 
-    const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
-    const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-    const invNumber = generateInvoiceNumber(date);
-
-    const newTrxData = {
-        id: tempTrxId,
-        monthKey: monthKey,
-        date: date,
-        customer: customer,
-        itemName: itemName,
-        source: source,
-        qty: qty,
-        batch: batchId,
-        buy: buy,
-        extraCost: extraCost,
-        extraCostNote: extraCostNote,
-        totalModal: totalModalComputed,
-        sell: sell,
-        totalSell: totalSellComputed,
-        status: status,
-        profitPerItem: netProfitItem,
-        notes: notes
-    };
-
-    const newInvData = {
-        id: 'inv_' + Date.now(),
-        invoice_number: invNumber,
-        date: date,
-        customer_name: customer,
-        total_amount: totalSellComputed,
-        status: status,
-        notes: notes
-    };
-
-    // 1. Optimistic in-memory update
-    if(!transactionData[monthKey]) transactionData[monthKey] = [];
-    transactionData[monthKey].push(newTrxData);
-    invoiceData.unshift(newInvData);
-    saveCacheToLocal();
-
-    // 2. Render UI instan
-    activeMonthSheet = monthKey;
-    renderMonthTabs(); 
-    updateDashboard(); 
-    renderRepackWarehouse();
-    renderFinancialChart();
-    renderInvoicesTable();
-    renderTransactionsForActiveSheet();
-    
-    // 3. Reset form
-    this.reset(); 
-    document.getElementById('t-date').valueAsDate = new Date();
-    document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
-
-    // 4. Background dispatch / Outbox queue
-    const dbTrxPayload = {
-        month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
-        buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
-        sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes
-    };
-    const dbInvPayload = {
-        invoice_number: invNumber,
-        date: date,
-        customer_name: customer,
-        total_amount: totalSellComputed,
-        status: status,
-        notes: notes
-    };
-
-    dispatchMutation({
-        type: 'INSERT_TRANSACTION',
-        payload: {
-            transaction: dbTrxPayload,
-            invoice: dbInvPayload,
-            repackUpdate: repackUpdateInfo,
-            tempTrxId: tempTrxId
-        }
-    }, async () => {
-        let atomicSuccess = false;
-        try {
-            // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
-            const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
-                p_trx: dbTrxPayload,
-                p_inv: dbInvPayload,
-                p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
-                p_repack_deduct_qty: repackUpdateInfo ? qty : 0
-            });
-            if (!rpcErr && rpcRes && rpcRes.trx_id) {
-                newTrxData.id = rpcRes.trx_id;
-                atomicSuccess = true;
+    const unlockSubmit = () => {
+        setTimeout(() => {
+            isSubmittingTrx = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                submitBtn.innerHTML = origBtnHtml;
             }
-        } catch(e) {
-            atomicSuccess = false;
-        }
+        }, 500);
+    };
 
-        if (!atomicSuccess) {
-            if(repackUpdateInfo) {
-                await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+    try {
+        const totalModalComputed = (buy * qty) + extraCost;
+        const totalSellComputed = sell * qty;
+        const netProfitItem = (totalSellComputed - totalModalComputed) / qty;
+
+        const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
+        const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        const invNumber = generateInvoiceNumber(date);
+
+        const newTrxData = {
+            id: tempTrxId,
+            monthKey: monthKey,
+            date: date,
+            customer: customer,
+            itemName: itemName,
+            source: source,
+            qty: qty,
+            batch: batchId,
+            buy: buy,
+            extraCost: extraCost,
+            extraCostNote: extraCostNote,
+            totalModal: totalModalComputed,
+            sell: sell,
+            totalSell: totalSellComputed,
+            status: status,
+            profitPerItem: netProfitItem,
+            notes: notes
+        };
+
+        const newInvData = {
+            id: 'inv_' + Date.now(),
+            invoice_number: invNumber,
+            date: date,
+            customer_name: customer,
+            total_amount: totalSellComputed,
+            status: status,
+            notes: notes
+        };
+
+        // 1. Optimistic in-memory update
+        if(!transactionData[monthKey]) transactionData[monthKey] = [];
+        transactionData[monthKey].push(newTrxData);
+        invoiceData.unshift(newInvData);
+        saveCacheToLocal();
+
+        // 2. Render UI instan
+        activeMonthSheet = monthKey;
+        renderMonthTabs(); 
+        updateDashboard(); 
+        renderRepackWarehouse();
+        renderFinancialChart();
+        renderInvoicesTable();
+        renderTransactionsForActiveSheet();
+        
+        // 3. Reset form
+        this.reset(); 
+        document.getElementById('t-date').valueAsDate = new Date();
+        document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
+
+        // 4. Background dispatch / Outbox queue
+        const dbTrxPayload = {
+            month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
+            buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
+            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes
+        };
+        const dbInvPayload = {
+            invoice_number: invNumber,
+            date: date,
+            customer_name: customer,
+            total_amount: totalSellComputed,
+            status: status,
+            notes: notes
+        };
+
+        dispatchMutation({
+            type: 'INSERT_TRANSACTION',
+            payload: {
+                transaction: dbTrxPayload,
+                invoice: dbInvPayload,
+                repackUpdate: repackUpdateInfo,
+                tempTrxId: tempTrxId
             }
-            const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
-            if(trxErr) throw trxErr;
-            if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
-            await supabaseClient.from('invoices').insert([dbInvPayload]);
+        }, async () => {
+            let atomicSuccess = false;
+            try {
+                // Coba eksekusi Stored Procedure Atomik (ACID) jika tersedia di database Supabase
+                const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                    p_trx: dbTrxPayload,
+                    p_inv: dbInvPayload,
+                    p_repack_batch_id: repackUpdateInfo ? repackUpdateInfo.batchId : null,
+                    p_repack_deduct_qty: repackUpdateInfo ? qty : 0
+                });
+                if (!rpcErr && rpcRes && rpcRes.trx_id) {
+                    newTrxData.id = rpcRes.trx_id;
+                    atomicSuccess = true;
+                }
+            } catch(e) {
+                atomicSuccess = false;
+            }
+
+            if (!atomicSuccess) {
+                if(repackUpdateInfo) {
+                    await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+                }
+                const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
+                if(trxErr) throw trxErr;
+                if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
+                await supabaseClient.from('invoices').insert([dbInvPayload]);
+            }
+        });
+
+        logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
+
+        if(navigator.onLine) {
+            showNotification("Sukses", "Data penjualan berhasil disimpan!", "success");
+        } else {
+            showNotification("Mode Offline", "Data tersimpan di perangkat. Otomatis disinkronkan saat online.", "warning");
         }
-    });
-
-    logAuditActivity('TRANSACTION_CREATE', invNumber, `Transaksi baru: ${qty}x ${itemName} ke ${customer} senilai Rp ${totalSellComputed.toLocaleString()} (${status})`);
-
-    if(navigator.onLine) {
-        showNotification("Sukses", "Data penjualan berhasil disimpan!", "success");
-    } else {
-        showNotification("Mode Offline", "Data tersimpan di perangkat. Otomatis disinkronkan saat online.", "warning");
+    } finally {
+        unlockSubmit();
     }
 });
 
@@ -539,6 +566,15 @@ function changeInvoicePage(newPage) {
     renderInvoicesTable();
 }
 
+function resetInvoiceFilters() {
+    if (typeof selectInvoiceMonthSheet === 'function') {
+        selectInvoiceMonthSheet('all');
+    } else {
+        activeInvoiceMonthSheet = 'all';
+    }
+    setInvoiceAgingFilter('all');
+}
+
 async function renderInvoicesTable() {
     renderInvoiceAgingCards();
     renderInvoiceMonthTabs();
@@ -582,10 +618,25 @@ async function renderInvoicesTable() {
     });
 
     if (filteredInvoices.length === 0) {
-        const switchHint = activeInvoiceMonthSheet !== 'all' 
-            ? `<div class="mt-2 text-xs"><button onclick="selectInvoiceMonthSheet('all')" class="text-indigo-600 dark:text-indigo-400 font-bold underline hover:opacity-80">Klik di sini untuk melihat Semua Bulan</button></div>` 
-            : '';
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center opacity-60">Tidak ada invoice pada kategori filter ini ${activeInvoiceMonthSheet !== 'all' ? `di bulan <b>${escapeHtml(activeInvoiceMonthSheet)}</b>` : ''}.${switchHint}</td></tr>`;
+        const hasAging = currentInvoiceAgingFilter !== 'all';
+        const hasMonth = activeInvoiceMonthSheet && activeInvoiceMonthSheet !== 'all';
+        const hasActiveFilter = hasAging || hasMonth;
+
+        const switchHint = hasActiveFilter ? `
+            <div class="mt-3 flex items-center justify-center gap-2">
+                <button type="button" onclick="resetInvoiceFilters()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition">
+                    <i class="fas fa-rotate-left text-[11px]"></i> Tampilkan Semua Invoice & Semua Bulan
+                </button>
+            </div>
+        ` : '';
+
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <i class="fas fa-file-invoice-dollar text-2xl opacity-30 mb-1"></i>
+                <p class="text-xs font-semibold opacity-70">Tidak ada invoice pada kategori filter ini ${hasMonth ? `di bulan <b>${escapeHtml(activeInvoiceMonthSheet)}</b>` : ''}.</p>
+                ${switchHint}
+            </div>
+        </td></tr>`;
         renderInvoicePaginationControls(0, 0, 0, 0);
         return;
     }
@@ -1043,6 +1094,13 @@ function filterTable() {
     renderTransactionsForActiveSheet();
 }
 
+function resetTransactionFilters() {
+    const input = document.getElementById('quick-search');
+    if (input) input.value = '';
+    currentSearchKeyword = '';
+    filterTrxStatus('all');
+}
+
 function renderTransactionsForActiveSheet() {
     document.getElementById('table-sheet-heading').innerText = `Tabel Penjualan: ${activeMonthSheet}`;
     const tbody = document.getElementById('trx-table-body'); 
@@ -1071,7 +1129,18 @@ function renderTransactionsForActiveSheet() {
     });
 
     if(filteredList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center opacity-60">Belum ada transaksi yang sesuai.</td></tr>`;
+        const hasActiveFilter = currentTransactionFilter !== 'all' || Boolean(currentSearchKeyword);
+        tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <i class="fas fa-search text-2xl opacity-30 mb-1"></i>
+                <p class="text-xs font-semibold opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau kata kunci pencarian Anda' : 'pada periode ini'}.</p>
+                ${hasActiveFilter ? `
+                    <button type="button" onclick="resetTransactionFilters()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition">
+                        <i class="fas fa-rotate-left text-[11px]"></i> Reset Filter & Pencarian
+                    </button>
+                ` : ''}
+            </div>
+        </td></tr>`;
         renderPaginationControls(0);
         return;
     }
