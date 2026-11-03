@@ -152,6 +152,17 @@ jobs:
           printf '%s\n' "$VPS_KEY" | tr -d '\r' > "$HOME/.ssh/id_deploy"
           chmod 600 "$HOME/.ssh/id_deploy"
 
+          # Deteksi port SSH aktif (coba port konfigurasi, lalu 22, lalu 2222)
+          CHOSEN_PORT="$VPS_PORT"
+          for test_port in "$VPS_PORT" 22 2222; do
+            if nc -z -w 3 "$VPS_HOST" "$test_port" 2>/dev/null; then
+              CHOSEN_PORT="$test_port"
+              echo "SSH Port aktif terdeteksi: $CHOSEN_PORT"
+              break
+            fi
+          done
+          echo "ACTIVE_SSH_PORT=$CHOSEN_PORT" >> "$GITHUB_ENV"
+
           # Terapkan verifikasi host key dengan auto-scan port aktif sebagai fallback
           if [ -n "${VPS_KNOWN_HOSTS:-}" ]; then
             printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
@@ -159,7 +170,7 @@ jobs:
             touch "$HOME/.ssh/known_hosts"
           fi
           # Pastikan host key untuk port aktif terdaftar
-          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+          ssh-keyscan -p "$CHOSEN_PORT" "$VPS_HOST" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
           chmod 600 "$HOME/.ssh/known_hosts"
 
       - name: Upload validated bundle
@@ -168,7 +179,8 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USERNAME }}
           VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '22' }}
         run: |
-          scp -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -P "$VPS_PORT" ./artifact/web-dist.tar.gz "$VPS_USER@$VPS_HOST:web-dist-${GITHUB_SHA}.tar.gz"
+          TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
+          scp -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -P "$TARGET_PORT" ./artifact/web-dist.tar.gz "$VPS_USER@$VPS_HOST:web-dist-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy with atomic backup, sync, and verified rollback
         env:
@@ -177,7 +189,8 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '22' }}
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '/srv/www/snackloop' 'snackloop' '${GITHUB_SHA}'" <<'REMOTE'
+          TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
+          ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -p "$TARGET_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '/srv/www/snackloop' 'snackloop' '${GITHUB_SHA}'" <<'REMOTE'
           set -Eeuo pipefail
 
           live="$1"
