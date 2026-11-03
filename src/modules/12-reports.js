@@ -741,8 +741,8 @@ function exportToPdf(reportType) {
                         ${recList.length === 0 ? '<tr><td colspan="4" style="padding: 12px; text-align: center; color: #16a34a;">Semua transaksi lunas. Tidak ada piutang.</td></tr>' : 
                         recList.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 8px; font-weight: 500;">${r.name}</td>
-                                <td style="padding: 5px 8px;">${r.phone}</td>
+                                <td style="padding: 5px 8px; font-weight: 500;">${escapeHtml(r.name || '')}</td>
+                                <td style="padding: 5px 8px;">${escapeHtml(r.phone || '')}</td>
                                 <td style="padding: 5px 8px; text-align: center; font-weight: bold;">${r.count} nota</td>
                                 <td style="padding: 5px 8px; text-align: right; font-weight: bold; color: #e11d48;">Rp ${r.total.toLocaleString('id-ID')}</td>
                             </tr>
@@ -772,8 +772,8 @@ function exportToPdf(reportType) {
                     <tbody>
                         ${repackData.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 6px; font-family: monospace;">${r.id}</td>
-                                <td style="padding: 5px 6px; font-weight: 500;">${r.name}</td>
+                                <td style="padding: 5px 6px; font-family: monospace;">${escapeHtml(r.id || '')}</td>
+                                <td style="padding: 5px 6px; font-weight: 500;">${escapeHtml(r.name || '')}</td>
                                 <td style="padding: 5px 6px; text-align: right;">Rp ${(r.modal_per_pcs||0).toLocaleString('id-ID')}</td>
                                 <td style="padding: 5px 6px; text-align: right;">Rp ${(r.sell_target||0).toLocaleString('id-ID')}</td>
                                 <td style="padding: 5px 6px; text-align: center; font-weight: bold;">${r.remaining_qty||0}</td>
@@ -812,7 +812,7 @@ function exportToPdf(reportType) {
             <div style="margin-top: 36px; display: flex; justify-content: space-between; font-size: 10.5px; page-break-inside: avoid;">
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 46px;">Dibuat Oleh,</p>
-                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${currentUser || 'Admin / Staf'}</p>
+                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${escapeHtml(currentUser || 'Admin / Staf')}</p>
                     <span style="font-size: 9px; opacity: 60;">Bagian Operasional</span>
                 </div>
                 <div style="text-align: center; width: 170px;">

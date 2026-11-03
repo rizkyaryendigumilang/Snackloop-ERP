@@ -53,8 +53,25 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     if(!username || !password) return showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
 
     const hashedPassword = await hashPassword(password);
-    const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
-    if(error) return showNotification("Gagal", error.message, "error");
+    
+    // Coba eksekusi via RPC admin_create_user (SECURITY DEFINER) untuk validasi hak akses di level database
+    let createSuccess = false;
+    try {
+        const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('admin_create_user', {
+            p_admin_username: currentUser || 'admin',
+            p_new_username: username,
+            p_password_hash: hashedPassword,
+            p_role: role
+        });
+        if (!rpcErr && rpcRes && rpcRes.success) {
+            createSuccess = true;
+        }
+    } catch(e) {}
+
+    if (!createSuccess) {
+        const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
+        if(error) return showNotification("Gagal", error.message, "error");
+    }
     
     const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
     logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);

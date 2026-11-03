@@ -968,9 +968,9 @@ function sendInvoiceWA(invNumber, custName, amount, statusInv) {
     const phone = custObj ? custObj.phone : '628123456789';
 
     const headerText = statusInv === 'Lunas' ? "*FAKTUR LUNAS / KWITANSI*" : "*NOTA TAGIHAN SEMENTARA*";
-    let msg = `${headerText}%0ANo. Invoice: *${invNumber}*%0AKepada: *${custName}*%0ATotal: *Rp ${amount.toLocaleString()}*%0AStatus: *${statusInv}*%0A%0ATerima kasih telah berbisnis dengan SnackLoop!`;
+    let msg = `${headerText}\nNo. Invoice: *${invNumber}*\nKepada: *${custName}*\nTotal: *Rp ${amount.toLocaleString()}*\nStatus: *${statusInv}*\n\nTerima kasih telah berbisnis dengan SnackLoop!`;
 
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ======================= RENDER MONTH TABS ======================= //
@@ -1267,9 +1267,11 @@ async function prepareInvoiceCartFromRow(targetTrx) {
 
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
+        const safeItemName = escapeHtml(t.itemName || '');
+        const safeSource = escapeHtml(t.source || '');
         return `
             <tr class="border-b border-slate-200">
-                <td class="py-3 pr-2 font-medium">${t.itemName} <span class="text-xs opacity-60">(${t.source})</span></td>
+                <td class="py-3 pr-2 font-medium">${safeItemName} <span class="text-xs opacity-60">(${safeSource})</span></td>
                 <td class="py-3 px-2 text-center">${t.qty}</td>
                 <td class="py-3 px-2 text-right">Rp ${(t.totalSell / t.qty).toLocaleString()}</td>
                 <td class="py-3 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
@@ -1297,10 +1299,15 @@ async function printMonthlyRecapPDF() {
         totalModal += t.totalModal;
         if(t.status === 'Lunas') totalKeuntungan += itemProfit;
 
+        const safeCustomer = escapeHtml(t.customer || '');
+        const safeItemName = escapeHtml(t.itemName || '');
+        const safeDate = escapeHtml(t.date || '');
+        const safeStatus = escapeHtml(t.status || '');
+
         return `
             <tr class="border-b border-slate-200 text-xs">
-                <td class="py-2.5 pr-2">${index + 1}. ${t.date} - <b>${t.customer}</b><br><span class="opacity-70">${t.itemName} (${t.qty}x)</span></td>
-                <td class="py-2.5 px-2 text-center">${t.status}</td>
+                <td class="py-2.5 pr-2">${index + 1}. ${safeDate} - <b>${safeCustomer}</b><br><span class="opacity-70">${safeItemName} (${t.qty}x)</span></td>
+                <td class="py-2.5 px-2 text-center">${safeStatus}</td>
                 <td class="py-2.5 px-2 text-right">Rp ${t.totalModal.toLocaleString()}</td>
                 <td class="py-2.5 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
             </tr>`;
@@ -1355,7 +1362,7 @@ async function sendWhatsAppOnly(trxId) {
     }
     msg += `Terima kasih atas pesanan Anda!`;
 
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function openExpenseModal() {

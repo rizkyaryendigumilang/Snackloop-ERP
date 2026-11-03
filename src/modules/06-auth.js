@@ -13,29 +13,45 @@ document.getElementById('login-form').addEventListener('submit', async function(
     let userInfo = null;
 
     try {
-        // 1. Cari user di Supabase
-        const { data, error } = await supabaseClient
-            .from('users')
-            .select('*')
-            .ilike('username', u);
-            
-        if (!error && data && data.length > 0) {
-            const foundUser = data[0];
-            const isMatchHashed = foundUser.password === hashedInput;
-            const isMatchPlain = foundUser.password === p;
+        // 1. Coba otentikasi via PostgreSQL Stored Procedure verify_user_login (SECURITY DEFINER)
+        // Menjamin kolom password hash tidak pernah dibocorkan ke client via PostgREST SELECT
+        try {
+            const { data: rpcAuth, error: rpcErr } = await supabaseClient.rpc('verify_user_login', {
+                p_username: u,
+                p_password_hash: hashedInput
+            });
+            if (!rpcErr && rpcAuth && rpcAuth.success && rpcAuth.user) {
+                userInfo = rpcAuth.user;
+            }
+        } catch (rpcEx) {
+            // Fallback ke REST query jika RPC belum di-deploy
+        }
 
-            if (isMatchHashed || isMatchPlain) {
-                userInfo = foundUser;
-                // Migrasi otomatis password legacy plaintext ke hash SHA-256
-                if (isMatchPlain && !isMatchHashed) {
-                    supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
-                        console.info("[Auth] Password akun berhasil diamankan dengan enkripsi SHA-256.");
-                    }).catch(() => {});
+        // Fallback jika RPC belum tersedia
+        if (!userInfo) {
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('id, username, password, role')
+                .ilike('username', u);
+                
+            if (!error && data && data.length > 0) {
+                const foundUser = data[0];
+                const isMatchHashed = foundUser.password === hashedInput;
+                const isMatchPlain = foundUser.password === p;
+
+                if (isMatchHashed || isMatchPlain) {
+                    userInfo = { id: foundUser.id, username: foundUser.username, role: foundUser.role };
+                    // Migrasi otomatis password legacy plaintext ke hash SHA-256
+                    if (isMatchPlain && !isMatchHashed) {
+                        supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
+                            console.info("[Auth] Password akun berhasil dimigrasikan ke enkripsi SHA-256.");
+                        }).catch(() => {});
+                    }
                 }
             }
         }
     } catch(err) {
-        console.warn("Supabase query error:", err);
+        console.warn("Supabase auth verification error:", err);
     }
 
     // 2. Fallback offline: jika sedang offline, periksa cache pengguna lokal
@@ -200,34 +216,20 @@ async function handleForgotPassword(e) {
                 </div>`;
                 feedbackEl.classList.remove('hidden');
                 showNotification("Gagal", error.message, "error");
-            } else if (!users || users.length === 0) {
-                feedbackEl.className = "p-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-xs space-y-1";
-                feedbackEl.innerHTML = `<div class="flex items-start gap-2">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 text-sm"></i>
-                    <div>
-                        <div class="font-bold">Akun Tidak Ditemukan</div>
-                        <div class="mt-1 leading-relaxed">
-                            Username <strong>${escapeHtml(identifier)}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
-                        </div>
-                    </div>
-                </div>`;
-                feedbackEl.classList.remove('hidden');
-                showNotification("Perhatian", `Username "${escapeHtml(identifier)}" tidak ditemukan.`, "warning");
             } else {
-                const u = users[0];
-                const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nUsername: ${u.username}\nRole: ${u.role}\n\nTerima kasih.`);
+                // Respons seragam (Uniform Generic Feedback) untuk mencegah User & Role Enumeration Oracle (SEC-005)
+                const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nIdentifier: ${identifier}\n\nTerima kasih.`);
                 feedbackEl.className = "p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-100 text-xs space-y-2.5";
                 feedbackEl.innerHTML = `
                     <div class="flex items-start gap-2">
-                        <i class="fa-solid fa-id-badge text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
+                        <i class="fa-solid fa-circle-info text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
                         <div>
-                            <div class="font-bold">Akun Staf Ditemukan</div>
-                            <div class="mt-0.5 opacity-90">Username: <strong>${escapeHtml(u.username)}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${escapeHtml(u.role)}</span></div>
+                            <div class="font-bold">Permintaan Pemulihan Diproses</div>
+                            <div class="mt-1 leading-relaxed opacity-90">
+                                Jika akun <strong>${escapeHtml(identifier)}</strong> terdaftar dalam sistem, permintaan telah dicatat. Silakan hubungi Super Admin untuk verifikasi identitas dan pengaturan ulang kata sandi.
+                            </div>
                         </div>
                     </div>
-                    <p class="text-[11px] leading-relaxed opacity-90">
-                        Akun ini dikelola oleh Super Admin sistem. Silakan hubungi Super Admin untuk mereset kata sandi akun operasional ini, atau masukkan email Supabase jika akun Anda terhubung dengan email.
-                    </p>
                     <div class="pt-1">
                         <a href="https://wa.me/?text=${waText}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition">
                             <i class="fa-brands fa-whatsapp"></i>
@@ -236,7 +238,7 @@ async function handleForgotPassword(e) {
                     </div>
                 `;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Akun Terverifikasi", `Akun ${u.username} ditemukan. Silakan hubungi Super Admin.`, "info");
+                showNotification("Info", "Permintaan pemulihan diproses. Silakan hubungi Super Admin.", "info");
             }
         }
     } catch (err) {
@@ -416,7 +418,7 @@ async function loadDataFromCloud() {
             try {
                 const { data: newAdmin } = await supabaseClient
                     .from('users')
-                    .insert([{ username: 'admin_kiky', password: '123456', role: 'super_admin' }])
+                    .insert([{ username: 'admin_kiky', password: await hashPassword('123456'), role: 'super_admin' }])
                     .select('id, username, role');
                 if (newAdmin && newAdmin.length > 0) {
                     userData.push(newAdmin[0]);
@@ -431,7 +433,7 @@ async function loadDataFromCloud() {
             try {
                 const { data: newStaff } = await supabaseClient
                     .from('users')
-                    .insert([{ username: 'staff1', password: 'password123', role: 'staff_rekap' }])
+                    .insert([{ username: 'staff1', password: await hashPassword('password123'), role: 'staff_rekap' }])
                     .select('id, username, role');
                 if (newStaff && newStaff.length > 0) {
                     userData.push(newStaff[0]);

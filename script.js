@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-02T14:24:30.688Z from 17 source modules in src/modules/
+// Generated on 2026-11-03T02:47:40.430Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1896,29 +1896,45 @@ document.getElementById('login-form').addEventListener('submit', async function(
     let userInfo = null;
 
     try {
-        // 1. Cari user di Supabase
-        const { data, error } = await supabaseClient
-            .from('users')
-            .select('*')
-            .ilike('username', u);
-            
-        if (!error && data && data.length > 0) {
-            const foundUser = data[0];
-            const isMatchHashed = foundUser.password === hashedInput;
-            const isMatchPlain = foundUser.password === p;
+        // 1. Coba otentikasi via PostgreSQL Stored Procedure verify_user_login (SECURITY DEFINER)
+        // Menjamin kolom password hash tidak pernah dibocorkan ke client via PostgREST SELECT
+        try {
+            const { data: rpcAuth, error: rpcErr } = await supabaseClient.rpc('verify_user_login', {
+                p_username: u,
+                p_password_hash: hashedInput
+            });
+            if (!rpcErr && rpcAuth && rpcAuth.success && rpcAuth.user) {
+                userInfo = rpcAuth.user;
+            }
+        } catch (rpcEx) {
+            // Fallback ke REST query jika RPC belum di-deploy
+        }
 
-            if (isMatchHashed || isMatchPlain) {
-                userInfo = foundUser;
-                // Migrasi otomatis password legacy plaintext ke hash SHA-256
-                if (isMatchPlain && !isMatchHashed) {
-                    supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
-                        console.info("[Auth] Password akun berhasil diamankan dengan enkripsi SHA-256.");
-                    }).catch(() => {});
+        // Fallback jika RPC belum tersedia
+        if (!userInfo) {
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('id, username, password, role')
+                .ilike('username', u);
+                
+            if (!error && data && data.length > 0) {
+                const foundUser = data[0];
+                const isMatchHashed = foundUser.password === hashedInput;
+                const isMatchPlain = foundUser.password === p;
+
+                if (isMatchHashed || isMatchPlain) {
+                    userInfo = { id: foundUser.id, username: foundUser.username, role: foundUser.role };
+                    // Migrasi otomatis password legacy plaintext ke hash SHA-256
+                    if (isMatchPlain && !isMatchHashed) {
+                        supabaseClient.from('users').update({ password: hashedInput }).eq('id', foundUser.id).then(() => {
+                            console.info("[Auth] Password akun berhasil dimigrasikan ke enkripsi SHA-256.");
+                        }).catch(() => {});
+                    }
                 }
             }
         }
     } catch(err) {
-        console.warn("Supabase query error:", err);
+        console.warn("Supabase auth verification error:", err);
     }
 
     // 2. Fallback offline: jika sedang offline, periksa cache pengguna lokal
@@ -2083,34 +2099,20 @@ async function handleForgotPassword(e) {
                 </div>`;
                 feedbackEl.classList.remove('hidden');
                 showNotification("Gagal", error.message, "error");
-            } else if (!users || users.length === 0) {
-                feedbackEl.className = "p-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-xs space-y-1";
-                feedbackEl.innerHTML = `<div class="flex items-start gap-2">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 text-sm"></i>
-                    <div>
-                        <div class="font-bold">Akun Tidak Ditemukan</div>
-                        <div class="mt-1 leading-relaxed">
-                            Username <strong>${escapeHtml(identifier)}</strong> tidak terdaftar dalam database SnackLoop. Pastikan penulisan sudah benar atau gunakan alamat email Supabase Anda.
-                        </div>
-                    </div>
-                </div>`;
-                feedbackEl.classList.remove('hidden');
-                showNotification("Perhatian", `Username "${escapeHtml(identifier)}" tidak ditemukan.`, "warning");
             } else {
-                const u = users[0];
-                const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nUsername: ${u.username}\nRole: ${u.role}\n\nTerima kasih.`);
+                // Respons seragam (Uniform Generic Feedback) untuk mencegah User & Role Enumeration Oracle (SEC-005)
+                const waText = encodeURIComponent(`Halo Super Admin SnackLoop, saya ingin meminta bantuan reset password untuk akun ERP saya.\n\nIdentifier: ${identifier}\n\nTerima kasih.`);
                 feedbackEl.className = "p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-100 text-xs space-y-2.5";
                 feedbackEl.innerHTML = `
                     <div class="flex items-start gap-2">
-                        <i class="fa-solid fa-id-badge text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
+                        <i class="fa-solid fa-circle-info text-indigo-600 dark:text-indigo-400 mt-0.5 text-sm"></i>
                         <div>
-                            <div class="font-bold">Akun Staf Ditemukan</div>
-                            <div class="mt-0.5 opacity-90">Username: <strong>${escapeHtml(u.username)}</strong> &bull; Hak Akses: <span class="uppercase font-semibold">${escapeHtml(u.role)}</span></div>
+                            <div class="font-bold">Permintaan Pemulihan Diproses</div>
+                            <div class="mt-1 leading-relaxed opacity-90">
+                                Jika akun <strong>${escapeHtml(identifier)}</strong> terdaftar dalam sistem, permintaan telah dicatat. Silakan hubungi Super Admin untuk verifikasi identitas dan pengaturan ulang kata sandi.
+                            </div>
                         </div>
                     </div>
-                    <p class="text-[11px] leading-relaxed opacity-90">
-                        Akun ini dikelola oleh Super Admin sistem. Silakan hubungi Super Admin untuk mereset kata sandi akun operasional ini, atau masukkan email Supabase jika akun Anda terhubung dengan email.
-                    </p>
                     <div class="pt-1">
                         <a href="https://wa.me/?text=${waText}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition">
                             <i class="fa-brands fa-whatsapp"></i>
@@ -2119,7 +2121,7 @@ async function handleForgotPassword(e) {
                     </div>
                 `;
                 feedbackEl.classList.remove('hidden');
-                showNotification("Akun Terverifikasi", `Akun ${u.username} ditemukan. Silakan hubungi Super Admin.`, "info");
+                showNotification("Info", "Permintaan pemulihan diproses. Silakan hubungi Super Admin.", "info");
             }
         }
     } catch (err) {
@@ -2299,7 +2301,7 @@ async function loadDataFromCloud() {
             try {
                 const { data: newAdmin } = await supabaseClient
                     .from('users')
-                    .insert([{ username: 'admin_kiky', password: '123456', role: 'super_admin' }])
+                    .insert([{ username: 'admin_kiky', password: await hashPassword('123456'), role: 'super_admin' }])
                     .select('id, username, role');
                 if (newAdmin && newAdmin.length > 0) {
                     userData.push(newAdmin[0]);
@@ -2314,7 +2316,7 @@ async function loadDataFromCloud() {
             try {
                 const { data: newStaff } = await supabaseClient
                     .from('users')
-                    .insert([{ username: 'staff1', password: 'password123', role: 'staff_rekap' }])
+                    .insert([{ username: 'staff1', password: await hashPassword('password123'), role: 'staff_rekap' }])
                     .select('id, username, role');
                 if (newStaff && newStaff.length > 0) {
                     userData.push(newStaff[0]);
@@ -2646,8 +2648,25 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
     if(!username || !password) return showNotification("Perhatian", "Username dan Password wajib diisi.", "warning");
 
     const hashedPassword = await hashPassword(password);
-    const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
-    if(error) return showNotification("Gagal", error.message, "error");
+    
+    // Coba eksekusi via RPC admin_create_user (SECURITY DEFINER) untuk validasi hak akses di level database
+    let createSuccess = false;
+    try {
+        const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('admin_create_user', {
+            p_admin_username: currentUser || 'admin',
+            p_new_username: username,
+            p_password_hash: hashedPassword,
+            p_role: role
+        });
+        if (!rpcErr && rpcRes && rpcRes.success) {
+            createSuccess = true;
+        }
+    } catch(e) {}
+
+    if (!createSuccess) {
+        const { error } = await supabaseClient.from('users').insert([{ username, password: hashedPassword, role }]);
+        if(error) return showNotification("Gagal", error.message, "error");
+    }
     
     const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
     logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);
@@ -4070,9 +4089,9 @@ function sendInvoiceWA(invNumber, custName, amount, statusInv) {
     const phone = custObj ? custObj.phone : '628123456789';
 
     const headerText = statusInv === 'Lunas' ? "*FAKTUR LUNAS / KWITANSI*" : "*NOTA TAGIHAN SEMENTARA*";
-    let msg = `${headerText}%0ANo. Invoice: *${invNumber}*%0AKepada: *${custName}*%0ATotal: *Rp ${amount.toLocaleString()}*%0AStatus: *${statusInv}*%0A%0ATerima kasih telah berbisnis dengan SnackLoop!`;
+    let msg = `${headerText}\nNo. Invoice: *${invNumber}*\nKepada: *${custName}*\nTotal: *Rp ${amount.toLocaleString()}*\nStatus: *${statusInv}*\n\nTerima kasih telah berbisnis dengan SnackLoop!`;
 
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ======================= RENDER MONTH TABS ======================= //
@@ -4369,9 +4388,11 @@ async function prepareInvoiceCartFromRow(targetTrx) {
 
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
+        const safeItemName = escapeHtml(t.itemName || '');
+        const safeSource = escapeHtml(t.source || '');
         return `
             <tr class="border-b border-slate-200">
-                <td class="py-3 pr-2 font-medium">${t.itemName} <span class="text-xs opacity-60">(${t.source})</span></td>
+                <td class="py-3 pr-2 font-medium">${safeItemName} <span class="text-xs opacity-60">(${safeSource})</span></td>
                 <td class="py-3 px-2 text-center">${t.qty}</td>
                 <td class="py-3 px-2 text-right">Rp ${(t.totalSell / t.qty).toLocaleString()}</td>
                 <td class="py-3 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
@@ -4399,10 +4420,15 @@ async function printMonthlyRecapPDF() {
         totalModal += t.totalModal;
         if(t.status === 'Lunas') totalKeuntungan += itemProfit;
 
+        const safeCustomer = escapeHtml(t.customer || '');
+        const safeItemName = escapeHtml(t.itemName || '');
+        const safeDate = escapeHtml(t.date || '');
+        const safeStatus = escapeHtml(t.status || '');
+
         return `
             <tr class="border-b border-slate-200 text-xs">
-                <td class="py-2.5 pr-2">${index + 1}. ${t.date} - <b>${t.customer}</b><br><span class="opacity-70">${t.itemName} (${t.qty}x)</span></td>
-                <td class="py-2.5 px-2 text-center">${t.status}</td>
+                <td class="py-2.5 pr-2">${index + 1}. ${safeDate} - <b>${safeCustomer}</b><br><span class="opacity-70">${safeItemName} (${t.qty}x)</span></td>
+                <td class="py-2.5 px-2 text-center">${safeStatus}</td>
                 <td class="py-2.5 px-2 text-right">Rp ${t.totalModal.toLocaleString()}</td>
                 <td class="py-2.5 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
             </tr>`;
@@ -4457,7 +4483,7 @@ async function sendWhatsAppOnly(trxId) {
     }
     msg += `Terima kasih atas pesanan Anda!`;
 
-    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function openExpenseModal() {
@@ -5603,8 +5629,8 @@ function exportToPdf(reportType) {
                         ${recList.length === 0 ? '<tr><td colspan="4" style="padding: 12px; text-align: center; color: #16a34a;">Semua transaksi lunas. Tidak ada piutang.</td></tr>' : 
                         recList.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 8px; font-weight: 500;">${r.name}</td>
-                                <td style="padding: 5px 8px;">${r.phone}</td>
+                                <td style="padding: 5px 8px; font-weight: 500;">${escapeHtml(r.name || '')}</td>
+                                <td style="padding: 5px 8px;">${escapeHtml(r.phone || '')}</td>
                                 <td style="padding: 5px 8px; text-align: center; font-weight: bold;">${r.count} nota</td>
                                 <td style="padding: 5px 8px; text-align: right; font-weight: bold; color: #e11d48;">Rp ${r.total.toLocaleString('id-ID')}</td>
                             </tr>
@@ -5634,8 +5660,8 @@ function exportToPdf(reportType) {
                     <tbody>
                         ${repackData.map(r => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 5px 6px; font-family: monospace;">${r.id}</td>
-                                <td style="padding: 5px 6px; font-weight: 500;">${r.name}</td>
+                                <td style="padding: 5px 6px; font-family: monospace;">${escapeHtml(r.id || '')}</td>
+                                <td style="padding: 5px 6px; font-weight: 500;">${escapeHtml(r.name || '')}</td>
                                 <td style="padding: 5px 6px; text-align: right;">Rp ${(r.modal_per_pcs||0).toLocaleString('id-ID')}</td>
                                 <td style="padding: 5px 6px; text-align: right;">Rp ${(r.sell_target||0).toLocaleString('id-ID')}</td>
                                 <td style="padding: 5px 6px; text-align: center; font-weight: bold;">${r.remaining_qty||0}</td>
@@ -5674,7 +5700,7 @@ function exportToPdf(reportType) {
             <div style="margin-top: 36px; display: flex; justify-content: space-between; font-size: 10.5px; page-break-inside: avoid;">
                 <div style="text-align: center; width: 170px;">
                     <p style="color: #64748b; margin-bottom: 46px;">Dibuat Oleh,</p>
-                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${currentUser || 'Admin / Staf'}</p>
+                    <p style="font-weight: 700; border-top: 1px solid #94a3b8; padding-top: 4px; margin: 0;">${escapeHtml(currentUser || 'Admin / Staf')}</p>
                     <span style="font-size: 9px; opacity: 60;">Bagian Operasional</span>
                 </div>
                 <div style="text-align: center; width: 170px;">
@@ -8151,12 +8177,17 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
     const paperWidth = is58 ? '48mm' : '72mm';
     const fontSize = is58 ? '10.5px' : '11.5px';
 
-    const bizName = (appSettings?.businessName || 'SNACKLOOP ERP').toUpperCase();
-    const bizTagline = appSettings?.businessTagline || 'Sistem Distribusi Snack';
-    const bizAddr = appSettings?.businessAddress || '';
-    const bizCity = appSettings?.businessCity || '';
-    const bizPhone = appSettings?.whatsappPhone || '';
-    const bankInfo = appSettings?.bankAccount || '';
+    const bizName = escapeHtml((appSettings?.businessName || 'SNACKLOOP ERP').toUpperCase());
+    const bizTagline = escapeHtml(appSettings?.businessTagline || 'Sistem Distribusi Snack');
+    const bizAddr = escapeHtml(appSettings?.businessAddress || '');
+    const bizCity = escapeHtml(appSettings?.businessCity || '');
+    const bizPhone = escapeHtml(appSettings?.whatsappPhone || '');
+    const bankInfo = escapeHtml(appSettings?.bankAccount || '');
+
+    const safeNoNota = escapeHtml(receiptData.noNota || 'Receipt');
+    const safeDate = escapeHtml(receiptData.date || '');
+    const safeCustomer = escapeHtml(receiptData.customer || 'Pelanggan Umum');
+    const safeOperator = escapeHtml(receiptData.operator || (currentUser || 'Kasir'));
 
     let itemsRows = '';
     let subtotal = 0;
@@ -8164,9 +8195,10 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
     (receiptData.items || []).forEach(item => {
         const itemTotal = (item.qty * item.sell);
         subtotal += itemTotal;
+        const safeItemName = escapeHtml(item.name || 'Produk');
         itemsRows += `
             <div style="margin-bottom: 4px;">
-                <div style="font-weight: bold; word-break: break-word;">${item.name}</div>
+                <div style="font-weight: bold; word-break: break-word;">${safeItemName}</div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>${item.qty} x ${item.sell.toLocaleString('id-ID')}</span>
                     <span>Rp ${itemTotal.toLocaleString('id-ID')}</span>
@@ -8184,7 +8216,7 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Struk_${receiptData.noNota || 'Receipt'}</title>
+            <title>Struk_${safeNoNota}</title>
             <style>
                 @page {
                     size: ${is58 ? '58mm' : '80mm'} auto;
@@ -8228,19 +8260,19 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
             <div style="font-size: 9.5px;">
                 <div class="flex-between">
                     <span>No. Nota:</span>
-                    <span class="bold">${receiptData.noNota}</span>
+                    <span class="bold">${safeNoNota}</span>
                 </div>
                 <div class="flex-between">
                     <span>Tanggal:</span>
-                    <span>${receiptData.date}</span>
+                    <span>${safeDate}</span>
                 </div>
                 <div class="flex-between">
                     <span>Pelanggan:</span>
-                    <span class="bold">${receiptData.customer}</span>
+                    <span class="bold">${safeCustomer}</span>
                 </div>
                 <div class="flex-between">
                     <span>Petugas:</span>
-                    <span>${receiptData.operator || (currentUser || 'Kasir')}</span>
+                    <span>${safeOperator}</span>
                 </div>
             </div>
 

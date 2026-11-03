@@ -7,12 +7,17 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
     const paperWidth = is58 ? '48mm' : '72mm';
     const fontSize = is58 ? '10.5px' : '11.5px';
 
-    const bizName = (appSettings?.businessName || 'SNACKLOOP ERP').toUpperCase();
-    const bizTagline = appSettings?.businessTagline || 'Sistem Distribusi Snack';
-    const bizAddr = appSettings?.businessAddress || '';
-    const bizCity = appSettings?.businessCity || '';
-    const bizPhone = appSettings?.whatsappPhone || '';
-    const bankInfo = appSettings?.bankAccount || '';
+    const bizName = escapeHtml((appSettings?.businessName || 'SNACKLOOP ERP').toUpperCase());
+    const bizTagline = escapeHtml(appSettings?.businessTagline || 'Sistem Distribusi Snack');
+    const bizAddr = escapeHtml(appSettings?.businessAddress || '');
+    const bizCity = escapeHtml(appSettings?.businessCity || '');
+    const bizPhone = escapeHtml(appSettings?.whatsappPhone || '');
+    const bankInfo = escapeHtml(appSettings?.bankAccount || '');
+
+    const safeNoNota = escapeHtml(receiptData.noNota || 'Receipt');
+    const safeDate = escapeHtml(receiptData.date || '');
+    const safeCustomer = escapeHtml(receiptData.customer || 'Pelanggan Umum');
+    const safeOperator = escapeHtml(receiptData.operator || (currentUser || 'Kasir'));
 
     let itemsRows = '';
     let subtotal = 0;
@@ -20,9 +25,10 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
     (receiptData.items || []).forEach(item => {
         const itemTotal = (item.qty * item.sell);
         subtotal += itemTotal;
+        const safeItemName = escapeHtml(item.name || 'Produk');
         itemsRows += `
             <div style="margin-bottom: 4px;">
-                <div style="font-weight: bold; word-break: break-word;">${item.name}</div>
+                <div style="font-weight: bold; word-break: break-word;">${safeItemName}</div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>${item.qty} x ${item.sell.toLocaleString('id-ID')}</span>
                     <span>Rp ${itemTotal.toLocaleString('id-ID')}</span>
@@ -40,7 +46,7 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Struk_${receiptData.noNota || 'Receipt'}</title>
+            <title>Struk_${safeNoNota}</title>
             <style>
                 @page {
                     size: ${is58 ? '58mm' : '80mm'} auto;
@@ -84,19 +90,19 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
             <div style="font-size: 9.5px;">
                 <div class="flex-between">
                     <span>No. Nota:</span>
-                    <span class="bold">${receiptData.noNota}</span>
+                    <span class="bold">${safeNoNota}</span>
                 </div>
                 <div class="flex-between">
                     <span>Tanggal:</span>
-                    <span>${receiptData.date}</span>
+                    <span>${safeDate}</span>
                 </div>
                 <div class="flex-between">
                     <span>Pelanggan:</span>
-                    <span class="bold">${receiptData.customer}</span>
+                    <span class="bold">${safeCustomer}</span>
                 </div>
                 <div class="flex-between">
                     <span>Petugas:</span>
-                    <span>${receiptData.operator || (currentUser || 'Kasir')}</span>
+                    <span>${safeOperator}</span>
                 </div>
             </div>
 

@@ -29,24 +29,38 @@ ALTER TABLE IF EXISTS price_history ENABLE ROW LEVEL SECURITY;
 
 -- -------------------------------------------------------------------------
 -- 2. KEBIJAKAN TABEL PENGGUNA (USERS & AUTENTIKASI)
--- Password hashes dan akun tidak boleh dibaca sembarangan oleh publik.
--- Hanya anon/authenticated yang boleh SELECT username, role, full_name, password (untuk verifikasi).
--- UPDATE/DELETE hanya diizinkan untuk super_admin atau service role.
+-- Verifikasi login diproteksi via stored procedure verify_user_login (SECURITY DEFINER).
+-- Kolom password hash tidak boleh diekspos sembarangan.
+-- Mutasi akun (INSERT/UPDATE/DELETE) dibatasi agar tidak dapat disalahgunakan via REST API langsung.
 -- -------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Allow read users for authentication" ON users;
-CREATE POLICY "Allow read users for authentication"
+DROP POLICY IF EXISTS "Allow read users metadata" ON users;
+CREATE POLICY "Allow read users metadata"
     ON users FOR SELECT
     USING (true);
 
-DROP POLICY IF EXISTS "Allow user update for admin" ON users;
-CREATE POLICY "Allow user update for admin"
-    ON users FOR UPDATE
-    USING (true)
-    WITH CHECK (true);
-
+-- Cegah pembuatan akun liar langsung via REST API PostgREST tanpa hak akses Super Admin
 DROP POLICY IF EXISTS "Allow user insert for admin" ON users;
-CREATE POLICY "Allow user insert for admin"
+DROP POLICY IF EXISTS "Allow user insert via admin or service role" ON users;
+CREATE POLICY "Allow user insert via admin or service role"
     ON users FOR INSERT
+    WITH CHECK (
+        current_user = 'service_role' OR 
+        (auth.jwt() ->> 'role') = 'super_admin' OR
+        current_setting('request.jwt.claim.role', true) = 'super_admin' OR
+        current_setting('role', true) = 'service_role'
+    );
+
+DROP POLICY IF EXISTS "Allow user update for admin" ON users;
+DROP POLICY IF EXISTS "Allow user update via admin or service role" ON users;
+CREATE POLICY "Allow user update via admin or service role"
+    ON users FOR UPDATE
+    USING (
+        current_user = 'service_role' OR 
+        (auth.jwt() ->> 'role') = 'super_admin' OR
+        current_setting('request.jwt.claim.role', true) = 'super_admin' OR
+        current_setting('role', true) = 'service_role'
+    )
     WITH CHECK (true);
 
 -- -------------------------------------------------------------------------
