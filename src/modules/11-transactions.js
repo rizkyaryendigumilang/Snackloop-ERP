@@ -1509,7 +1509,7 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     if (itemCount > 0) {
         tbody.innerHTML = matchingTrx.map(t => `
             <tr class="border-b border-slate-200 ${fontSize}">
-                <td class="${tdPadding} pr-2 font-medium">${escapeHtml(t.itemName)} ${t.source ? `<span class="text-[9px] opacity-60 ml-1">(${escapeHtml(t.source)})</span>` : ''}</td>
+                <td class="${tdPadding} pr-2 font-medium">${escapeHtml(t.itemName)}</td>
                 <td class="${tdPadding} text-center font-mono">${t.qty}</td>
                 <td class="${tdPadding} text-right font-mono">Rp ${(t.sell || 0).toLocaleString()}</td>
                 <td class="${tdPadding} pl-2 text-right font-bold font-mono">Rp ${(t.totalSell || 0).toLocaleString()}</td>
@@ -2035,10 +2035,9 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
         const safeItemName = escapeHtml(t.itemName || '');
-        const safeSource = escapeHtml(t.source || '');
         return `
             <tr class="border-b border-slate-200 ${fontSize}">
-                <td class="${tdPadding} pr-2 font-medium">${safeItemName} ${safeSource ? `<span class="text-[9px] opacity-60 ml-1">(${safeSource})</span>` : ''}</td>
+                <td class="${tdPadding} pr-2 font-medium">${safeItemName}</td>
                 <td class="${tdPadding} text-center font-mono">${t.qty}</td>
                 <td class="${tdPadding} text-right font-mono">Rp ${(t.totalSell / (t.qty || 1)).toLocaleString()}</td>
                 <td class="${tdPadding} pl-2 text-right font-bold font-mono">Rp ${t.totalSell.toLocaleString()}</td>
