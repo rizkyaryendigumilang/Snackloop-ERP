@@ -60,7 +60,7 @@ function showNotification(title, message, type = 'success') {
                 <p class="text-xs opacity-75 mt-0.5 leading-relaxed">${safeMsg}</p>
             </div>
         </div>
-        <button onclick="this.closest('div').parentElement.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0 leading-none p-1">&times;</button>
+        <button onclick="this.closest('.theme-card')?.remove()" class="opacity-50 hover:opacity-100 text-sm font-bold shrink-0 leading-none p-1">&times;</button>
     `;
 
     container.appendChild(toast);

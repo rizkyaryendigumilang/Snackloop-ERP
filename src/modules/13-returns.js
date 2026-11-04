@@ -246,7 +246,7 @@ function onReturnProductSelect() {
 function openReturnModalFromTrx(trxId) {
     let foundTrx = null;
     for (let mk in transactionData) {
-        const item = (transactionData[mk] || []).find(t => t.id === trxId);
+        const item = (transactionData[mk] || []).find(t => String(t.id) === String(trxId));
         if (item) {
             foundTrx = item;
             break;

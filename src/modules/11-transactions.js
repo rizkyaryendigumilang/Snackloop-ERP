@@ -593,6 +593,35 @@ function renderInvoicePaginationControls(totalPages, totalItems, fromItem, toIte
     `;
 }
 
+let currentInvoiceSortColumn = 'date'; // 'date' | 'customer' | 'amount'
+let currentInvoiceSortDirection = 'desc'; // 'asc' | 'desc'
+
+function toggleInvoiceSort(column) {
+    if (currentInvoiceSortColumn === column) {
+        currentInvoiceSortDirection = currentInvoiceSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentInvoiceSortColumn = column;
+        currentInvoiceSortDirection = (column === 'customer') ? 'asc' : 'desc';
+    }
+    updateInvoiceSortIcons();
+    renderInvoicesTable();
+}
+
+function updateInvoiceSortIcons() {
+    const cols = ['date', 'customer', 'amount'];
+    cols.forEach(col => {
+        const icon = document.getElementById(`inv-${col}-sort-icon`);
+        if (!icon) return;
+        if (currentInvoiceSortColumn === col) {
+            icon.className = currentInvoiceSortDirection === 'asc' 
+                ? 'fa-solid fa-arrow-up-short-wide text-[10px] text-indigo-500' 
+                : 'fa-solid fa-arrow-down-wide-short text-[10px] text-indigo-500';
+        } else {
+            icon.className = 'fa-solid fa-sort text-[10px] opacity-40';
+        }
+    });
+}
+
 function changeInvoicePage(newPage) {
     currentInvoicePage = newPage;
     renderInvoicesTable();
@@ -610,6 +639,37 @@ function resetInvoiceFilters() {
 async function renderInvoicesTable() {
     renderInvoiceAgingCards();
     renderInvoiceMonthTabs();
+    updateInvoiceSortIcons();
+
+    // Deteksi Smart Alert: Konsolidasi Invoice Harian
+    const groupCount = {};
+    invoiceData.forEach(inv => {
+        const k = `${inv.customer_name}__${inv.date}`;
+        groupCount[k] = (groupCount[k] || 0) + 1;
+    });
+    const dupGroups = Object.entries(groupCount).filter(([k, count]) => count > 1);
+    const totalDups = dupGroups.reduce((acc, [k, count]) => acc + count, 0);
+    const alertBanner = document.getElementById('invoice-consolidation-alert');
+    if (alertBanner) {
+        if (dupGroups.length > 0) {
+            alertBanner.className = "mb-3 p-3.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-sm";
+            alertBanner.innerHTML = `
+                <div class="flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
+                    <i class="fa-solid fa-layer-group text-lg text-amber-600 shrink-0"></i>
+                    <div>
+                        <span class="font-bold block">Rapikan Invoice Terpisah (${totalDups} Nota)</span>
+                        <span class="opacity-80 leading-relaxed">Ditemukan ${dupGroups.length} pelanggan memiliki beberapa nota terpisah pada tanggal yang sama. Anda dapat menggabungkannya menjadi 1 nota utuh agar rapi dan tidak membingungkan pelanggan saat penagihan.</span>
+                    </div>
+                </div>
+                <button type="button" onclick="consolidateDailyInvoices()" class="shrink-0 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition flex items-center gap-1.5 shadow-sm text-xs">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Gabungkan Sekarang
+                </button>
+            `;
+        } else {
+            alertBanner.className = "hidden";
+            alertBanner.innerHTML = "";
+        }
+    }
 
     const tbody = document.getElementById('invoices-table-body');
     if(!tbody) return;
@@ -639,14 +699,28 @@ async function renderInvoicesTable() {
         return info.category === currentInvoiceAgingFilter;
     });
 
-    // 3. Zero-Allocation Sort: Direct String Comparison descending (Latest first)
+    // 3. Dynamic Sorting berdasarkan kolom aktif
     filteredInvoices.sort((a, b) => {
-        const dateA = a.date || '';
-        const dateB = b.date || '';
-        if (dateA !== dateB) {
-            return dateB > dateA ? 1 : -1;
+        let cmp = 0;
+        if (currentInvoiceSortColumn === 'customer') {
+            const nameA = (a.customer_name || '').toLowerCase();
+            const nameB = (b.customer_name || '').toLowerCase();
+            cmp = nameA.localeCompare(nameB);
+        } else if (currentInvoiceSortColumn === 'amount') {
+            const amtA = Number(a.total_amount) || 0;
+            const amtB = Number(b.total_amount) || 0;
+            cmp = amtA - amtB;
+        } else {
+            // Default: Urutkan Tanggal
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) {
+                cmp = dateA.localeCompare(dateB);
+            } else {
+                cmp = String(a.id || '').localeCompare(String(b.id || ''));
+            }
         }
-        return (b.id || 0) - (a.id || 0);
+        return currentInvoiceSortDirection === 'asc' ? cmp : -cmp;
     });
 
     if (filteredInvoices.length === 0) {
@@ -694,11 +768,15 @@ async function renderInvoicesTable() {
              </div>`;
         
         const btnLunasi = inv.status !== 'Lunas' ? 
-            `<button onclick="markInvoiceAsPaid(${inv.id}, '${safeCustName.replace(/'/g, "\\'")}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
+            `<button onclick="markInvoiceAsPaid('${inv.id}', '${safeCustName.replace(/'/g, "\\'")}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> Lunasi</button>` : 
             `<span class="text-xs opacity-50 font-medium">Selesai</span>`;
 
         const btnDelete = isSuperAdmin ? 
-            `<button onclick="confirmDeleteInvoice(${inv.id}, '${safeInvNum.replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
+            `<button onclick="confirmDeleteInvoice('${inv.id}', '${safeInvNum.replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold" title="Hapus Permanen"><i class="fa-solid fa-trash"></i></button>` : '';
+
+        const waActionBtn = inv.status === 'Lunas' ?
+            `<button onclick="openWaInvoiceTemplatesModal('${safeInvNum}')" class="bg-emerald-600/80 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1" title="Kirim Kwitansi Pelunasan via WhatsApp"><i class="fa-brands fa-whatsapp"></i> Kwitansi WA</button>` :
+            `<button onclick="openWaInvoiceTemplatesModal('${safeInvNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1" title="Koleksi Template Tagih WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>`;
 
         return `
             <tr class="hover:bg-slate-50/50 transition">
@@ -718,7 +796,7 @@ async function renderInvoicesTable() {
                 <td class="p-3 border border-inherit text-center">
                     <div class="flex items-center justify-center gap-1.5 flex-wrap">
                         <button onclick="downloadInvoicePDF('${safeInvNum}', '${inv.status}')" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium" title="Unduh Nota / Faktur PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                        <button onclick="openWaInvoiceTemplatesModal('${safeInvNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1" title="Koleksi Template Tagih WhatsApp"><i class="fa-brands fa-whatsapp"></i> Tagih WA</button>
+                        ${waActionBtn}
                         ${btnLunasi}
                         ${btnDelete}
                     </div>
@@ -1091,7 +1169,7 @@ function sendCustomerRewardWA(cName, totalSpent, orderCount) {
 function confirmDeleteInvoice(invId, invNumber) {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Hanya Super Admin yang diizinkan.", "error");
     showConfirmModal("Konfirmasi Hapus", `Apakah Anda yakin ingin menghapus invoice ${invNumber} secara permanen?`, async () => {
-        const idx = invoiceData.findIndex(i => i.id === invId);
+        const idx = invoiceData.findIndex(i => String(i.id) === String(invId));
         const invTarget = idx !== -1 ? invoiceData[idx] : null;
         if(idx !== -1) invoiceData.splice(idx, 1);
         saveCacheToLocal();
@@ -1114,12 +1192,15 @@ async function markInvoiceAsPaid(invId, custName) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     
     // Optimistic update status invoice dan transaksi terkait
-    const inv = invoiceData.find(i => i.id === invId);
+    const inv = invoiceData.find(i => String(i.id) === String(invId));
     if(inv) inv.status = 'Lunas';
 
     for(let mk in transactionData) {
         transactionData[mk].forEach((t) => {
-            if(t.customer === custName && t.status === 'Belum Lunas') {
+            const isMatch = inv 
+                ? ((t.customer === custName && t.date === inv.date) || (inv.invoice_number && t.notes && t.notes.includes(inv.invoice_number)))
+                : (t.customer === custName);
+            if(isMatch && t.status === 'Belum Lunas') {
                 t.status = 'Lunas';
             }
         });
@@ -1139,10 +1220,12 @@ async function markInvoiceAsPaid(invId, custName) {
 
     dispatchMutation({
         type: 'UPDATE_INVOICE_PAID',
-        payload: { invId, customerName: custName }
+        payload: { invId, customerName: custName, date: inv ? inv.date : undefined }
     }, async () => {
         await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', invId);
-        if(custName) {
+        if(custName && inv && inv.date) {
+            await supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', custName).eq('date', inv.date);
+        } else if (custName) {
             await supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', custName);
         }
     });
@@ -1387,9 +1470,9 @@ function renderTransactionsForActiveSheet() {
         const safeDate = escapeHtml(t.date);
 
         const statusDropdown = isSuperAdmin ? 
-            `<select onchange="updateTrxStatus(${t.id}, this.value)" class="text-[11px] font-bold px-2 py-1 rounded border cursor-pointer outline-none ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-rose-500/20 text-rose-500 border-rose-500/30'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
+            `<select onchange="updateTrxStatus('${t.id}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded border cursor-pointer outline-none ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-rose-500/20 text-rose-500 border-rose-500/30'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
             (canMarkPaid && t.status !== 'Lunas' ?
-                `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="px-2 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-600 hover:bg-emerald-500/20 hover:text-emerald-600 transition" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
+                `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="px-2 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-600 hover:bg-emerald-500/20 hover:text-emerald-600 transition" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
                 `<span class="px-2 py-1 rounded text-xs font-bold ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}">${t.status}</span>`);
 
         const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${safeSource}</span>`;
@@ -1398,14 +1481,14 @@ function renderTransactionsForActiveSheet() {
         
         const isNegativeOrReturn = t.isReturn || (t.qty < 0);
         const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
-        const returActionBtn = !isNegativeOrReturn ? `<button onclick="openReturnModalFromTrx(${t.id})" title="Catat Retur Toko" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : '';
+        const returActionBtn = !isNegativeOrReturn ? `<button onclick="openReturnModalFromTrx('${t.id}')" title="Catat Retur Toko" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : '';
 
-        const deleteBtn = isSuperAdmin ? `<button onclick="confirmDeleteTrx(${t.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '';
+        const deleteBtn = isSuperAdmin ? `<button onclick="confirmDeleteTrx('${t.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '';
 
         const actionBtn = `
             ${returActionBtn}
-            <button onclick="downloadPDF(${t.id})" title="Cetak / Download Nota" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-solid fa-print"></i></button>
-            <button onclick="sendWhatsAppOnly(${t.id})" title="Kirim WA" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-brands fa-whatsapp"></i></button>
+            <button onclick="downloadPDF('${t.id}')" title="Cetak / Download Nota" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-solid fa-print"></i></button>
+            <button onclick="sendWhatsAppOnly('${t.id}')" title="Kirim WA" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-brands fa-whatsapp"></i></button>
             ${deleteBtn}`;
 
         const modalDisplay = isSuperAdmin ? `Rp ${t.totalModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
@@ -1463,7 +1546,7 @@ function confirmDeleteTrx(id) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus transaksi ini?", async () => {
         const list = transactionData[activeMonthSheet] || [];
-        const trxIdx = list.findIndex(t => t.id === id);
+        const trxIdx = list.findIndex(t => String(t.id) === String(id));
         if(trxIdx === -1) return;
         const trx = list[trxIdx];
 
@@ -1503,7 +1586,7 @@ function confirmDeleteTrx(id) {
 async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     const list = transactionData[activeMonthSheet] || [];
-    const trx = list.find(t => t.id === id);
+    const trx = list.find(t => String(t.id) === String(id));
     let oldStatus = 'Belum Lunas';
     if(trx) {
         oldStatus = trx.status;
@@ -1529,7 +1612,7 @@ async function updateTrxStatus(id, newStatus) {
 async function downloadPDF(trxId) {
     let targetTrx = null;
     for(let m in transactionData) {
-        const found = transactionData[m].find(t => t.id === trxId);
+        const found = transactionData[m].find(t => String(t.id) === String(trxId));
         if(found) { targetTrx = found; break; }
     }
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
@@ -1635,7 +1718,7 @@ async function printMonthlyRecapPDF() {
 async function sendWhatsAppOnly(trxId) {
     let targetTrx = null;
     for(let m in transactionData) {
-        const found = transactionData[m].find(t => t.id === trxId);
+        const found = transactionData[m].find(t => String(t.id) === String(trxId));
         if(found) { targetTrx = found; break; }
     }
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
@@ -2130,14 +2213,14 @@ function renderBulkProductChecklist() {
     const agentSelect = document.getElementById('bulk-agent');
     if (!tbody || !agentSelect) return;
 
-    const selectedAgentId = parseInt(agentSelect.value, 10);
-    const selectedAgentObj = (agentData || []).find(a => a.id === selectedAgentId);
-    const selectedAgentName = selectedAgentObj ? selectedAgentObj.name : '';
+    const selectedOption = agentSelect.options[agentSelect.selectedIndex];
+    const selectedAgentName = selectedOption ? (selectedOption.getAttribute('data-name') || selectedOption.text) : '';
+    const selectedAgentId = agentSelect.value;
 
     // Filter masterData for this agent
     const items = (masterData || []).filter(m => {
         if (m.agent_id && selectedAgentId) {
-            return Number(m.agent_id) === selectedAgentId;
+            return String(m.agent_id) === String(selectedAgentId);
         }
         return m.source === selectedAgentName || m.agent === selectedAgentName;
     });
@@ -2176,9 +2259,9 @@ function renderBulkTableRows() {
         const subtotal = item.sell * item.qty;
         const rowBg = item.checked ? 'bg-indigo-50/70 dark:bg-indigo-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40';
         return `
-            <tr class="border-b border-inherit transition ${rowBg}">
+            <tr id="bulk-row-${item.id}" class="border-b border-inherit transition ${rowBg}">
                 <td class="p-2.5 text-center">
-                    <input type="checkbox" onchange="toggleBulkItemCheck(${item.id}, this.checked)" ${item.checked ? 'checked' : ''} class="w-4 h-4 rounded cursor-pointer accent-indigo-600">
+                    <input type="checkbox" onchange="toggleBulkItemCheck('${item.id}', this.checked)" ${item.checked ? 'checked' : ''} class="bulk-item-check w-4 h-4 rounded cursor-pointer accent-indigo-600">
                 </td>
                 <td class="p-2.5 font-semibold text-slate-800 dark:text-slate-100">
                     ${escapeHtml(item.name)}
@@ -2187,16 +2270,16 @@ function renderBulkTableRows() {
                     Rp ${item.buy.toLocaleString('id-ID')}
                 </td>
                 <td class="p-2.5 text-right">
-                    <input type="number" inputmode="numeric" onchange="updateBulkItemSellPrice(${item.id}, this.value)" value="${item.sell}" class="w-24 text-right px-2 py-1 theme-input border rounded-lg text-xs tabular-nums outline-none focus:border-indigo-500">
+                    <input type="text" inputmode="numeric" onchange="updateBulkItemSellPrice('${item.id}', this.value)" value="${item.sell.toLocaleString('id-ID')}" class="bulk-item-sell w-24 text-right px-2 py-1 theme-input border rounded-lg text-xs tabular-nums outline-none focus:border-indigo-500">
                 </td>
                 <td class="p-2.5 text-center">
                     <div class="inline-flex items-center border border-inherit rounded-lg overflow-hidden theme-input">
-                        <button type="button" onclick="updateBulkItemQty(${item.id}, -1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">-</button>
-                        <input type="number" inputmode="numeric" onchange="setBulkItemQty(${item.id}, this.value)" value="${item.qty}" min="1" class="w-12 text-center bg-transparent border-none text-xs tabular-nums font-bold outline-none">
-                        <button type="button" onclick="updateBulkItemQty(${item.id}, 1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">+</button>
+                        <button type="button" onclick="updateBulkItemQty('${item.id}', -1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">-</button>
+                        <input type="text" inputmode="numeric" onchange="setBulkItemQty('${item.id}', this.value)" value="${item.qty}" class="bulk-item-qty w-12 text-center bg-transparent border-none text-xs tabular-nums font-bold outline-none">
+                        <button type="button" onclick="updateBulkItemQty('${item.id}', 1)" class="px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition">+</button>
                     </div>
                 </td>
-                <td class="p-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
+                <td class="p-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums bulk-item-subtotal">
                     Rp ${subtotal.toLocaleString('id-ID')}
                 </td>
             </tr>
@@ -2210,37 +2293,59 @@ function filterBulkProductChecklist() {
     renderBulkTableRows();
 }
 
+function syncBulkRowDOM(item) {
+    const tr = document.getElementById(`bulk-row-${item.id}`);
+    if (!tr) return;
+    const chk = tr.querySelector('.bulk-item-check');
+    const qtyInput = tr.querySelector('.bulk-item-qty');
+    const subtotalEl = tr.querySelector('.bulk-item-subtotal');
+    if (chk) chk.checked = item.checked;
+    if (qtyInput) qtyInput.value = item.qty;
+    if (subtotalEl) subtotalEl.innerText = 'Rp ' + (item.sell * item.qty).toLocaleString('id-ID');
+    if (item.checked) {
+        tr.classList.add('bg-indigo-50/70', 'dark:bg-indigo-950/30');
+    } else {
+        tr.classList.remove('bg-indigo-50/70', 'dark:bg-indigo-950/30');
+    }
+}
+
 function toggleBulkItemCheck(id, checked) {
-    const item = bulkOrderMasterCache.find(x => x.id === id);
+    const item = bulkOrderMasterCache.find(x => String(x.id) === String(id));
     if (item) {
         item.checked = checked;
-        renderBulkTableRows();
+        syncBulkRowDOM(item);
+        calculateBulkSummary();
     }
 }
 
 function updateBulkItemQty(id, delta) {
-    const item = bulkOrderMasterCache.find(x => x.id === id);
+    const item = bulkOrderMasterCache.find(x => String(x.id) === String(id));
     if (item) {
         item.qty = Math.max(1, item.qty + delta);
         item.checked = true;
-        renderBulkTableRows();
+        syncBulkRowDOM(item);
+        calculateBulkSummary();
     }
 }
 
 function setBulkItemQty(id, val) {
-    const item = bulkOrderMasterCache.find(x => x.id === id);
+    const item = bulkOrderMasterCache.find(x => String(x.id) === String(id));
     if (item) {
-        item.qty = Math.max(1, parseInt(val, 10) || 1);
+        const cleanVal = String(val).replace(/\./g, '').replace(/,/g, '');
+        item.qty = Math.max(1, parseInt(cleanVal, 10) || 1);
         item.checked = true;
-        renderBulkTableRows();
+        syncBulkRowDOM(item);
+        calculateBulkSummary();
     }
 }
 
 function updateBulkItemSellPrice(id, val) {
-    const item = bulkOrderMasterCache.find(x => x.id === id);
+    const item = bulkOrderMasterCache.find(x => String(x.id) === String(id));
     if (item) {
-        item.sell = Math.max(0, parseInt(val, 10) || 0);
-        renderBulkTableRows();
+        const cleanVal = String(val).replace(/\./g, '').replace(/,/g, '');
+        item.sell = Math.max(0, parseInt(cleanVal, 10) || 0);
+        syncBulkRowDOM(item);
+        calculateBulkSummary();
     }
 }
 
@@ -2276,6 +2381,12 @@ function calculateBulkSummary() {
     if (profitEl) profitEl.innerText = (totalProfit >= 0 ? '+' : '') + 'Rp ' + totalProfit.toLocaleString('id-ID');
     if (btnTextEl) btnTextEl.innerText = `Simpan ${checkedItems.length} Produk (Rp ${totalSell.toLocaleString('id-ID')})`;
     if (submitBtn) submitBtn.disabled = checkedItems.length === 0;
+
+    const masterCheck = document.getElementById('bulk-check-master');
+    if (masterCheck && bulkOrderMasterCache.length > 0) {
+        masterCheck.checked = checkedItems.length === bulkOrderMasterCache.length;
+        masterCheck.indeterminate = (checkedItems.length > 0 && checkedItems.length < bulkOrderMasterCache.length);
+    }
 }
 
 async function saveBulkTransactions() {
@@ -2287,9 +2398,8 @@ async function saveBulkTransactions() {
     const date = document.getElementById('bulk-date').value;
     const customer = document.getElementById('bulk-customer').value;
     const agentSelect = document.getElementById('bulk-agent');
-    const agentId = parseInt(agentSelect.value, 10);
-    const agentObj = (agentData || []).find(a => a.id === agentId);
-    const source = agentObj ? agentObj.name : 'Master';
+    const selectedOption = agentSelect ? agentSelect.options[agentSelect.selectedIndex] : null;
+    const source = selectedOption ? (selectedOption.getAttribute('data-name') || selectedOption.text) : 'Master';
     const status = document.getElementById('bulk-status').value;
 
     if (!date || !customer || !source) {
@@ -2440,22 +2550,45 @@ async function consolidateDailyInvoices() {
             let mergedCount = 0;
             const idsToDelete = [];
 
+            const masterInvUpdates = [];
+
             duplicateGroups.forEach(([key, list]) => {
                 const masterInv = list[0];
                 let totalAmount = 0;
                 let hasUnpaid = false;
+                const secondaryInvNumbers = [];
 
                 list.forEach((inv, idx) => {
                     totalAmount += (Number(inv.total_amount) || 0);
                     if (inv.status !== 'Lunas') hasUnpaid = true;
                     if (idx > 0) {
                         idsToDelete.push(inv.id);
+                        if (inv.invoice_number) secondaryInvNumbers.push(inv.invoice_number);
                     }
                 });
 
                 masterInv.total_amount = totalAmount;
                 masterInv.status = hasUnpaid ? 'Belum Lunas' : 'Lunas';
                 mergedCount++;
+
+                masterInvUpdates.push({
+                    id: masterInv.id,
+                    total_amount: masterInv.total_amount,
+                    status: masterInv.status
+                });
+
+                // Update referensi nomor invoice di catatan transaksi
+                for (let mk in transactionData) {
+                    (transactionData[mk] || []).forEach(t => {
+                        if (t.customer === masterInv.customer_name && t.date === masterInv.date) {
+                            secondaryInvNumbers.forEach(oldNum => {
+                                if (t.notes && t.notes.includes(oldNum)) {
+                                    t.notes = t.notes.replace(oldNum, masterInv.invoice_number);
+                                }
+                            });
+                        }
+                    });
+                }
             });
 
             invoiceData = invoiceData.filter(inv => !idsToDelete.includes(inv.id));
@@ -2464,12 +2597,20 @@ async function consolidateDailyInvoices() {
             renderInvoicesTable();
             updateDashboard();
 
-            if (idsToDelete.length > 0) {
+            if (idsToDelete.length > 0 || masterInvUpdates.length > 0) {
                 dispatchMutation({
-                    type: 'DELETE_CONSOLIDATED_INVOICES',
-                    payload: { ids: idsToDelete }
+                    type: 'CONSOLIDATE_DAILY_INVOICES',
+                    payload: { idsToDelete, masterInvUpdates }
                 }, async () => {
-                    await supabaseClient.from('invoices').delete().in('id', idsToDelete);
+                    if (idsToDelete.length > 0) {
+                        await supabaseClient.from('invoices').delete().in('id', idsToDelete);
+                    }
+                    for (const up of masterInvUpdates) {
+                        await supabaseClient.from('invoices').update({
+                            total_amount: up.total_amount,
+                            status: up.status
+                        }).eq('id', up.id);
+                    }
                 });
             }
 

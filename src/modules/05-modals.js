@@ -205,7 +205,8 @@ function closeTopmostModal() {
         { id: 'history-master-modal', closeFn: () => typeof closeHistoryModal === 'function' && closeHistoryModal() },
         { id: 'modal-forgot-password', closeFn: () => typeof closeForgotPasswordModal === 'function' && closeForgotPasswordModal() },
         { id: 'modal-reset-password', closeFn: () => typeof closeResetPasswordModal === 'function' && closeResetPasswordModal() },
-        { id: 'modal-expense', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() }
+        { id: 'modal-expense', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() },
+        { id: 'modal-bulk-order', closeFn: () => typeof closeBulkOrderModal === 'function' && closeBulkOrderModal() }
     ];
 
     for (const m of modalHandlers) {

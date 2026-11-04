@@ -613,13 +613,31 @@
                             <div id="invoice-month-summary-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border theme-input shrink-0 text-xs"></div>
                         </div>
 
-                        <div class="overflow-x-auto max-h-[500px]">
+                        <!-- SMART CONSOLIDATION ALERT BANNER -->
+                        <div id="invoice-consolidation-alert" class="hidden"></div>
+
+                        <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
-                                        <th class="p-3 border border-inherit">No. Invoice & Tanggal</th>
-                                        <th class="p-3 border border-inherit">Pelanggan / Toko</th>
-                                        <th class="p-3 border border-inherit">Total Tagihan</th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleInvoiceSort('date')" title="Urutkan Tanggal">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span>No. Invoice & Tanggal</span>
+                                                <i id="inv-date-sort-icon" class="fa-solid fa-arrow-down-wide-short text-[10px] text-indigo-500"></i>
+                                            </div>
+                                        </th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleInvoiceSort('customer')" title="Urutkan Pelanggan (A-Z / Z-A)">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span>Pelanggan / Toko</span>
+                                                <i id="inv-customer-sort-icon" class="fa-solid fa-sort text-[10px] opacity-40"></i>
+                                            </div>
+                                        </th>
+                                        <th class="p-3 border border-inherit cursor-pointer select-none hover:bg-slate-200/50 transition" onclick="toggleInvoiceSort('amount')" title="Urutkan Total Tagihan">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span>Total Tagihan</span>
+                                                <i id="inv-amount-sort-icon" class="fa-solid fa-sort text-[10px] opacity-40"></i>
+                                            </div>
+                                        </th>
                                         <th class="p-3 border border-inherit">Status & Umur Piutang</th>
                                         <th class="p-3 border border-inherit text-center">Aksi Penagihan (Smart WA / PDF / Lunasi)</th>
                                     </tr>
@@ -2906,8 +2924,8 @@
             </div>
 
             <!-- Table / Checklist Container (Scrollable) -->
-            <div class="flex-1 overflow-y-auto border border-inherit rounded-xl theme-table overscroll-contain">
-                <table class="w-full text-left border-collapse text-xs">
+            <div class="flex-1 overflow-auto border border-inherit rounded-xl theme-table overscroll-contain">
+                <table class="w-full min-w-[620px] text-left border-collapse text-xs">
                     <thead class="sticky top-0 bg-slate-100 dark:bg-slate-800 z-10 border-b border-inherit shadow-sm">
                         <tr>
                             <th class="p-2.5 w-10 text-center">
