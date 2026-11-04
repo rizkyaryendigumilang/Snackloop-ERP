@@ -209,6 +209,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         
         // 3. Reset form
         this.reset(); 
+        const statusEl = document.getElementById('t-status');
+        if (statusEl) statusEl.value = 'Belum Lunas';
         document.getElementById('t-date').valueAsDate = new Date();
         document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
 
@@ -2581,9 +2583,11 @@ function openBulkOrderModal() {
         `).join('');
     }
 
-    // Reset search
+    // Reset search & default status
     const searchInput = document.getElementById('bulk-product-search');
     if (searchInput) searchInput.value = '';
+    const bulkStatus = document.getElementById('bulk-status');
+    if (bulkStatus) bulkStatus.value = 'Belum Lunas';
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
