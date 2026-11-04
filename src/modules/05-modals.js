@@ -53,7 +53,7 @@ function createNewMonthSheet() {
     const btnOk = document.getElementById('custom-prompt-btn-ok');
 
     const now = new Date();
-    const year = now.getFullYear();
+    const year = activeTransactionYear || now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     if(inputField) inputField.value = `${year}-${month}`;
 
@@ -69,7 +69,9 @@ function createNewMonthSheet() {
         if(val) {
             const [y, m] = val.split('-');
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-            const formattedMonthKey = `${monthNames[parseInt(m, 10) - 1]} ${y}`; 
+            const formattedMonthKey = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+            activeTransactionYear = y;
+            if (typeof lastActiveMonthByYear === 'object') lastActiveMonthByYear[y] = formattedMonthKey; 
 
             if(!transactionData[formattedMonthKey]) { 
                 transactionData[formattedMonthKey] = []; 

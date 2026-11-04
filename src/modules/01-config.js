@@ -29,6 +29,8 @@ let currentReturnStatusFilter = 'all';
 let currentReturnAgentFilter = 'all'; 
 
 let activeMonthSheet = ""; 
+let activeTransactionYear = "";
+const lastActiveMonthByYear = {};
 let currentTransactionFilter = 'all'; 
 let currentDashboardTimeFilter = 'all'; 
 let currentRepackCalcResult = null;
@@ -46,6 +48,8 @@ let currentSearchKeyword = '';
 
 // State Pagination & Filtering Invoice
 let activeInvoiceMonthSheet = '';
+let activeInvoiceYear = "";
+const lastActiveInvoiceMonthByYear = {};
 let currentInvoicePage = 1;
 const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';

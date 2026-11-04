@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T02:43:56.750Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T03:03:47.078Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -35,6 +35,8 @@ let currentReturnStatusFilter = 'all';
 let currentReturnAgentFilter = 'all'; 
 
 let activeMonthSheet = ""; 
+let activeTransactionYear = "";
+const lastActiveMonthByYear = {};
 let currentTransactionFilter = 'all'; 
 let currentDashboardTimeFilter = 'all'; 
 let currentRepackCalcResult = null;
@@ -52,6 +54,8 @@ let currentSearchKeyword = '';
 
 // State Pagination & Filtering Invoice
 let activeInvoiceMonthSheet = '';
+let activeInvoiceYear = "";
+const lastActiveInvoiceMonthByYear = {};
 let currentInvoicePage = 1;
 const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';
@@ -1845,7 +1849,7 @@ function createNewMonthSheet() {
     const btnOk = document.getElementById('custom-prompt-btn-ok');
 
     const now = new Date();
-    const year = now.getFullYear();
+    const year = activeTransactionYear || now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     if(inputField) inputField.value = `${year}-${month}`;
 
@@ -1861,7 +1865,9 @@ function createNewMonthSheet() {
         if(val) {
             const [y, m] = val.split('-');
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-            const formattedMonthKey = `${monthNames[parseInt(m, 10) - 1]} ${y}`; 
+            const formattedMonthKey = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+            activeTransactionYear = y;
+            if (typeof lastActiveMonthByYear === 'object') lastActiveMonthByYear[y] = formattedMonthKey; 
 
             if(!transactionData[formattedMonthKey]) { 
                 transactionData[formattedMonthKey] = []; 
@@ -3861,8 +3867,42 @@ function getInvoiceMonthSortVal(mk) {
     return 0;
 }
 
+function setInvoiceYear(yr) {
+    activeInvoiceYear = String(yr);
+    const monthCounts = {};
+    invoiceData.forEach(inv => {
+        const mk = getInvoiceMonthKey(inv.date);
+        monthCounts[mk] = (monthCounts[mk] || 0) + 1;
+    });
+    const distinctMonths = Object.keys(monthCounts).sort((a, b) => getInvoiceMonthSortVal(b) - getInvoiceMonthSortVal(a));
+    const yearMonths = distinctMonths.filter(mk => {
+        const p = mk.trim().split(/\s+/);
+        return (p.length > 1 ? p[p.length - 1] : '') === activeInvoiceYear;
+    });
+    
+    if (yearMonths.length > 0) {
+        if (typeof lastActiveInvoiceMonthByYear === 'object' && lastActiveInvoiceMonthByYear[activeInvoiceYear] && yearMonths.includes(lastActiveInvoiceMonthByYear[activeInvoiceYear])) {
+            activeInvoiceMonthSheet = lastActiveInvoiceMonthByYear[activeInvoiceYear];
+        } else {
+            activeInvoiceMonthSheet = yearMonths[0];
+        }
+    }
+    currentInvoicePage = 1;
+    renderInvoicesTable();
+}
+
 function selectInvoiceMonthSheet(mk) {
     activeInvoiceMonthSheet = mk;
+    if (mk !== 'all') {
+        const p = mk.trim().split(/\s+/);
+        const yr = p.length > 1 ? p[p.length - 1] : '';
+        if (yr) {
+            activeInvoiceYear = yr;
+            if (typeof lastActiveInvoiceMonthByYear === 'object') {
+                lastActiveInvoiceMonthByYear[yr] = mk;
+            }
+        }
+    }
     currentInvoicePage = 1;
     renderInvoicesTable();
 }
@@ -3891,26 +3931,106 @@ function renderInvoiceMonthTabs() {
         }
     }
 
-    // Render Tab buttons
+    // Extract unique invoice years
+    const invoiceYears = [...new Set(distinctMonths.map(mk => {
+        const p = mk.trim().split(/\s+/);
+        return p.length > 1 ? p[p.length - 1] : '';
+    }).filter(Boolean))].sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+
+    // Sync activeInvoiceYear
+    if (!activeInvoiceYear || !invoiceYears.includes(activeInvoiceYear)) {
+        if (activeInvoiceMonthSheet !== 'all') {
+            const p = activeInvoiceMonthSheet.trim().split(/\s+/);
+            const y = p.length > 1 ? p[p.length - 1] : '';
+            if (y && invoiceYears.includes(y)) activeInvoiceYear = y;
+        }
+        if (!activeInvoiceYear || !invoiceYears.includes(activeInvoiceYear)) {
+            activeInvoiceYear = invoiceYears[0] || new Date().getFullYear().toString();
+        }
+    }
+
+    // Filter distinct months belonging to activeInvoiceYear
+    const yearDistinctMonths = distinctMonths.filter(mk => {
+        const p = mk.trim().split(/\s+/);
+        const y = p.length > 1 ? p[p.length - 1] : '';
+        return y === activeInvoiceYear;
+    });
+
+    // 1. "Semua Invoice" Button
+    const isAllActive = activeInvoiceMonthSheet === 'all';
     let tabsHtml = `
         <button type="button" onclick="selectInvoiceMonthSheet('all')" 
-            class="px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1.5 ${activeInvoiceMonthSheet === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}">
-            <span>Semua Bulan</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${activeInvoiceMonthSheet === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${invoiceData.length}</span>
+            class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${isAllActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}"
+            title="Tampilkan seluruh nota tanpa filter periode">
+            <span>Semua Invoice</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${isAllActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${invoiceData.length}</span>
         </button>
     `;
 
-    distinctMonths.forEach(mk => {
-        const isActive = activeInvoiceMonthSheet === mk;
-        const count = monthCounts[mk] || 0;
+    if (invoiceYears.length > 0) {
         tabsHtml += `
-            <button type="button" onclick="selectInvoiceMonthSheet('${mk}')" 
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-1.5 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}">
-                <span>${mk}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${count}</span>
-            </button>
+            <div class="text-slate-300 dark:text-slate-600 text-xs font-light select-none px-0.5">
+                <i class="fa-solid fa-chevron-right text-[11px]"></i>
+            </div>
         `;
-    });
+
+        if (invoiceYears.length === 1) {
+            tabsHtml += `
+                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs shrink-0 select-none">
+                    <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                    <span>Tahun ${activeInvoiceYear}</span>
+                </div>
+            `;
+        } else if (invoiceYears.length <= 4) {
+            tabsHtml += `
+                <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                    <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 px-1.5 flex items-center gap-1">
+                        <i class="fa-regular fa-calendar text-indigo-500"></i>
+                    </span>
+                    ${invoiceYears.map(yr => `
+                        <button type="button" onclick="setInvoiceYear('${yr}')"
+                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${yr === activeInvoiceYear ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
+                            title="Filter nota tahun ${yr}">
+                            ${yr}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            tabsHtml += `
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                    <i class="fa-regular fa-calendar text-indigo-500 text-xs pl-1"></i>
+                    <select onchange="setInvoiceYear(this.value)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
+                        ${invoiceYears.map(yr => `<option value="${yr}" ${yr === activeInvoiceYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">${yr}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
+        tabsHtml += `
+            <div class="text-slate-300 dark:text-slate-600 text-xs font-light select-none px-0.5">
+                <i class="fa-solid fa-chevron-right text-[11px]"></i>
+            </div>
+        `;
+
+        tabsHtml += `
+            <div class="flex items-center gap-1.5 flex-wrap">
+                ${yearDistinctMonths.map(mk => {
+                    const isActive = activeInvoiceMonthSheet === mk;
+                    const count = monthCounts[mk] || 0;
+                    const mName = mk.trim().split(/\s+/)[0];
+                    return `
+                        <button type="button" onclick="selectInvoiceMonthSheet('${mk}')" 
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input opacity-80 hover:opacity-100'}"
+                            title="Filter nota ${mk}">
+                            <span>${mName}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}">${count}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
 
     container.innerHTML = tabsHtml;
 
@@ -4666,6 +4786,39 @@ function sendInvoiceWA(invNumber, custName, amount, statusInv) {
 }
 
 // ======================= RENDER MONTH TABS ======================= //
+function selectTransactionMonth(mk) {
+    activeMonthSheet = mk;
+    const parts = mk.trim().split(/\s+/);
+    if (parts.length > 1) {
+        const yr = parts[parts.length - 1];
+        activeTransactionYear = yr;
+        if (typeof lastActiveMonthByYear === 'object') {
+            lastActiveMonthByYear[yr] = mk;
+        }
+    }
+    currentTransactionPage = 1;
+    renderMonthTabs();
+}
+
+function setTransactionYear(yr) {
+    activeTransactionYear = String(yr);
+    let keys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
+    const yearKeys = keys.filter(k => {
+        const parts = k.trim().split(/\s+/);
+        return (parts.length > 1 ? parts[parts.length - 1] : '') === activeTransactionYear;
+    });
+
+    if (yearKeys.length > 0) {
+        if (typeof lastActiveMonthByYear === 'object' && lastActiveMonthByYear[activeTransactionYear] && yearKeys.includes(lastActiveMonthByYear[activeTransactionYear])) {
+            activeMonthSheet = lastActiveMonthByYear[activeTransactionYear];
+        } else {
+            activeMonthSheet = yearKeys[yearKeys.length - 1];
+        }
+    }
+    currentTransactionPage = 1;
+    renderMonthTabs();
+}
+
 function renderMonthTabs() {
     const container = document.getElementById('month-tabs-container');
     if(!container) return;
@@ -4673,27 +4826,126 @@ function renderMonthTabs() {
     if(keys.length === 0) { keys = [getCurrentMonthKey(new Date())]; transactionData[keys[0]] = []; }
     if(!activeMonthSheet || !transactionData[activeMonthSheet]) activeMonthSheet = keys[keys.length-1];
 
+    // Extract all unique years from available sheets
+    const years = [...new Set(keys.map(k => {
+        const p = k.trim().split(/\s+/);
+        return p.length > 1 ? p[p.length - 1] : new Date().getFullYear().toString();
+    }))].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+    // Ensure activeTransactionYear is valid and in sync
+    const activeSheetYear = activeMonthSheet ? (activeMonthSheet.trim().split(/\s+/)[1] || '') : '';
+    if (!activeTransactionYear || !years.includes(activeTransactionYear)) {
+        activeTransactionYear = (activeSheetYear && years.includes(activeSheetYear)) 
+            ? activeSheetYear 
+            : years[years.length - 1];
+    }
+
+    // Filter sheets belonging to activeTransactionYear
+    const yearKeys = keys.filter(k => {
+        const p = k.trim().split(/\s+/);
+        const y = p.length > 1 ? p[p.length - 1] : '';
+        return y === activeTransactionYear;
+    });
+
+    // If activeMonthSheet is not in current year's keys, select appropriate month
+    if (yearKeys.length > 0 && !yearKeys.includes(activeMonthSheet)) {
+        if (typeof lastActiveMonthByYear === 'object' && lastActiveMonthByYear[activeTransactionYear] && yearKeys.includes(lastActiveMonthByYear[activeTransactionYear])) {
+            activeMonthSheet = lastActiveMonthByYear[activeTransactionYear];
+        } else {
+            activeMonthSheet = yearKeys[yearKeys.length - 1];
+        }
+    }
+
+    if (activeMonthSheet && typeof lastActiveMonthByYear === 'object') {
+        lastActiveMonthByYear[activeTransactionYear] = activeMonthSheet;
+    }
+
     const isSuperAdmin = currentRole === 'super_admin';
     const canDelete = isSuperAdmin && keys.length > 1;
 
-    let tabsHtml = keys.map(mk => {
+    // 1. Build Year Switcher HTML
+    let yearSelectorHtml = '';
+    if (years.length <= 1) {
+        yearSelectorHtml = `
+            <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs shrink-0 select-none">
+                <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                <span>Tahun ${activeTransactionYear}</span>
+            </div>
+        `;
+    } else if (years.length <= 4) {
+        yearSelectorHtml = `
+            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 px-1.5 flex items-center gap-1">
+                    <i class="fa-regular fa-calendar text-indigo-500"></i>
+                </span>
+                ${years.map(yr => {
+                    const isYrActive = yr === activeTransactionYear;
+                    return `
+                        <button type="button" onclick="setTransactionYear('${yr}')"
+                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${isYrActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
+                            title="Tampilkan sheet transaksi tahun ${yr}">
+                            ${yr}
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    } else {
+        yearSelectorHtml = `
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                <i class="fa-regular fa-calendar text-indigo-500 text-xs pl-1"></i>
+                <select onchange="setTransactionYear(this.value)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
+                    ${years.map(yr => `<option value="${yr}" ${yr === activeTransactionYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">${yr}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+
+    // 2. Build Month Tabs HTML for selected year
+    const monthTabsHtml = yearKeys.map(mk => {
         const isActive = mk === activeMonthSheet;
-        const deleteBtnHtml = canDelete ? `<span onclick="event.stopPropagation(); confirmDeleteMonthSheet('${mk}')" class="ml-1.5 opacity-60 hover:opacity-100 text-rose-400 hover:text-rose-600 text-[10px]" title="Hapus Sheet"><i class="fa-solid fa-xmark"></i></span>` : '';
+        const monthName = mk.trim().split(/\s+/)[0]; // e.g. 'Mar', 'Apr', 'Nov'
+        const deleteBtnHtml = canDelete ? `<span onclick="event.stopPropagation(); confirmDeleteMonthSheet('${mk}')" class="ml-1.5 opacity-50 hover:opacity-100 ${isActive ? 'text-white hover:text-rose-200' : 'text-rose-400 hover:text-rose-600'} text-[10px] transition-colors" title="Hapus Sheet ${mk}"><i class="fa-solid fa-xmark"></i></span>` : '';
 
         return `
-            <button onclick="activeMonthSheet='${mk}'; currentTransactionPage=1; renderMonthTabs();" class="px-3.5 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'theme-input hover:opacity-80'}">
-                <span>${mk}</span>
+            <button type="button" onclick="selectTransactionMonth('${mk}')" 
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'theme-input hover:border-indigo-400 dark:hover:border-indigo-500 hover:opacity-90'}"
+                title="Buka data ${mk}">
+                <span>${monthName}</span>
                 ${deleteBtnHtml}
             </button>`;
     }).join('');
-    
-    if(isSuperAdmin) {
-        tabsHtml += `<button onclick="createNewMonthSheet()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/25 text-emerald-500 border border-emerald-500/40 hover:bg-emerald-500/35 transition shadow-sm ml-1 flex items-center gap-1.5"><i class="fa-solid fa-calendar-plus"></i> <span>+ Pilih Bulan</span></button>`;
-    }
 
-    container.innerHTML = tabsHtml;
+    // 3. Plus / New Month button
+    const addMonthBtnHtml = isSuperAdmin ? `
+        <button type="button" onclick="createNewMonthSheet()" 
+            class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+            title="Tambah atau buka bulan baru">
+            <i class="fa-solid fa-calendar-plus text-xs"></i>
+            <span>+ Pilih Bulan</span>
+        </button>
+    ` : '';
+
+    container.innerHTML = `
+        <div class="flex items-center gap-2 flex-wrap">
+            ${yearSelectorHtml}
+            <div class="text-slate-300 dark:text-slate-600 text-xs font-light select-none px-0.5">
+                <i class="fa-solid fa-chevron-right text-[11px]"></i>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                ${monthTabsHtml}
+                ${addMonthBtnHtml}
+            </div>
+        </div>
+    `;
+
     renderTransactionsForActiveSheet();
 }
+
+window.selectTransactionMonth = selectTransactionMonth;
+window.setTransactionYear = setTransactionYear;
+window.setInvoiceYear = setInvoiceYear;
+window.selectInvoiceMonthSheet = selectInvoiceMonthSheet;
 
 function filterTrxStatus(st) {
     currentTransactionFilter = st;
