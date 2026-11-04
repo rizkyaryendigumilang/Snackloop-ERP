@@ -168,78 +168,74 @@
                 <i class="fa-solid fa-chevron-left navbar__toggle-icon"></i>
             </button>
             <ul class="navbar__menu">
+                <li id="navbar-hover-pill" class="navbar__hover-pill" aria-hidden="true"></li>
+                <li id="navbar-active-pill" class="navbar__active-pill" aria-hidden="true"></li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('dashboard')" id="btn-dashboard" class="navbar__link active">
+                    <a href="#" onclick="switchTab('dashboard'); return false;" id="btn-dashboard" class="navbar__link active">
                         <i data-feather="home"></i><span data-i18n="nav_dashboard">Dashboard</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('transactions')" id="btn-transactions" class="navbar__link">
+                    <a href="#" onclick="switchTab('transactions'); return false;" id="btn-transactions" class="navbar__link">
                         <i data-feather="book-open"></i><span data-i18n="nav_transactions">Buku Transaksi</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('invoices')" id="btn-invoices" class="navbar__link">
+                    <a href="#" onclick="switchTab('invoices'); return false;" id="btn-invoices" class="navbar__link">
                         <i data-feather="file-text"></i><span data-i18n="nav_invoices">Manajemen Invoice</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('returns')" id="btn-returns" class="navbar__link">
+                    <a href="#" onclick="switchTab('returns'); return false;" id="btn-returns" class="navbar__link">
                         <i data-feather="rotate-ccw"></i><span data-i18n="nav_returns">Retur & Klaim Agen</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('jastip')" id="btn-jastip" class="navbar__link">
+                    <a href="#" onclick="switchTab('jastip'); return false;" id="btn-jastip" class="navbar__link">
                         <i data-feather="shopping-bag"></i><span data-i18n="nav_jastip">Jastip</span>
                     </a>
                 </li>
                 <li class="navbar__item" id="nav-item-reports">
-                    <a href="#" onclick="switchTab('reports')" id="btn-reports" class="navbar__link">
+                    <a href="#" onclick="switchTab('reports'); return false;" id="btn-reports" class="navbar__link">
                         <i data-feather="bar-chart-2"></i><span data-i18n="nav_reports">Laporan Bisnis</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('calculator')" id="btn-calculator" class="navbar__link">
+                    <a href="#" onclick="switchTab('calculator'); return false;" id="btn-calculator" class="navbar__link">
                         <i data-feather="cpu"></i><span data-i18n="nav_calculator">Kalkulator Repack</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('master')" id="btn-master" class="navbar__link">
+                    <a href="#" onclick="switchTab('master'); return false;" id="btn-master" class="navbar__link">
                         <i data-feather="archive"></i><span data-i18n="nav_master">Master Produk</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="switchTab('customers')" id="btn-customers" class="navbar__link">
+                    <a href="#" onclick="switchTab('customers'); return false;" id="btn-customers" class="navbar__link">
                         <i data-feather="users"></i><span data-i18n="nav_customers">Data Pelanggan</span>
                     </a>
                 </li>
                 <li class="navbar__item" id="nav-item-agents">
-                    <a href="#" onclick="switchTab('agents')" id="btn-agents" class="navbar__link">
+                    <a href="#" onclick="switchTab('agents'); return false;" id="btn-agents" class="navbar__link">
                         <i data-feather="truck"></i><span data-i18n="nav_agents">Kelola Agen</span>
                     </a>
                 </li>
                 <li class="navbar__item" id="nav-item-users" style="display: none;">
-                    <a href="#" onclick="switchTab('users')" id="btn-users" class="navbar__link">
+                    <a href="#" onclick="switchTab('users'); return false;" id="btn-users" class="navbar__link">
                         <i data-feather="user-plus"></i><span data-i18n="nav_users">Kelola Pengguna</span>
                     </a>
                 </li>
-                <li class="navbar__item" id="nav-item-settings">
-                    <a href="#" onclick="openSettingsModal('app')" id="btn-settings" class="navbar__link" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
+                <li class="navbar__item navbar__item--divider" id="nav-item-settings">
+                    <a href="#" onclick="openSettingsModal('app'); return false;" id="btn-settings" class="navbar__link" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
                         <i data-feather="settings"></i><span data-i18n="nav_settings">Pengaturan</span>
                     </a>
                 </li>
                 <li class="navbar__item">
-                    <a href="#" onclick="logoutApp()" class="navbar__link" title="Keluar dari Aplikasi" data-i18n-title="nav_logout">
+                    <a href="#" onclick="logoutApp(); return false;" class="navbar__link navbar__link--logout" title="Keluar dari Aplikasi" data-i18n-title="nav_logout">
                         <i data-feather="log-out"></i><span data-i18n="nav_logout">Keluar</span>
                     </a>
                 </li>
             </ul>
-            
-            <div class="pb-6 flex justify-center">
-                <button onclick="openSettingsModal('app')" class="w-12 h-12 rounded-2xl theme-input border flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm group" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
-                    <i class="fa-solid fa-sliders text-base text-slate-600 dark:text-indigo-400 group-hover:rotate-90 transition-transform duration-300"></i>
-                </button>
-            </div>
         </nav>
 
         <!-- MAIN CONTENT -->

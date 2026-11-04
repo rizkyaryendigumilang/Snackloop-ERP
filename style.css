@@ -131,25 +131,25 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 
 .navbar {
   position: fixed;
-  top: var(--spacer);
-  left: var(--spacer);
+  top: 0.85rem;
+  left: 0.85rem;
   background: var(--card-bg);
-  border-radius: var(--borderRadius);
-  padding: var(--spacer) 0;
+  border-radius: 18px;
+  padding: 1.95rem 0.45rem 0.65rem 0.45rem;
   border: 1px solid var(--border-color);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  height: calc(100vh - (var(--spacer) * 2));
-  width: 5.5rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+  height: calc(100dvh - 1.7rem);
+  width: 4.5rem;
   z-index: 100;
   transition: transform 220ms var(--ease-out), background-color 0.3s ease;
 }
 
 .navbar__toggle-btn {
   position: absolute;
-  top: 1.35rem;
-  right: -0.75rem;
-  width: 1.5rem;
-  height: 1.5rem;
+  top: 0.4rem;
+  right: -0.68rem;
+  width: 1.35rem;
+  height: 1.35rem;
   min-height: 0 !important;
   padding: 0 !important;
   border-radius: 9999px;
@@ -161,8 +161,8 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 102;
-  transition: transform 180ms var(--ease-out), color 180ms var(--ease-out), border-color 180ms var(--ease-out), background-color 180ms var(--ease-out);
+  z-index: 104;
+  transition: transform 180ms var(--ease-out), color 180ms var(--ease-out), border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), top 220ms var(--ease-out), right 220ms var(--ease-out);
 }
 
 .navbar__toggle-btn:hover {
@@ -171,17 +171,18 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .navbar__toggle-icon {
-  font-size: 0.625rem;
+  font-size: 0.6rem;
   line-height: 1;
   transition: transform 220ms var(--ease-out);
 }
 
 body.navbar-collapsed .navbar {
-  transform: translateX(calc(-100% - var(--spacer)));
+  transform: translateX(calc(-100% - 0.85rem));
 }
 
 body.navbar-collapsed .navbar__toggle-btn {
-  right: -2.15rem;
+  top: 0.9rem;
+  right: -2.1rem;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
@@ -194,70 +195,167 @@ body.navbar-collapsed .navbar__link span {
   pointer-events: none !important;
 }
 
+.navbar__menu {
+  position: relative;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(0.1rem, 0.35dvh, 0.25rem);
+  width: 100%;
+  height: 100%;
+}
+
+.navbar__item {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  position: static;
+}
+
+.navbar__item--divider {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  position: relative;
+}
+
+.navbar__item--divider::before {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.85rem;
+  height: 1px;
+  background: var(--border-color);
+  border-radius: 999px;
+}
+
+.navbar__active-pill,
+.navbar__hover-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2.6rem;
+  height: 2.55rem;
+  border-radius: 11px;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.navbar__active-pill {
+  z-index: 1;
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.32);
+  transition: transform 240ms var(--ease-out), width 180ms var(--ease-out), height 180ms var(--ease-out), opacity 160ms ease;
+}
+
+.navbar__hover-pill {
+  z-index: 0;
+  background: rgba(79, 70, 229, 0.09);
+  transition: transform 180ms var(--ease-out), width 160ms var(--ease-out), height 160ms var(--ease-out), opacity 140ms ease, background-color 140ms ease;
+}
+
+body.dark-theme .navbar__hover-pill {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.navbar__hover-pill.is-danger {
+  background: rgba(244, 63, 94, 0.11) !important;
+}
+
 .navbar__link {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 2.9rem;
-  width: 3.4rem;
-  margin: 0.15rem auto;
-  border-radius: 12px;
+  width: 2.6rem;
+  height: clamp(2rem, calc((100dvh - 7.5rem) / 13), 2.55rem);
+  margin: 0 auto;
+  border-radius: 11px;
   color: var(--text);
   transition: color 180ms var(--ease-out), background-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
   text-decoration: none;
 }
 
+.navbar__link svg,
+.navbar__link i {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9px;
+  transition: transform 180ms var(--ease-out);
+  flex-shrink: 0;
+}
+
 .navbar__link span {
   position: absolute;
-  left: calc(100% + 0.65rem);
-  transform: translateX(-0.5rem);
+  top: 50%;
+  left: calc(100% + 0.75rem);
+  transform: translate3d(-6px, -50%, 0);
   opacity: 0;
   pointer-events: none;
   color: var(--text-main);
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  padding: 0.5rem 0.85rem;
-  transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out);
+  padding: 0.45rem 0.8rem;
+  transition: transform 160ms var(--ease-out), opacity 150ms ease;
   border-radius: 10px;
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12);
   white-space: nowrap;
-  z-index: 105;
+  z-index: 106;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .navbar__link.active {
   background: var(--primary);
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.28);
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
-.navbar:not(:hover) .navbar__link:focus,
-.navbar__link:hover span {
-  opacity: 1;
-  transform: translateX(0);
+.navbar__menu.pill-ready .navbar__link.active {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-.navbar__menu {
-  position: relative;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.navbar .pb-6 {
-  display: none;
+@media (hover: hover) and (pointer: fine) {
+  .navbar__link:hover span {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0);
+  }
+  .navbar__link:hover svg {
+    transform: scale(1.06);
+  }
 }
 
 #main-content {
-  margin-left: 100px;
+  margin-left: 5.6rem;
   transition: margin-left 220ms var(--ease-out), padding-left 220ms var(--ease-out);
 }
 
 body.navbar-collapsed #main-content {
   margin-left: 0;
   padding-left: 2.5rem;
+}
+
+@keyframes tabPanelEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tab-content:not(.hidden) {
+  animation: tabPanelEnter 180ms var(--ease-out);
 }
 
 @media print {
@@ -335,12 +433,15 @@ body.navbar-collapsed #main-content {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .month-pill-enter {
+  .month-pill-enter,
+  .tab-content:not(.hidden) {
     animation: none !important;
   }
   .year-chevron-icon,
   .year-selector-btn,
-  .month-pill-btn {
+  .month-pill-btn,
+  .navbar__active-pill,
+  .navbar__hover-pill {
     transition-duration: 0.01ms !important;
   }
 }
@@ -451,35 +552,52 @@ header {
     scrollbar-width: none !important;
   }
 
+  .navbar__item {
+    width: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  .navbar__item--divider {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    padding-left: 0.35rem !important;
+  }
+
+  .navbar__item--divider::before {
+    top: 50% !important;
+    left: 0 !important;
+    transform: translateY(-50%) !important;
+    width: 1px !important;
+    height: 1.5rem !important;
+  }
+
+  .navbar__hover-pill {
+    display: none !important;
+  }
+
   .navbar__link {
-    width: 3.75rem !important;
-    height: 3.25rem !important;
+    width: 3.1rem !important;
+    height: 2.9rem !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
     border-radius: 12px !important;
     padding: 0 !important;
+    flex-shrink: 0 !important;
   }
 
+  .navbar__link svg,
   .navbar__link i {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
+    width: 1.2rem !important;
+    height: 1.2rem !important;
   }
 
   .navbar__link span {
     display: none !important; /* Mencegah tooltip hover desktop tersangkut di layar sentuh HP */
   }
 
-  .navbar .pb-6 {
-    display: none !important; /* Sembunyikan ikon gir duplikat di footer navbar */
-  }
-
-  .navbar__item:last-child:before {
-    display: none !important; /* Nonaktifkan background pill sliding desktop */
-  }
-
-  .navbar__link.active {
+  .navbar__menu:not(.pill-ready) .navbar__link.active {
     background: var(--primary) !important;
     color: #ffffff !important;
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3) !important;
@@ -501,13 +619,14 @@ button, a, [role="button"], .navbar__link, .btn-magnetic, .theme-btn-filter, sel
     transform: translateY(-1px);
     filter: brightness(1.05);
   }
-  .navbar__link:not(.active):hover {
+  .navbar__link:not(.active):not(.navbar__link--logout):hover {
     color: var(--primary);
-    background: rgba(79, 70, 229, 0.1);
   }
-  body.dark-theme .navbar__link:not(.active):hover {
+  body.dark-theme .navbar__link:not(.active):not(.navbar__link--logout):hover {
     color: #818cf8;
-    background: rgba(99, 102, 241, 0.16);
+  }
+  .navbar__link--logout:hover {
+    color: #f43f5e !important;
   }
   .theme-btn-filter:hover {
     opacity: 0.9;
@@ -516,12 +635,15 @@ button, a, [role="button"], .navbar__link, .btn-magnetic, .theme-btn-filter, sel
 
 /* Umpan balik sentuhan instan saat jari mendarat (Instant Tactile Press Feedback) */
 button:active,
-a:active,
 [role="button"]:active,
-.btn-magnetic:active,
-.navbar__link:active {
+.btn-magnetic:active {
   transform: scale(0.96) !important;
   transition: transform 80ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.navbar__link:active svg,
+.navbar__link:active i {
+  transform: scale(0.88) !important;
 }
 
 /* Guliran momentum mulus & independen pada tabel dan kontainer */

@@ -354,6 +354,8 @@ async function initApp() {
     renderCustomer();
     renderInvoicesTable();
     if(currentRole === 'super_admin') renderUsers();
+    if (typeof initNavbarPillInteractions === 'function') initNavbarPillInteractions();
+    if (typeof syncNavbarActivePill === 'function') syncNavbarActivePill(true);
     if(navigator.onLine) {
         syncOutboxQueue();
     }
@@ -436,10 +438,22 @@ function switchTab(tabId) {
     document.querySelectorAll('.navbar__link').forEach(el => el.classList.remove('active'));
     
     const targetTab = document.getElementById('tab-' + tabId);
-    if(targetTab) targetTab.classList.remove('hidden');
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+    }
     
     const activeBtn = document.getElementById('btn-' + tabId);
-    if(activeBtn) activeBtn.classList.add('active');
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        if (typeof activeBtn.blur === 'function') activeBtn.blur();
+        if (typeof window !== 'undefined' && window.innerWidth <= 768 && typeof activeBtn.scrollIntoView === 'function') {
+            try { activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (e) {}
+        }
+    }
+
+    const hoverPill = typeof document !== 'undefined' ? document.getElementById('navbar-hover-pill') : null;
+    if (hoverPill) hoverPill.style.opacity = '0';
+    if (typeof syncNavbarActivePill === 'function') syncNavbarActivePill(false);
 
     const titles = (typeof TAB_TITLES !== 'undefined' && TAB_TITLES[currentLanguage])
         ? TAB_TITLES[currentLanguage]
@@ -459,7 +473,11 @@ function switchTab(tabId) {
 
     if(tabId === 'dashboard') {
         updateDashboard();
-        setTimeout(() => { renderFinancialChart(); }, 100);
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => renderFinancialChart());
+        } else {
+            setTimeout(() => { renderFinancialChart(); }, 50);
+        }
     }
     if(tabId === 'transactions') renderMonthTabs();
     if(tabId === 'invoices') renderInvoicesTable();

@@ -167,6 +167,75 @@ function refreshAllViews() {
     if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
 }
 
+function getRelativeNavOffset(linkEl, menuEl) {
+    let x = 0, y = 0, el = linkEl;
+    while (el && el !== menuEl && menuEl.contains(el)) {
+        x += el.offsetLeft;
+        y += el.offsetTop;
+        el = el.offsetParent;
+    }
+    return { x, y, w: linkEl.offsetWidth, h: linkEl.offsetHeight };
+}
+
+function syncNavbarActivePill(immediate = false) {
+    if (typeof document === 'undefined') return;
+    const menuEl = document.querySelector('.navbar__menu');
+    const pill = document.getElementById('navbar-active-pill');
+    const activeLink = menuEl ? menuEl.querySelector('.navbar__link.active') : null;
+    if (!menuEl || !pill || !activeLink) return;
+
+    const { x, y, w, h } = getRelativeNavOffset(activeLink, menuEl);
+    if (w <= 0 || h <= 0) return;
+
+    const shouldSnap = immediate || !menuEl.classList.contains('pill-ready');
+    if (shouldSnap) pill.style.transition = 'none';
+
+    pill.style.width = `${w}px`;
+    pill.style.height = `${h}px`;
+    pill.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    pill.style.opacity = '1';
+
+    if (shouldSnap) {
+        void pill.offsetWidth;
+        pill.style.transition = '';
+        menuEl.classList.add('pill-ready');
+    }
+}
+
+function initNavbarPillInteractions() {
+    if (typeof document === 'undefined') return;
+    const menuEl = document.querySelector('.navbar__menu');
+    const hoverPill = document.getElementById('navbar-hover-pill');
+    if (!menuEl || !hoverPill || menuEl.dataset.pillBound === 'true') return;
+    menuEl.dataset.pillBound = 'true';
+
+    menuEl.querySelectorAll('.navbar__link').forEach(link => {
+        link.addEventListener('mouseenter', () => {
+            const { x, y, w, h } = getRelativeNavOffset(link, menuEl);
+            if (w <= 0 || h <= 0) return;
+            const wasHidden = hoverPill.style.opacity !== '1';
+            if (wasHidden) hoverPill.style.transition = 'none';
+            hoverPill.classList.toggle('is-danger', link.classList.contains('navbar__link--logout'));
+            hoverPill.style.width = `${w}px`;
+            hoverPill.style.height = `${h}px`;
+            hoverPill.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            if (wasHidden) {
+                void hoverPill.offsetWidth;
+                hoverPill.style.transition = '';
+            }
+            hoverPill.style.opacity = link.classList.contains('active') ? '0' : '1';
+        });
+    });
+
+    menuEl.addEventListener('mouseleave', () => {
+        hoverPill.style.opacity = '0';
+    });
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('resize', () => syncNavbarActivePill(true));
+    }
+}
+
 function toggleNavbarCollapse(forceCollapsed) {
     if (typeof document === 'undefined' || !document.body) return false;
     const isCurrentlyCollapsed = document.body.classList.contains('navbar-collapsed');
@@ -249,6 +318,8 @@ document.addEventListener("DOMContentLoaded", async function() {
     }
 
     if (typeof feather !== 'undefined') feather.replace();
+    initNavbarPillInteractions();
+    syncNavbarActivePill(true);
 });
 
 // ======================= SISTEM HAK AKSES PERAN (ROLE-BASED PERMISSIONS) ======================= //
@@ -272,13 +343,13 @@ function applyRolePermissions() {
 
     // 2. Menu Navigasi Eksklusif Owner (Kelola Akun & Laporan Finansial)
     const navUsers = document.getElementById('nav-item-users');
-    if (navUsers) navUsers.style.display = isSuperAdmin ? 'block' : 'none';
+    if (navUsers) navUsers.style.display = isSuperAdmin ? '' : 'none';
 
     const navReports = document.getElementById('nav-item-reports');
-    if (navReports) navReports.style.display = isSuperAdmin ? 'block' : 'none';
+    if (navReports) navReports.style.display = isSuperAdmin ? '' : 'none';
 
     const navSettings = document.getElementById('nav-item-settings');
-    if (navSettings) navSettings.style.display = 'block';
+    if (navSettings) navSettings.style.display = '';
 
     // 3. Form Input Cards
     // Staff Rekap & Owner BISA input transaksi, pelanggan, agen, repack, master
@@ -294,5 +365,11 @@ function applyRolePermissions() {
     // 4. Tombol & Fitur Biaya Operasional (Hanya Owner)
     const btnExpense = document.querySelector('button[onclick="openExpenseModal()"]');
     if (btnExpense) btnExpense.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => syncNavbarActivePill(true));
+    } else {
+        syncNavbarActivePill(true);
+    }
 }
 
