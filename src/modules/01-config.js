@@ -72,6 +72,24 @@ window.SnackLoop = {
         filter: currentAuditActionFilter,
         search: currentAuditSearchKeyword
     }),
+    getState: () => ({
+        agentData,
+        masterData,
+        customerData,
+        repackData,
+        transactionData,
+        expenseData,
+        invoiceData,
+        priceHistoryData,
+        returnData,
+        auditLogData,
+        activeMonthSheet,
+        activeTransactionYear,
+        activeInvoiceMonthSheet,
+        activeInvoiceYear
+    }),
+    getLocalDateStr: (d) => (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : new Date().toISOString().slice(0, 10)),
+    normalizeWaPhone: (p, fb) => (typeof normalizeWaPhone === 'function' ? normalizeWaPhone(p, fb) : String(p || '').replace(/\D/g, '').replace(/^0/, '62')),
     getClient: () => supabaseClient
 };
 

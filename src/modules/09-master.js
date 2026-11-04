@@ -152,7 +152,7 @@ function closeHistoryModal() {
 }
 
 function confirmDeleteMaster(id) {
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menghapus produk.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus produk master ini?", async () => {
         const idx = masterData.findIndex(m => m.id === id);
         const item = idx !== -1 ? masterData[idx] : null;
@@ -161,7 +161,7 @@ function confirmDeleteMaster(id) {
         renderMaster();
         renderDropdowns();
         if (item) logAuditActivity('MASTER_DELETE', item.name, `Menghapus produk master: ${item.name} (${item.source})`);
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Produk master berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_MASTER',
@@ -175,7 +175,7 @@ function confirmDeleteMaster(id) {
 
 document.getElementById('master-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(currentRole === 'view') return showNotification("Peringatan", "Akun View tidak diizinkan.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menambah produk.", "warning");
     
     let rawName = document.getElementById('m-name').value.trim();
     let normalizedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
@@ -199,7 +199,12 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
             name: normalizedName, source, buy, sell
         }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempMaster.id = data[0].id;
+        if(data && data.length > 0) {
+            tempMaster.id = data[0].id;
+            saveCacheToLocal();
+            renderMaster();
+            renderDropdowns();
+        }
     });
 });
 
@@ -222,14 +227,14 @@ async function renderCustomer() {
 }
 
 function confirmDeleteCustomer(id) {
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menghapus pelanggan.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus pelanggan ini?", async () => {
         const idx = customerData.findIndex(c => c.id === id);
         if(idx !== -1) customerData.splice(idx, 1);
         saveCacheToLocal();
         renderCustomer();
         renderDropdowns();
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Data pelanggan berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_CUSTOMER',
@@ -243,11 +248,13 @@ function confirmDeleteCustomer(id) {
 
 document.getElementById('cust-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menambah pelanggan.", "warning");
     
     let rawCust = document.getElementById('cu-name').value.trim();
     let normCust = rawCust.charAt(0).toUpperCase() + rawCust.slice(1);
-    let rawPhone = document.getElementById('cu-phone').value.trim().replace(/^0/, '62');
+    let rawPhone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(document.getElementById('cu-phone').value)
+        : document.getElementById('cu-phone').value.trim().replace(/\D/g, '').replace(/^0/, '62');
 
     const tempCust = { id: Date.now(), name: normCust, phone: rawPhone };
     customerData.push(tempCust);
@@ -263,7 +270,12 @@ document.getElementById('cust-form')?.addEventListener('submit', async function(
     }, async () => {
         const { data, error } = await supabaseClient.from('customers').insert([{ name: normCust, phone: rawPhone }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempCust.id = data[0].id;
+        if(data && data.length > 0) {
+            tempCust.id = data[0].id;
+            saveCacheToLocal();
+            renderCustomer();
+            renderDropdowns();
+        }
     });
 });
 

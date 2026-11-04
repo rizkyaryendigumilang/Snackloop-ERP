@@ -387,6 +387,14 @@ async function initApp() {
 
 async function loadDataFromCloud() {
     try {
+        if (localStorage.getItem('snackloop_pending_restore_sync')) {
+            if (typeof syncRestoredStateToCloud === 'function') {
+                await syncRestoredStateToCloud();
+            }
+            if (localStorage.getItem('snackloop_pending_restore_sync')) {
+                return;
+            }
+        }
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),
             supabaseClient.from('master').select('*').order('name', { ascending: true }),
@@ -413,32 +421,6 @@ async function loadDataFromCloud() {
         }
         if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
             jastipData = resJastip.data;
-        }
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
-            try {
-                const { data: newAdmin } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'admin_kiky', password: await hashPassword('123456'), role: 'super_admin' }])
-                    .select('id, username, role');
-                if (newAdmin && newAdmin.length > 0) {
-                    userData.push(newAdmin[0]);
-                } else {
-                    userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-                }
-            } catch(e) {
-                userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-            }
-        }
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'staff1')) {
-            try {
-                const { data: newStaff } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'staff1', password: await hashPassword('password123'), role: 'staff_rekap' }])
-                    .select('id, username, role');
-                if (newStaff && newStaff.length > 0) {
-                    userData.push(newStaff[0]);
-                }
-            } catch(e) {}
         }
         invoiceData = resInv.data || [];
         priceHistoryData = resHistory.data || [];
@@ -495,7 +477,7 @@ function switchTab(tabId) {
         'calculator': 'Kalkulator & Gudang Repack', 
         'master': 'Data Master Produk', 
         'customers': 'Manajemen Pelanggan', 
-        'agents': 'Kelola Agent Pool',
+        'agents': 'Kelola Agen & Supplier',
         'users': 'Kelola Akun User' 
     };
     const titlesEn = {

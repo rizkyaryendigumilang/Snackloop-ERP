@@ -167,7 +167,11 @@ document.getElementById('agent-form')?.addEventListener('submit', async function
     }, async () => {
         const { data, error } = await supabaseClient.from('agents').insert([{ name }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempAgent.id = data[0].id;
+        if(data && data.length > 0) {
+            tempAgent.id = data[0].id;
+            saveCacheToLocal();
+            renderAgents();
+        }
     });
 });
 

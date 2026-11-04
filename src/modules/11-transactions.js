@@ -511,15 +511,7 @@ function getInvoiceMonthKey(dateStr) {
 
 function getInvoiceMonthSortVal(mk) {
     if (!mk || mk === 'all' || mk === 'Lainnya') return 0;
-    const p = mk.split(' ');
-    if (p.length === 2) {
-        const m = INVOICE_MONTH_ORDER.indexOf(p[0]);
-        const y = parseInt(p[1], 10);
-        if (m !== -1 && !isNaN(y)) {
-            return y * 100 + (m + 1);
-        }
-    }
-    return 0;
+    return typeof parseMonthKey === 'function' ? parseMonthKey(mk) : 0;
 }
 
 function setInvoiceYear(yr, forceExpand = false) {
@@ -995,11 +987,9 @@ function openWaInvoiceTemplatesModal(invNumber) {
     if (!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
 
     const custObj = customerData.find(c => c.name && c.name.toLowerCase() === (inv.customer_name || '').toLowerCase());
-    let phone = (custObj && custObj.phone) ? custObj.phone : '';
-    phone = phone.replace(/\D/g, '');
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone && appSettings?.whatsappPhone) phone = appSettings.whatsappPhone.replace(/\D/g, '');
-    if (phone && phone.startsWith('0')) phone = '62' + phone.substring(1);
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(custObj?.phone, appSettings?.whatsappPhone)
+        : String(custObj?.phone || appSettings?.whatsappPhone || '').replace(/\D/g, '').replace(/^0/, '62');
 
     const todayMs = _getTodayMidnightMs();
     const dMs = _parseIsoDateUtcMs(inv.date);
@@ -1169,13 +1159,9 @@ function openWaWithCurrentMessage() {
     const textarea = document.getElementById('wa-modal-textarea');
     const msg = textarea ? textarea.value : '';
     const phoneInput = document.getElementById('wa-modal-phone');
-    let phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone && appSettings?.whatsappPhone) {
-        phone = appSettings.whatsappPhone.replace(/\D/g, '');
-        if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    }
-    if (!phone) phone = '628123456789';
+    const phone = (typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(phoneInput ? phoneInput.value : '', appSettings?.whatsappPhone)
+        : String(phoneInput ? phoneInput.value : '').replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }

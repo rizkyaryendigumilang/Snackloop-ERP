@@ -101,7 +101,7 @@ function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const timestamp = new Date().toISOString();
-    const dateFormatted = timestamp.slice(0, 10);
+    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : timestamp.slice(0, 10);
     const backupObj = {
         meta: {
             system: "SnackLoop ERP",
@@ -168,7 +168,9 @@ function restoreDataJSON(event) {
                     if (typeof applyAppSettingsUI === 'function') applyAppSettingsUI();
                 }
 
-                saveCacheToLocal();
+                await saveCacheToLocal(true);
+                localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
+                if (typeof syncRestoredStateToCloud === 'function') syncRestoredStateToCloud();
                 renderMonthTabs();
                 renderMaster();
                 renderCustomer();

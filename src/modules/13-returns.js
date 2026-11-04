@@ -264,7 +264,7 @@ function openReturnModalFromTrx(trxId) {
     }
 
     openReturnModal({
-        date: new Date().toISOString().split('T')[0],
+        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0],
         customer: foundTrx.customer,
         itemName: foundTrx.itemName,
         agent: foundTrx.source !== 'Repack' ? foundTrx.source : (agentData[0]?.name || ''),
@@ -393,12 +393,30 @@ function saveReturnRecord(e) {
         const newExpense = {
             id: 'exp_' + Date.now(),
             date: date,
-            description: `Kerugian Retur Rusak: ${itemName} (${qty} pcs) - ${customer}`,
-            amount: totalModal
+            description: `Kerugian Retur Rusak: ${itemName} (${qty} pcs) - ${customer} [Ref: ${returnCode}]`,
+            amount: totalModal,
+            returnId: returnId
         };
         expenseData.unshift(newExpense);
 
-        // Background dispatch
+        // Background dispatch transaksi koreksi & beban kerugian
+        dispatchOutboxMutation('transactions', 'insert', {
+            month_key: monthKey,
+            date: date,
+            customer: customer,
+            item_name: itemName,
+            source: agent,
+            qty: -qty,
+            buy: buy,
+            extra_cost: 0,
+            total_modal: -totalModal,
+            sell: sell,
+            total_sell: -totalSell,
+            status: 'Belum Lunas',
+            profit_per_item: (sell - buy),
+            notes: `[RETUR WRITE-OFF] ${reason} - Ref: ${returnCode}`
+        });
+
         dispatchOutboxMutation('expenses', 'insert', {
             date: date,
             description: newExpense.description,
@@ -447,7 +465,7 @@ function resolveReturnClaim(returnId) {
     if (!item) return;
 
     item.claim_status = 'selesai';
-    item.resolved_date = new Date().toISOString().split('T')[0];
+    item.resolved_date = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'update', {
@@ -467,21 +485,47 @@ function confirmDeleteReturn(returnId) {
     if (!item) return;
 
     showConfirmModal("Konfirmasi Hapus Retur", `Apakah Anda yakin ingin menghapus catatan retur "${item.return_code || item.item_name}"?`, () => {
-        // Bersihkan transaksi koreksi jika ada
+        // 1. Bersihkan transaksi koreksi lokal (cocokkan returnId atau kode referensi retur di notes)
         for (let mk in transactionData) {
-            const idx = (transactionData[mk] || []).findIndex(t => t.returnId === returnId);
-            if (idx !== -1) {
-                transactionData[mk].splice(idx, 1);
+            const list = transactionData[mk] || [];
+            for (let i = list.length - 1; i >= 0; i--) {
+                const t = list[i];
+                if (t.returnId === returnId || (item.return_code && t.notes && t.notes.includes(item.return_code))) {
+                    list.splice(i, 1);
+                }
             }
         }
 
+        // 2. Bersihkan beban kerugian retur rusak di expenseData jika ada
+        if (Array.isArray(expenseData)) {
+            for (let i = expenseData.length - 1; i >= 0; i--) {
+                const exp = expenseData[i];
+                const matchRef = item.return_code && exp.description && exp.description.includes(item.return_code);
+                const matchLegacy = exp.date === item.date && exp.description && exp.description.includes(`Kerugian Retur Rusak: ${item.item_name}`);
+                if (exp.returnId === returnId || matchRef || matchLegacy) {
+                    expenseData.splice(i, 1);
+                }
+            }
+        }
+
+        // 3. Hapus dari returnData lokal
         const retIdx = returnData.findIndex(r => r.id === returnId);
         if (retIdx !== -1) returnData.splice(retIdx, 1);
 
         saveCacheToLocal();
         dispatchOutboxMutation('returns', 'delete', { id: returnId });
 
-        logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
+        // 4. Sinkronkan penghapusan transaksi koreksi & beban retur di Supabase Cloud
+        if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            if (item.return_code) {
+                supabaseClient.from('transactions').delete().ilike('notes', `%${item.return_code}%`).then(() => {}).catch(() => {});
+            }
+            if (item.action_type === 'beban_rusak' && item.item_name) {
+                supabaseClient.from('expenses').delete().eq('date', item.date).ilike('description', `%Kerugian Retur Rusak: ${item.item_name}%`).then(() => {}).catch(() => {});
+            }
+        }
+
+        logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs) beserta jurnal koreksinya`);
 
         renderReturns();
         renderTransactionsForActiveSheet();
@@ -489,7 +533,7 @@ function confirmDeleteReturn(returnId) {
         renderFinancialChart();
         renderInvoicesTable();
 
-        showNotification("Sukses", "Catatan retur berhasil dihapus.", "success");
+        showNotification("Sukses", "Catatan retur dan jurnal koreksinya berhasil dihapus.", "success");
     });
 }
 

@@ -839,8 +839,9 @@ function bookJastipToFinance(id) {
         const trxEntry = {
             id: trxId,
             monthKey: monthKey,
-            date: now.toISOString().slice(0, 10),
+            date: typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10),
             customer: `${item.customer_name} (Jastip)`,
+            itemName: `${item.item_name} [${item.id}]`,
             item: `${item.item_name} [${item.id}]`,
             source: 'Jastip',
             qty: item.item_qty,
@@ -905,7 +906,9 @@ function shareJastipInvoiceWA(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
 
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) {
         return showNotification("Peringatan", "Nomor WhatsApp pelanggan belum diisi.", "warning");
     }
@@ -951,7 +954,9 @@ function shareJastipRefundWA(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
 
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) return showNotification("Peringatan", "Nomor WhatsApp belum diisi.", "warning");
 
     const appSettings = typeof loadAppSettings === 'function' ? loadAppSettings() : {};
@@ -970,7 +975,9 @@ function shareJastipRefundWA(id) {
 function openJastipWhatsApp(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) return showNotification("Peringatan", "Nomor WhatsApp belum diisi.", "warning");
     window.open(`https://wa.me/${phone}`, '_blank');
 }

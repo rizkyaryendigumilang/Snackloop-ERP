@@ -369,7 +369,9 @@ function renderReportReceivables(data) {
     }
 
     tbody.innerHTML = list.map(item => {
-        const cleanPhone = (item.phone || '').replace(/[^0-9]/g, '');
+        const cleanPhone = typeof normalizeWaPhone === 'function'
+            ? normalizeWaPhone(item.phone)
+            : (item.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
             <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
                 <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
@@ -390,10 +392,9 @@ function renderReportReceivables(data) {
 }
 
 function sendReportWhatsApp(phone, custName, amount, count) {
-    let formattedPhone = phone;
-    if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62' + formattedPhone.slice(1);
-    }
+    const formattedPhone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(phone)
+        : String(phone || '').replace(/\D/g, '').replace(/^0/, '62');
     const message = encodeURIComponent(
         `Halo ${custName},\n\nKami dari SnackLoop ERP ingin mengonfirmasi bahwa terdapat ${count} nota transaksi yang belum lunas dengan total sebesar Rp ${amount.toLocaleString('id-ID')}.\n\nMohon informasi estimasi pembayarannya ya. Terima kasih banyak atas kerjasamanya!`
     );
@@ -510,7 +511,7 @@ function exportToExcel(reportType) {
 
     const data = getFilteredReportData();
     const wb = XLSX.utils.book_new();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
 
     // Helper calculations
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);

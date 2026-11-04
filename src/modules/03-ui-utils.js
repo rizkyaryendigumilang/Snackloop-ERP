@@ -94,6 +94,22 @@ function sortMonthKeys(keys, asc = true) {
     });
 }
 
+// ======================= TANGGAL LOKAL & NORMALISASI NOMOR WHATSAPP ======================= //
+function getLocalDateStr(dateObj = new Date()) {
+    const d = dateObj instanceof Date && !isNaN(dateObj.getTime()) ? dateObj : new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function normalizeWaPhone(rawPhone, fallback = '') {
+    let clean = String(rawPhone || '').replace(/\D/g, '');
+    if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    if (!clean && fallback) {
+        clean = String(fallback).replace(/\D/g, '');
+        if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    }
+    return clean;
+}
+
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
 document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');

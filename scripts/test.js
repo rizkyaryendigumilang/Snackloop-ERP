@@ -134,6 +134,53 @@ runTest('Verify zero duplicate top-level functions in script.js and no transitio
   }
 });
 
+// 13. Unit Tests for Core Utilities, Date/Phone Helpers, Financial Math & Auth Guardrails
+runTest('Verify core unit logic (month sorting, WA phone normalization, local date, auth safety)', () => {
+  const assert = require('assert');
+  const vm = require('vm');
+  const modulesDir = path.join(rootDir, 'src', 'modules');
+  const uiUtilsCode = fs.readFileSync(path.join(modulesDir, '03-ui-utils.js'), 'utf8');
+  const authCode = fs.readFileSync(path.join(modulesDir, '06-auth.js'), 'utf8');
+
+  // Ensure loadDataFromCloud does not auto-recreate hardcoded default credentials
+  const loadCloudIdx = authCode.indexOf('async function loadDataFromCloud()');
+  const loadCloudBody = loadCloudIdx !== -1 ? authCode.slice(loadCloudIdx, loadCloudIdx + 2500) : '';
+  if (loadCloudBody.includes("hashPassword('123456')") || loadCloudBody.includes("hashPassword('password123')")) {
+    throw new Error('Hardcoded default credential auto-insert found in loadDataFromCloud()');
+  }
+
+  // Evaluate pure helper functions from 03-ui-utils.js in an isolated VM context
+  const sandbox = {
+    Date,
+    Math,
+    String,
+    Array,
+    Object,
+    parseInt,
+    isNaN,
+    document: { addEventListener: () => {} },
+    window: {}
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  // Test parseMonthKey & sortMonthKeys
+  assert.strictEqual(sandbox.parseMonthKey('Jan 2026'), 2026 * 12 + 0);
+  assert.strictEqual(sandbox.parseMonthKey('Nov 2026'), 2026 * 12 + 10);
+  const unsorted = ['Nov 2026', 'Mar 2026', 'Des 2025', 'Apr 2026'];
+  assert.deepStrictEqual(Array.from(sandbox.sortMonthKeys(unsorted, true)), ['Des 2025', 'Mar 2026', 'Apr 2026', 'Nov 2026']);
+  assert.deepStrictEqual(Array.from(sandbox.sortMonthKeys(unsorted, false)), ['Nov 2026', 'Apr 2026', 'Mar 2026', 'Des 2025']);
+
+  // Test normalizeWaPhone
+  assert.strictEqual(sandbox.normalizeWaPhone('0812-3456-7890'), '6281234567890');
+  assert.strictEqual(sandbox.normalizeWaPhone('+62 812 3456 7890'), '6281234567890');
+  assert.strictEqual(sandbox.normalizeWaPhone('', '0811-2233-4455'), '6281122334455');
+
+  // Test getLocalDateStr
+  const localSample = new Date(2026, 10, 5, 0, 30, 0); // 5 Nov 2026 00:30 local time
+  assert.strictEqual(sandbox.getLocalDateStr(localSample), '2026-11-05');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

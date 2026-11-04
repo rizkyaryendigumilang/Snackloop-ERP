@@ -468,7 +468,7 @@
                             <button type="button" onclick="openBulkOrderModal()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-1.5 !px-3.5 !text-xs flex items-center gap-2 shadow-sm" title="Buka checklist untuk memilih banyak snack sekaligus">
                                 <i class="fa-solid fa-list-check text-sm"></i>
                                 <span>Mode Cepat (Checklist Produk)</span>
-                                <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">Multi-Item</span>
+                                <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-semibold">Multi-Item</span>
                             </button>
                         </div>
                         <form id="trx-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-sm" novalidate>
@@ -961,7 +961,7 @@
                                         </div>
                                         <button onclick="exportReportOption('pdf', 'all')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-medium flex items-center justify-between transition">
                                             <span>Laporan Eksekutif Lengkap</span>
-                                            <span class="text-[10px] opacity-50 font-mono">Formal</span>
+                                            <span class="text-[10px] opacity-60 font-medium">Formal</span>
                                         </button>
                                         <button onclick="exportReportOption('pdf', 'pnl')" class="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-normal opacity-85 hover:opacity-100 flex items-center gap-2 transition pl-6">
                                             <span>Laporan Laba Rugi Saja</span>
@@ -1450,7 +1450,7 @@
                                     </h3>
                                     <span id="audit-log-count-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 border theme-input">0 Catatan</span>
                                 </div>
-                                <p class="text-xs opacity-70 mt-0.5">Rekam jejak forensik pembuatan nota, penghapusan data, pelunasan piutang, dan perubahan harga master.</p>
+                                <p class="text-xs opacity-70 mt-0.5">Catatan riwayat pembuatan nota, penghapusan data, pelunasan piutang, dan perubahan harga master.</p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <button type="button" onclick="exportAuditLogsCSV()" class="px-3 py-1.5 rounded-lg border theme-input text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-1.5" title="Ekspor rekap log ke Excel/CSV">

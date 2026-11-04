@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T15:29:50.976Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T15:44:29.057Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -78,6 +78,24 @@ window.SnackLoop = {
         filter: currentAuditActionFilter,
         search: currentAuditSearchKeyword
     }),
+    getState: () => ({
+        agentData,
+        masterData,
+        customerData,
+        repackData,
+        transactionData,
+        expenseData,
+        invoiceData,
+        priceHistoryData,
+        returnData,
+        auditLogData,
+        activeMonthSheet,
+        activeTransactionYear,
+        activeInvoiceMonthSheet,
+        activeInvoiceYear
+    }),
+    getLocalDateStr: (d) => (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : new Date().toISOString().slice(0, 10)),
+    normalizeWaPhone: (p, fb) => (typeof normalizeWaPhone === 'function' ? normalizeWaPhone(p, fb) : String(p || '').replace(/\D/g, '').replace(/^0/, '62')),
     getClient: () => supabaseClient
 };
 
@@ -434,6 +452,22 @@ function sortMonthKeys(keys, asc = true) {
     });
 }
 
+// ======================= TANGGAL LOKAL & NORMALISASI NOMOR WHATSAPP ======================= //
+function getLocalDateStr(dateObj = new Date()) {
+    const d = dateObj instanceof Date && !isNaN(dateObj.getTime()) ? dateObj : new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function normalizeWaPhone(rawPhone, fallback = '') {
+    let clean = String(rawPhone || '').replace(/\D/g, '');
+    if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    if (!clean && fallback) {
+        clean = String(fallback).replace(/\D/g, '');
+        if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+    }
+    return clean;
+}
+
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
 document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');
@@ -712,7 +746,7 @@ async function logAuditActivity(action, target, details, prevVal = null, newVal 
 
 // ----------------- SNAPSHOT ENGINE (DISASTER RECOVERY) ----------------- //
 async function checkAndCreateDailySnapshot() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     const lastSnapDate = localStorage.getItem('snackloop_last_snapshot_date');
     if (lastSnapDate === today) return;
 
@@ -720,7 +754,7 @@ async function checkAndCreateDailySnapshot() {
 }
 
 async function createDailySnapshot(dateKey = null) {
-    const key = dateKey || new Date().toISOString().slice(0, 10);
+    const key = dateKey || (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10));
     try {
         const jData = typeof jastipData !== 'undefined' ? jastipData : [];
         const snapshotPayload = {
@@ -813,7 +847,9 @@ async function restoreDailySnapshot(dateKey) {
             if (data.returnData) returnData = data.returnData;
             if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
 
-            await saveCacheToLocal();
+            await saveCacheToLocal(true);
+            localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
+            syncRestoredStateToCloud();
 
             if (typeof renderMonthTabs === 'function') renderMonthTabs();
             if (typeof renderMaster === 'function') renderMaster();
@@ -830,6 +866,74 @@ async function restoreDailySnapshot(dateKey) {
             showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
         };
     });
+}
+
+async function syncRestoredStateToCloud() {
+    if (!navigator.onLine || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    try {
+        const tasks = [];
+        if (Array.isArray(agentData) && agentData.length > 0) {
+            tasks.push(supabaseClient.from('agents').upsert(agentData.map(a => ({ id: a.id, name: a.name }))));
+        }
+        if (Array.isArray(masterData) && masterData.length > 0) {
+            tasks.push(supabaseClient.from('master').upsert(masterData.map(m => ({
+                id: m.id, name: m.name, source: m.source, buy: m.buy, sell: m.sell
+            }))));
+        }
+        if (Array.isArray(customerData) && customerData.length > 0) {
+            tasks.push(supabaseClient.from('customers').upsert(customerData.map(c => ({
+                id: c.id, name: c.name, phone: c.phone
+            }))));
+        }
+        if (Array.isArray(repackData) && repackData.length > 0) {
+            tasks.push(supabaseClient.from('repack').upsert(repackData));
+        }
+        if (Array.isArray(expenseData) && expenseData.length > 0) {
+            tasks.push(supabaseClient.from('expenses').upsert(expenseData.map(e => ({
+                id: e.id, date: e.date, description: e.description, amount: e.amount
+            }))));
+        }
+        if (Array.isArray(invoiceData) && invoiceData.length > 0) {
+            tasks.push(supabaseClient.from('invoices').upsert(invoiceData));
+        }
+        if (Array.isArray(returnData) && returnData.length > 0) {
+            tasks.push(supabaseClient.from('returns').upsert(returnData));
+        }
+        if (typeof jastipData !== 'undefined' && Array.isArray(jastipData) && jastipData.length > 0) {
+            tasks.push(supabaseClient.from('jastip_orders').upsert(jastipData));
+        }
+        const flatTrx = [];
+        for (const mk in (transactionData || {})) {
+            (transactionData[mk] || []).forEach(t => {
+                flatTrx.push({
+                    id: t.id,
+                    month_key: t.monthKey || mk,
+                    date: t.date,
+                    customer: t.customer,
+                    item_name: t.itemName || t.item || '',
+                    source: t.source,
+                    qty: t.qty,
+                    batch: t.batch || '-',
+                    buy: t.buy,
+                    extra_cost: t.extraCost || 0,
+                    extra_cost_note: t.extraCostNote || '-',
+                    total_modal: t.totalModal,
+                    sell: t.sell,
+                    total_sell: t.totalSell,
+                    status: t.status,
+                    profit_per_item: t.profitPerItem,
+                    notes: t.notes || '-'
+                });
+            });
+        }
+        if (flatTrx.length > 0) {
+            tasks.push(supabaseClient.from('transactions').upsert(flatTrx));
+        }
+        await Promise.allSettled(tasks);
+        localStorage.removeItem('snackloop_pending_restore_sync');
+    } catch (err) {
+        console.warn("[RestoreSync] Gagal menyinkronkan pemulihan ke cloud:", err);
+    }
 }
 
 // ----------------- LOCAL / INDEXEDDB CACHING (OPTIMIZED & DEBOUNCED) ----------------- //
@@ -1418,48 +1522,21 @@ function dispatchOutboxMutation(table, action, payload) {
         timestamp: new Date().toISOString()
     };
 
-    if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
-        try {
-            if (action === 'insert') {
-                supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            } else if (action === 'update') {
-                const id = payload.id;
-                supabaseClient.from(table).update(payload).eq('id', id).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} update notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            } else if (action === 'delete') {
-                const id = payload.id;
-                supabaseClient.from(table).delete().eq('id', id).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} delete notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            }
-        } catch(e) {
-            console.warn("Direct online sync notice, queuing to outbox:", e);
-            addToOutbox(item);
+    return dispatchMutation(item, async () => {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+            throw new Error('Supabase client unavailable');
         }
-    } else {
-        addToOutbox(item);
-    }
+        if (action === 'insert') {
+            const { error } = await supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]);
+            if (error) throw error;
+        } else if (action === 'update') {
+            const { error } = await supabaseClient.from(table).update(payload).eq('id', payload.id);
+            if (error) throw error;
+        } else if (action === 'delete') {
+            const { error } = await supabaseClient.from(table).delete().eq('id', payload.id);
+            if (error) throw error;
+        }
+    });
 }
 
 // =========================================================================
@@ -1716,7 +1793,8 @@ function exportAuditLogsCSV() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.csv`;
+    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    a.download = `SnackLoop_AuditLogs_${dateStr}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1728,10 +1806,11 @@ function exportAuditLogsJSON() {
     if (!auditLogData || auditLogData.length === 0) {
         return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
     }
+    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditLogData, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${dateStr}.json`);
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
@@ -1807,7 +1886,7 @@ async function renderSnapshotListUI() {
 }
 
 async function triggerManualSnapshot() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     showNotification("Memproses Snapshot", "Mencadangkan snapshot lokal ke IndexedDB...", "info");
     await createDailySnapshot(today);
     await renderSnapshotListUI();
@@ -2504,6 +2583,14 @@ async function initApp() {
 
 async function loadDataFromCloud() {
     try {
+        if (localStorage.getItem('snackloop_pending_restore_sync')) {
+            if (typeof syncRestoredStateToCloud === 'function') {
+                await syncRestoredStateToCloud();
+            }
+            if (localStorage.getItem('snackloop_pending_restore_sync')) {
+                return;
+            }
+        }
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),
             supabaseClient.from('master').select('*').order('name', { ascending: true }),
@@ -2530,32 +2617,6 @@ async function loadDataFromCloud() {
         }
         if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
             jastipData = resJastip.data;
-        }
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
-            try {
-                const { data: newAdmin } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'admin_kiky', password: await hashPassword('123456'), role: 'super_admin' }])
-                    .select('id, username, role');
-                if (newAdmin && newAdmin.length > 0) {
-                    userData.push(newAdmin[0]);
-                } else {
-                    userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-                }
-            } catch(e) {
-                userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-            }
-        }
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'staff1')) {
-            try {
-                const { data: newStaff } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'staff1', password: await hashPassword('password123'), role: 'staff_rekap' }])
-                    .select('id, username, role');
-                if (newStaff && newStaff.length > 0) {
-                    userData.push(newStaff[0]);
-                }
-            } catch(e) {}
         }
         invoiceData = resInv.data || [];
         priceHistoryData = resHistory.data || [];
@@ -2612,7 +2673,7 @@ function switchTab(tabId) {
         'calculator': 'Kalkulator & Gudang Repack', 
         'master': 'Data Master Produk', 
         'customers': 'Manajemen Pelanggan', 
-        'agents': 'Kelola Agent Pool',
+        'agents': 'Kelola Agen & Supplier',
         'users': 'Kelola Akun User' 
     };
     const titlesEn = {
@@ -2821,7 +2882,11 @@ document.getElementById('agent-form')?.addEventListener('submit', async function
     }, async () => {
         const { data, error } = await supabaseClient.from('agents').insert([{ name }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempAgent.id = data[0].id;
+        if(data && data.length > 0) {
+            tempAgent.id = data[0].id;
+            saveCacheToLocal();
+            renderAgents();
+        }
     });
 });
 
@@ -2930,7 +2995,7 @@ function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const timestamp = new Date().toISOString();
-    const dateFormatted = timestamp.slice(0, 10);
+    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : timestamp.slice(0, 10);
     const backupObj = {
         meta: {
             system: "SnackLoop ERP",
@@ -2997,7 +3062,9 @@ function restoreDataJSON(event) {
                     if (typeof applyAppSettingsUI === 'function') applyAppSettingsUI();
                 }
 
-                saveCacheToLocal();
+                await saveCacheToLocal(true);
+                localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
+                if (typeof syncRestoredStateToCloud === 'function') syncRestoredStateToCloud();
                 renderMonthTabs();
                 renderMaster();
                 renderCustomer();
@@ -3177,7 +3244,7 @@ function closeHistoryModal() {
 }
 
 function confirmDeleteMaster(id) {
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menghapus produk.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus produk master ini?", async () => {
         const idx = masterData.findIndex(m => m.id === id);
         const item = idx !== -1 ? masterData[idx] : null;
@@ -3186,7 +3253,7 @@ function confirmDeleteMaster(id) {
         renderMaster();
         renderDropdowns();
         if (item) logAuditActivity('MASTER_DELETE', item.name, `Menghapus produk master: ${item.name} (${item.source})`);
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Produk master berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_MASTER',
@@ -3200,7 +3267,7 @@ function confirmDeleteMaster(id) {
 
 document.getElementById('master-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(currentRole === 'view') return showNotification("Peringatan", "Akun View tidak diizinkan.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menambah produk.", "warning");
     
     let rawName = document.getElementById('m-name').value.trim();
     let normalizedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
@@ -3224,7 +3291,12 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
             name: normalizedName, source, buy, sell
         }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempMaster.id = data[0].id;
+        if(data && data.length > 0) {
+            tempMaster.id = data[0].id;
+            saveCacheToLocal();
+            renderMaster();
+            renderDropdowns();
+        }
     });
 });
 
@@ -3247,14 +3319,14 @@ async function renderCustomer() {
 }
 
 function confirmDeleteCustomer(id) {
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menghapus pelanggan.", "warning");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus pelanggan ini?", async () => {
         const idx = customerData.findIndex(c => c.id === id);
         if(idx !== -1) customerData.splice(idx, 1);
         saveCacheToLocal();
         renderCustomer();
         renderDropdowns();
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Data pelanggan berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_CUSTOMER',
@@ -3268,11 +3340,13 @@ function confirmDeleteCustomer(id) {
 
 document.getElementById('cust-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(currentRole === 'view') return showNotification("Peringatan", "Akses ditolak.", "warning");
+    if(currentRole === 'view') return showNotification("Peringatan", "Akun Viewer hanya dapat melihat data dan tidak diizinkan menambah pelanggan.", "warning");
     
     let rawCust = document.getElementById('cu-name').value.trim();
     let normCust = rawCust.charAt(0).toUpperCase() + rawCust.slice(1);
-    let rawPhone = document.getElementById('cu-phone').value.trim().replace(/^0/, '62');
+    let rawPhone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(document.getElementById('cu-phone').value)
+        : document.getElementById('cu-phone').value.trim().replace(/\D/g, '').replace(/^0/, '62');
 
     const tempCust = { id: Date.now(), name: normCust, phone: rawPhone };
     customerData.push(tempCust);
@@ -3288,7 +3362,12 @@ document.getElementById('cust-form')?.addEventListener('submit', async function(
     }, async () => {
         const { data, error } = await supabaseClient.from('customers').insert([{ name: normCust, phone: rawPhone }]).select();
         if(error) throw error;
-        if(data && data.length > 0) tempCust.id = data[0].id;
+        if(data && data.length > 0) {
+            tempCust.id = data[0].id;
+            saveCacheToLocal();
+            renderCustomer();
+            renderDropdowns();
+        }
     });
 });
 
@@ -3321,7 +3400,7 @@ function calculateRepack() {
 
     currentRepackCalcResult = {
         id: `BATCH-${Date.now().toString().slice(-5)}`,
-        date: new Date().toISOString().slice(0, 10),
+        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10),
         name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
     };
     if (currentRole === 'super_admin' || currentRole === 'staff_rekap') {
@@ -3919,15 +3998,7 @@ function getInvoiceMonthKey(dateStr) {
 
 function getInvoiceMonthSortVal(mk) {
     if (!mk || mk === 'all' || mk === 'Lainnya') return 0;
-    const p = mk.split(' ');
-    if (p.length === 2) {
-        const m = INVOICE_MONTH_ORDER.indexOf(p[0]);
-        const y = parseInt(p[1], 10);
-        if (m !== -1 && !isNaN(y)) {
-            return y * 100 + (m + 1);
-        }
-    }
-    return 0;
+    return typeof parseMonthKey === 'function' ? parseMonthKey(mk) : 0;
 }
 
 function setInvoiceYear(yr, forceExpand = false) {
@@ -4403,11 +4474,9 @@ function openWaInvoiceTemplatesModal(invNumber) {
     if (!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
 
     const custObj = customerData.find(c => c.name && c.name.toLowerCase() === (inv.customer_name || '').toLowerCase());
-    let phone = (custObj && custObj.phone) ? custObj.phone : '';
-    phone = phone.replace(/\D/g, '');
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone && appSettings?.whatsappPhone) phone = appSettings.whatsappPhone.replace(/\D/g, '');
-    if (phone && phone.startsWith('0')) phone = '62' + phone.substring(1);
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(custObj?.phone, appSettings?.whatsappPhone)
+        : String(custObj?.phone || appSettings?.whatsappPhone || '').replace(/\D/g, '').replace(/^0/, '62');
 
     const todayMs = _getTodayMidnightMs();
     const dMs = _parseIsoDateUtcMs(inv.date);
@@ -4577,13 +4646,9 @@ function openWaWithCurrentMessage() {
     const textarea = document.getElementById('wa-modal-textarea');
     const msg = textarea ? textarea.value : '';
     const phoneInput = document.getElementById('wa-modal-phone');
-    let phone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone && appSettings?.whatsappPhone) {
-        phone = appSettings.whatsappPhone.replace(/\D/g, '');
-        if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    }
-    if (!phone) phone = '628123456789';
+    const phone = (typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(phoneInput ? phoneInput.value : '', appSettings?.whatsappPhone)
+        : String(phoneInput ? phoneInput.value : '').replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -6886,7 +6951,9 @@ function renderReportReceivables(data) {
     }
 
     tbody.innerHTML = list.map(item => {
-        const cleanPhone = (item.phone || '').replace(/[^0-9]/g, '');
+        const cleanPhone = typeof normalizeWaPhone === 'function'
+            ? normalizeWaPhone(item.phone)
+            : (item.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
             <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
                 <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
@@ -6907,10 +6974,9 @@ function renderReportReceivables(data) {
 }
 
 function sendReportWhatsApp(phone, custName, amount, count) {
-    let formattedPhone = phone;
-    if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62' + formattedPhone.slice(1);
-    }
+    const formattedPhone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(phone)
+        : String(phone || '').replace(/\D/g, '').replace(/^0/, '62');
     const message = encodeURIComponent(
         `Halo ${custName},\n\nKami dari SnackLoop ERP ingin mengonfirmasi bahwa terdapat ${count} nota transaksi yang belum lunas dengan total sebesar Rp ${amount.toLocaleString('id-ID')}.\n\nMohon informasi estimasi pembayarannya ya. Terima kasih banyak atas kerjasamanya!`
     );
@@ -7027,7 +7093,7 @@ function exportToExcel(reportType) {
 
     const data = getFilteredReportData();
     const wb = XLSX.utils.book_new();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
 
     // Helper calculations
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
@@ -7637,7 +7703,7 @@ function openReturnModalFromTrx(trxId) {
     }
 
     openReturnModal({
-        date: new Date().toISOString().split('T')[0],
+        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0],
         customer: foundTrx.customer,
         itemName: foundTrx.itemName,
         agent: foundTrx.source !== 'Repack' ? foundTrx.source : (agentData[0]?.name || ''),
@@ -7766,12 +7832,30 @@ function saveReturnRecord(e) {
         const newExpense = {
             id: 'exp_' + Date.now(),
             date: date,
-            description: `Kerugian Retur Rusak: ${itemName} (${qty} pcs) - ${customer}`,
-            amount: totalModal
+            description: `Kerugian Retur Rusak: ${itemName} (${qty} pcs) - ${customer} [Ref: ${returnCode}]`,
+            amount: totalModal,
+            returnId: returnId
         };
         expenseData.unshift(newExpense);
 
-        // Background dispatch
+        // Background dispatch transaksi koreksi & beban kerugian
+        dispatchOutboxMutation('transactions', 'insert', {
+            month_key: monthKey,
+            date: date,
+            customer: customer,
+            item_name: itemName,
+            source: agent,
+            qty: -qty,
+            buy: buy,
+            extra_cost: 0,
+            total_modal: -totalModal,
+            sell: sell,
+            total_sell: -totalSell,
+            status: 'Belum Lunas',
+            profit_per_item: (sell - buy),
+            notes: `[RETUR WRITE-OFF] ${reason} - Ref: ${returnCode}`
+        });
+
         dispatchOutboxMutation('expenses', 'insert', {
             date: date,
             description: newExpense.description,
@@ -7820,7 +7904,7 @@ function resolveReturnClaim(returnId) {
     if (!item) return;
 
     item.claim_status = 'selesai';
-    item.resolved_date = new Date().toISOString().split('T')[0];
+    item.resolved_date = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'update', {
@@ -7840,21 +7924,47 @@ function confirmDeleteReturn(returnId) {
     if (!item) return;
 
     showConfirmModal("Konfirmasi Hapus Retur", `Apakah Anda yakin ingin menghapus catatan retur "${item.return_code || item.item_name}"?`, () => {
-        // Bersihkan transaksi koreksi jika ada
+        // 1. Bersihkan transaksi koreksi lokal (cocokkan returnId atau kode referensi retur di notes)
         for (let mk in transactionData) {
-            const idx = (transactionData[mk] || []).findIndex(t => t.returnId === returnId);
-            if (idx !== -1) {
-                transactionData[mk].splice(idx, 1);
+            const list = transactionData[mk] || [];
+            for (let i = list.length - 1; i >= 0; i--) {
+                const t = list[i];
+                if (t.returnId === returnId || (item.return_code && t.notes && t.notes.includes(item.return_code))) {
+                    list.splice(i, 1);
+                }
             }
         }
 
+        // 2. Bersihkan beban kerugian retur rusak di expenseData jika ada
+        if (Array.isArray(expenseData)) {
+            for (let i = expenseData.length - 1; i >= 0; i--) {
+                const exp = expenseData[i];
+                const matchRef = item.return_code && exp.description && exp.description.includes(item.return_code);
+                const matchLegacy = exp.date === item.date && exp.description && exp.description.includes(`Kerugian Retur Rusak: ${item.item_name}`);
+                if (exp.returnId === returnId || matchRef || matchLegacy) {
+                    expenseData.splice(i, 1);
+                }
+            }
+        }
+
+        // 3. Hapus dari returnData lokal
         const retIdx = returnData.findIndex(r => r.id === returnId);
         if (retIdx !== -1) returnData.splice(retIdx, 1);
 
         saveCacheToLocal();
         dispatchOutboxMutation('returns', 'delete', { id: returnId });
 
-        logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs)`);
+        // 4. Sinkronkan penghapusan transaksi koreksi & beban retur di Supabase Cloud
+        if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            if (item.return_code) {
+                supabaseClient.from('transactions').delete().ilike('notes', `%${item.return_code}%`).then(() => {}).catch(() => {});
+            }
+            if (item.action_type === 'beban_rusak' && item.item_name) {
+                supabaseClient.from('expenses').delete().eq('date', item.date).ilike('description', `%Kerugian Retur Rusak: ${item.item_name}%`).then(() => {}).catch(() => {});
+            }
+        }
+
+        logAuditActivity('RETURN_DELETE', item.return_code || item.item_name, `Menghapus catatan retur: ${item.item_name} (${item.qty} pcs) beserta jurnal koreksinya`);
 
         renderReturns();
         renderTransactionsForActiveSheet();
@@ -7862,7 +7972,7 @@ function confirmDeleteReturn(returnId) {
         renderFinancialChart();
         renderInvoicesTable();
 
-        showNotification("Sukses", "Catatan retur berhasil dihapus.", "success");
+        showNotification("Sukses", "Catatan retur dan jurnal koreksinya berhasil dihapus.", "success");
     });
 }
 
@@ -8907,8 +9017,9 @@ function bookJastipToFinance(id) {
         const trxEntry = {
             id: trxId,
             monthKey: monthKey,
-            date: now.toISOString().slice(0, 10),
+            date: typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10),
             customer: `${item.customer_name} (Jastip)`,
+            itemName: `${item.item_name} [${item.id}]`,
             item: `${item.item_name} [${item.id}]`,
             source: 'Jastip',
             qty: item.item_qty,
@@ -8973,7 +9084,9 @@ function shareJastipInvoiceWA(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
 
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) {
         return showNotification("Peringatan", "Nomor WhatsApp pelanggan belum diisi.", "warning");
     }
@@ -9019,7 +9132,9 @@ function shareJastipRefundWA(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
 
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) return showNotification("Peringatan", "Nomor WhatsApp belum diisi.", "warning");
 
     const appSettings = typeof loadAppSettings === 'function' ? loadAppSettings() : {};
@@ -9038,7 +9153,9 @@ function shareJastipRefundWA(id) {
 function openJastipWhatsApp(id) {
     const item = jastipData.find(x => x.id === id);
     if (!item) return;
-    const phone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+    const phone = typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(item.customer_phone)
+        : (item.customer_phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
     if (!phone) return showNotification("Peringatan", "Nomor WhatsApp belum diisi.", "warning");
     window.open(`https://wa.me/${phone}`, '_blank');
 }

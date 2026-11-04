@@ -166,7 +166,7 @@ async function logAuditActivity(action, target, details, prevVal = null, newVal 
 
 // ----------------- SNAPSHOT ENGINE (DISASTER RECOVERY) ----------------- //
 async function checkAndCreateDailySnapshot() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     const lastSnapDate = localStorage.getItem('snackloop_last_snapshot_date');
     if (lastSnapDate === today) return;
 
@@ -174,7 +174,7 @@ async function checkAndCreateDailySnapshot() {
 }
 
 async function createDailySnapshot(dateKey = null) {
-    const key = dateKey || new Date().toISOString().slice(0, 10);
+    const key = dateKey || (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10));
     try {
         const jData = typeof jastipData !== 'undefined' ? jastipData : [];
         const snapshotPayload = {
@@ -267,7 +267,9 @@ async function restoreDailySnapshot(dateKey) {
             if (data.returnData) returnData = data.returnData;
             if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
 
-            await saveCacheToLocal();
+            await saveCacheToLocal(true);
+            localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
+            syncRestoredStateToCloud();
 
             if (typeof renderMonthTabs === 'function') renderMonthTabs();
             if (typeof renderMaster === 'function') renderMaster();
@@ -284,6 +286,74 @@ async function restoreDailySnapshot(dateKey) {
             showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
         };
     });
+}
+
+async function syncRestoredStateToCloud() {
+    if (!navigator.onLine || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    try {
+        const tasks = [];
+        if (Array.isArray(agentData) && agentData.length > 0) {
+            tasks.push(supabaseClient.from('agents').upsert(agentData.map(a => ({ id: a.id, name: a.name }))));
+        }
+        if (Array.isArray(masterData) && masterData.length > 0) {
+            tasks.push(supabaseClient.from('master').upsert(masterData.map(m => ({
+                id: m.id, name: m.name, source: m.source, buy: m.buy, sell: m.sell
+            }))));
+        }
+        if (Array.isArray(customerData) && customerData.length > 0) {
+            tasks.push(supabaseClient.from('customers').upsert(customerData.map(c => ({
+                id: c.id, name: c.name, phone: c.phone
+            }))));
+        }
+        if (Array.isArray(repackData) && repackData.length > 0) {
+            tasks.push(supabaseClient.from('repack').upsert(repackData));
+        }
+        if (Array.isArray(expenseData) && expenseData.length > 0) {
+            tasks.push(supabaseClient.from('expenses').upsert(expenseData.map(e => ({
+                id: e.id, date: e.date, description: e.description, amount: e.amount
+            }))));
+        }
+        if (Array.isArray(invoiceData) && invoiceData.length > 0) {
+            tasks.push(supabaseClient.from('invoices').upsert(invoiceData));
+        }
+        if (Array.isArray(returnData) && returnData.length > 0) {
+            tasks.push(supabaseClient.from('returns').upsert(returnData));
+        }
+        if (typeof jastipData !== 'undefined' && Array.isArray(jastipData) && jastipData.length > 0) {
+            tasks.push(supabaseClient.from('jastip_orders').upsert(jastipData));
+        }
+        const flatTrx = [];
+        for (const mk in (transactionData || {})) {
+            (transactionData[mk] || []).forEach(t => {
+                flatTrx.push({
+                    id: t.id,
+                    month_key: t.monthKey || mk,
+                    date: t.date,
+                    customer: t.customer,
+                    item_name: t.itemName || t.item || '',
+                    source: t.source,
+                    qty: t.qty,
+                    batch: t.batch || '-',
+                    buy: t.buy,
+                    extra_cost: t.extraCost || 0,
+                    extra_cost_note: t.extraCostNote || '-',
+                    total_modal: t.totalModal,
+                    sell: t.sell,
+                    total_sell: t.totalSell,
+                    status: t.status,
+                    profit_per_item: t.profitPerItem,
+                    notes: t.notes || '-'
+                });
+            });
+        }
+        if (flatTrx.length > 0) {
+            tasks.push(supabaseClient.from('transactions').upsert(flatTrx));
+        }
+        await Promise.allSettled(tasks);
+        localStorage.removeItem('snackloop_pending_restore_sync');
+    } catch (err) {
+        console.warn("[RestoreSync] Gagal menyinkronkan pemulihan ke cloud:", err);
+    }
 }
 
 // ----------------- LOCAL / INDEXEDDB CACHING (OPTIMIZED & DEBOUNCED) ----------------- //
@@ -872,48 +942,21 @@ function dispatchOutboxMutation(table, action, payload) {
         timestamp: new Date().toISOString()
     };
 
-    if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
-        try {
-            if (action === 'insert') {
-                supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} insert notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            } else if (action === 'update') {
-                const id = payload.id;
-                supabaseClient.from(table).update(payload).eq('id', id).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} update notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            } else if (action === 'delete') {
-                const id = payload.id;
-                supabaseClient.from(table).delete().eq('id', id).then(({ error }) => {
-                    if (error) {
-                        console.warn(`[Outbox] Supabase ${table} delete notice:`, error.message);
-                        addToOutbox(item);
-                    }
-                }).catch(e => {
-                    console.warn(e);
-                    addToOutbox(item);
-                });
-            }
-        } catch(e) {
-            console.warn("Direct online sync notice, queuing to outbox:", e);
-            addToOutbox(item);
+    return dispatchMutation(item, async () => {
+        if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+            throw new Error('Supabase client unavailable');
         }
-    } else {
-        addToOutbox(item);
-    }
+        if (action === 'insert') {
+            const { error } = await supabaseClient.from(table).insert(Array.isArray(payload) ? payload : [payload]);
+            if (error) throw error;
+        } else if (action === 'update') {
+            const { error } = await supabaseClient.from(table).update(payload).eq('id', payload.id);
+            if (error) throw error;
+        } else if (action === 'delete') {
+            const { error } = await supabaseClient.from(table).delete().eq('id', payload.id);
+            if (error) throw error;
+        }
+    });
 }
 
 // =========================================================================
@@ -1170,7 +1213,8 @@ function exportAuditLogsCSV() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.csv`;
+    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    a.download = `SnackLoop_AuditLogs_${dateStr}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1182,10 +1226,11 @@ function exportAuditLogsJSON() {
     if (!auditLogData || auditLogData.length === 0) {
         return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
     }
+    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditLogData, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${dateStr}.json`);
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
@@ -1261,7 +1306,7 @@ async function renderSnapshotListUI() {
 }
 
 async function triggerManualSnapshot() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     showNotification("Memproses Snapshot", "Mencadangkan snapshot lokal ke IndexedDB...", "info");
     await createDailySnapshot(today);
     await renderSnapshotListUI();
