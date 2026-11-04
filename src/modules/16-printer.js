@@ -215,31 +215,10 @@ function printThermalReceiptFromTrx(targetTrx, format) {
 }
 
 function printThermalReceiptFromInvoice(inv, format) {
-    let items = [];
-    let foundTrxList = [];
-    for (let m in transactionData) {
-        const matches = (transactionData[m] || []).filter(t => t.date === inv.date && t.customer === inv.customer_name);
-        if (matches.length > 0) {
-            foundTrxList = matches;
-            break;
-        }
-    }
-
-    if (foundTrxList.length > 0) {
-        foundTrxList.forEach(t => {
-            items.push({
-                name: t.itemName,
-                qty: t.qty,
-                sell: t.sell
-            });
-        });
-    } else {
-        items.push({
-            name: "Pembelian Produk SnackLoop",
-            qty: 1,
-            sell: inv.total_amount
-        });
-    }
+    const foundTrxList = getAllTransactions().filter(t => t.date === inv.date && t.customer === inv.customer_name);
+    const items = foundTrxList.length > 0
+        ? foundTrxList.map(t => ({ name: t.itemName, qty: t.qty, sell: t.sell }))
+        : [{ name: "Pembelian Produk SnackLoop", qty: 1, sell: inv.total_amount }];
 
     printThermalReceipt({
         noNota: inv.invoice_number,
@@ -260,7 +239,7 @@ function testThermalPrintFromSettings() {
         return showNotification("Format A4", "Format yang dipilih saat ini adalah Dokumen A4. Pilih 58mm atau 80mm untuk tes cetak printer thermal bluetooth.", "info");
     }
 
-    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0,10);
+    const todayDateStr = getLocalDateStr();
     printThermalReceipt({
         noNota: `TES-${todayDateStr.replace(/-/g, '')}-001`,
         date: new Date().toLocaleDateString('id-ID'),

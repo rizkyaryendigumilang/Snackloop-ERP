@@ -2,8 +2,7 @@
 // GENERATOR NOMOR INVOICE ANTI-TABRAKAN (HIGH-ENTROPY COLLISION-FREE)
 // =========================================================================
 function generateInvoiceNumber(dateStr) {
-    const fallbackDate = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    const cleanDate = (dateStr || fallbackDate).replace(/-/g, '');
+    const cleanDate = (dateStr || getLocalDateStr()).replace(/-/g, '');
     const timestampPart = Date.now().toString().slice(-4);
     const entropyHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `INV-${cleanDate}-${timestampPart}${entropyHex}`;
@@ -581,6 +580,51 @@ function selectInvoiceMonthSheet(mk) {
     renderInvoicesTable();
 }
 
+function buildYearSelectorHtml(years, activeYear, isExpanded, onClickFnName, isAllActive = false) {
+    let selectorHtml = '';
+    if (years.length <= 1) {
+        const isYrActive = !isAllActive && isExpanded;
+        selectorHtml = `
+            <button type="button" onclick="${onClickFnName}('${activeYear}')"
+                aria-expanded="${isExpanded}"
+                class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isYrActive ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
+                title="Klik untuk buka/tutup daftar bulan Tahun ${activeYear}">
+                <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                <span>Tahun ${activeYear}</span>
+            </button>`;
+    } else if (years.length <= 4) {
+        selectorHtml = `
+            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                ${years.map(yr => {
+                    const isYrSelected = yr === activeYear && !isAllActive;
+                    return `
+                        <button type="button" onclick="${onClickFnName}('${yr}')"
+                            aria-expanded="${isYrSelected && isExpanded}"
+                            class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrSelected ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
+                            title="Klik untuk melihat/melipat Tahun ${yr}">
+                            <i class="fa-solid fa-calendar-days ${isYrSelected ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
+                            <span>Tahun ${yr}</span>
+                        </button>`;
+                }).join('')}
+            </div>`;
+    } else {
+        selectorHtml = `
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
+                <select onchange="${onClickFnName}(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
+                    ${years.map(yr => `<option value="${yr}" ${yr === activeYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
+                </select>
+            </div>`;
+    }
+
+    return `${selectorHtml}
+        <button type="button" onclick="${onClickFnName}('${activeYear}')"
+            class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
+            title="${isExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
+            <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
+        </button>`;
+}
+
 function renderInvoiceMonthTabs() {
     const container = document.getElementById('invoice-month-tabs-container');
     const summaryBadge = document.getElementById('invoice-month-summary-badge');
@@ -646,53 +690,7 @@ function renderInvoiceMonthTabs() {
             <div class="text-slate-300 dark:text-slate-600 text-xs font-light select-none px-0.5">
                 <i class="fa-solid fa-chevron-right text-[11px]"></i>
             </div>
-        `;
-
-        if (invoiceYears.length === 1) {
-            const isYrActive = !isAllActive && isInvoiceMonthsExpanded;
-            tabsHtml += `
-                <button type="button" onclick="setInvoiceYear('${activeInvoiceYear}')"
-                    aria-expanded="${isInvoiceMonthsExpanded}"
-                    class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isYrActive ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
-                    title="Klik untuk buka/tutup daftar bulan Tahun ${activeInvoiceYear}">
-                    <i class="fa-solid fa-calendar-days text-indigo-500"></i>
-                    <span>Tahun ${activeInvoiceYear}</span>
-                </button>
-            `;
-        } else if (invoiceYears.length <= 4) {
-            tabsHtml += `
-                <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                    ${invoiceYears.map(yr => {
-                        const isYrSelected = yr === activeInvoiceYear && !isAllActive;
-                        return `
-                            <button type="button" onclick="setInvoiceYear('${yr}')"
-                                aria-expanded="${isYrSelected && isInvoiceMonthsExpanded}"
-                                class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrSelected ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
-                                title="Klik untuk melihat/melipat nota Tahun ${yr}">
-                                <i class="fa-solid fa-calendar-days ${isYrSelected ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
-                                <span>Tahun ${yr}</span>
-                            </button>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-        } else {
-            tabsHtml += `
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                    <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
-                    <select onchange="setInvoiceYear(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
-                        ${invoiceYears.map(yr => `<option value="${yr}" ${yr === activeInvoiceYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-        }
-
-        tabsHtml += `
-            <button type="button" onclick="setInvoiceYear('${activeInvoiceYear}')"
-                class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
-                title="${isInvoiceMonthsExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
-                <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isInvoiceMonthsExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
-            </button>
+            ${buildYearSelectorHtml(invoiceYears, activeInvoiceYear, isInvoiceMonthsExpanded, 'setInvoiceYear', isAllActive)}
         `;
 
         if (isInvoiceMonthsExpanded) {
@@ -1042,20 +1040,11 @@ function openWaInvoiceTemplatesModal(invNumber) {
     }
 
     selectWaTemplate(currentWaSelectedTemplate);
-
-    const modal = document.getElementById('modal-wa-invoice-templates');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+    openModalById('modal-wa-invoice-templates');
 }
 
 function closeWaInvoiceTemplatesModal() {
-    const modal = document.getElementById('modal-wa-invoice-templates');
-    if (modal) {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-    }
+    closeModalById('modal-wa-invoice-templates');
 }
 
 function selectWaTemplate(tplKey) {
@@ -1213,29 +1202,27 @@ function setLeaderboardPeriod(period) {
 
 function calculateCustomerLeaderboard(period = 'all') {
     const custMap = {};
-    for (let mk in transactionData) {
-        if (period === 'month' && mk !== activeMonthSheet) continue;
-        (transactionData[mk] || []).forEach(t => {
-            const cName = (t.customer || 'Pelanggan Umum').trim();
-            if (!custMap[cName]) {
-                custMap[cName] = {
-                    name: cName,
-                    totalSpent: 0,
-                    orderCount: 0,
-                    totalQty: 0,
-                    lastDate: t.date,
-                    items: {}
-                };
-            }
-            custMap[cName].totalSpent += (t.totalSell || 0);
-            custMap[cName].orderCount += 1;
-            custMap[cName].totalQty += (t.qty || 0);
-            if (t.date > custMap[cName].lastDate) {
-                custMap[cName].lastDate = t.date;
-            }
-            custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
-        });
-    }
+    const list = period === 'month' ? (transactionData[activeMonthSheet] || []) : getAllTransactions();
+    list.forEach(t => {
+        const cName = (t.customer || 'Pelanggan Umum').trim();
+        if (!custMap[cName]) {
+            custMap[cName] = {
+                name: cName,
+                totalSpent: 0,
+                orderCount: 0,
+                totalQty: 0,
+                lastDate: t.date,
+                items: {}
+            };
+        }
+        custMap[cName].totalSpent += (t.totalSell || 0);
+        custMap[cName].orderCount += 1;
+        custMap[cName].totalQty += (t.qty || 0);
+        if (t.date > custMap[cName].lastDate) {
+            custMap[cName].lastDate = t.date;
+        }
+        custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
+    });
 
     return Object.values(custMap).sort((a, b) => b.totalSpent - a.totalSpent);
 }
@@ -1370,16 +1357,14 @@ async function markInvoiceAsPaid(invId, custName) {
     const inv = invoiceData.find(i => String(i.id) === String(invId));
     if(inv) inv.status = 'Lunas';
 
-    for(let mk in transactionData) {
-        transactionData[mk].forEach((t) => {
-            const isMatch = inv 
-                ? ((t.customer === custName && t.date === inv.date) || (inv.invoice_number && t.notes && t.notes.includes(inv.invoice_number)))
-                : (t.customer === custName);
-            if(isMatch && t.status === 'Belum Lunas') {
-                t.status = 'Lunas';
-            }
-        });
-    }
+    getAllTransactions().forEach((t) => {
+        const isMatch = inv 
+            ? ((t.customer === custName && t.date === inv.date) || (inv.invoice_number && t.notes && t.notes.includes(inv.invoice_number)))
+            : (t.customer === custName);
+        if(isMatch && t.status === 'Belum Lunas') {
+            t.status = 'Lunas';
+        }
+    });
 
     saveCacheToLocal();
     renderInvoicesTable();
@@ -1517,6 +1502,27 @@ async function renderSinglePagePDF(printAreaEl, fileName) {
     }
 }
 
+function getPdfRowDensity(itemCount) {
+    if (itemCount > 30) return { tdPadding: "py-0 px-1 leading-tight", fontSize: "text-[9px]" };
+    if (itemCount > 18) return { tdPadding: "py-0.5 px-1", fontSize: "text-[10px]" };
+    if (itemCount > 10) return { tdPadding: "py-1 px-1.5", fontSize: "text-[11px]" };
+    return { tdPadding: "py-2 px-1.5", fontSize: "text-xs" };
+}
+
+function setPdfSubtotalRow(amount) {
+    const subRowEl = document.getElementById('pdf-subtotal-row');
+    if (subRowEl && !document.getElementById('inv-subtotal')) {
+        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
+    } else if (subRowEl && subRowEl.firstElementChild) {
+        subRowEl.firstElementChild.innerText = 'Subtotal';
+    }
+    const formatted = 'Rp ' + (Number(amount) || 0).toLocaleString();
+    const subEl = document.getElementById('inv-subtotal');
+    if (subEl) subEl.innerText = formatted;
+    const grandEl = document.getElementById('inv-grand-total');
+    if (grandEl) grandEl.innerText = formatted;
+}
+
 async function downloadInvoicePDF(invNumber, statusInv) {
     const inv = invoiceData.find(i => i.invoice_number === invNumber);
     if(!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
@@ -1538,41 +1544,12 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     document.getElementById('inv-meta-customer').innerText = inv.customer_name;
     document.getElementById('inv-meta-date').innerText = inv.date;
     document.getElementById('inv-meta-no').innerText = inv.invoice_number;
-    const subRowEl = document.getElementById('pdf-subtotal-row');
-    if (subRowEl && !document.getElementById('inv-subtotal')) {
-        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
-    } else if (subRowEl && subRowEl.firstElementChild) {
-        subRowEl.firstElementChild.innerText = 'Subtotal';
-    }
-    const subEl = document.getElementById('inv-subtotal');
-    if (subEl) subEl.innerText = 'Rp ' + inv.total_amount.toLocaleString();
-    document.getElementById('inv-grand-total').innerText = 'Rp ' + inv.total_amount.toLocaleString();
+    setPdfSubtotalRow(inv.total_amount);
 
-    let matchingTrx = [];
-    for (let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if (t.customer === inv.customer_name && t.date === inv.date) {
-                matchingTrx.push(t);
-            }
-        });
-    }
-
+    const matchingTrx = getAllTransactions().filter(t => t.customer === inv.customer_name && t.date === inv.date);
     let tbody = document.getElementById('inv-cart-body');
     const itemCount = matchingTrx.length;
-
-    // Dynamic density scaling untuk kenyamanan membaca & proporsi 1 lembar
-    let tdPadding = "py-2 px-1.5";
-    let fontSize = "text-xs";
-    if (itemCount > 10 && itemCount <= 18) {
-        tdPadding = "py-1 px-1.5";
-        fontSize = "text-[11px]";
-    } else if (itemCount > 18 && itemCount <= 30) {
-        tdPadding = "py-0.5 px-1";
-        fontSize = "text-[10px]";
-    } else if (itemCount > 30) {
-        tdPadding = "py-0 px-1 leading-tight";
-        fontSize = "text-[9px]";
-    }
+    const { tdPadding, fontSize } = getPdfRowDensity(itemCount);
 
     if (itemCount > 0) {
         tbody.innerHTML = matchingTrx.map(t => `
@@ -1692,44 +1669,7 @@ function renderMonthTabs() {
     const canDelete = isSuperAdmin && keys.length > 1;
 
     // 1. Build Interactive Year Switcher HTML
-    let yearSelectorHtml = '';
-    if (years.length <= 1) {
-        yearSelectorHtml = `
-            <button type="button" onclick="setTransactionYear('${activeTransactionYear}')"
-                aria-expanded="${isTransactionMonthsExpanded}"
-                class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isTransactionMonthsExpanded ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
-                title="Klik untuk buka/tutup daftar bulan Tahun ${activeTransactionYear}">
-                <i class="fa-solid fa-calendar-days text-indigo-500"></i>
-                <span>Tahun ${activeTransactionYear}</span>
-            </button>
-        `;
-    } else if (years.length <= 4) {
-        yearSelectorHtml = `
-            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                ${years.map(yr => {
-                    const isYrActive = yr === activeTransactionYear;
-                    return `
-                        <button type="button" onclick="setTransactionYear('${yr}')"
-                            aria-expanded="${isYrActive && isTransactionMonthsExpanded}"
-                            class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
-                            title="Klik untuk tampilkan/lipat sheet transaksi Tahun ${yr}">
-                            <i class="fa-solid fa-calendar-days ${isYrActive ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
-                            <span>Tahun ${yr}</span>
-                        </button>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    } else {
-        yearSelectorHtml = `
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
-                <select onchange="setTransactionYear(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
-                    ${years.map(yr => `<option value="${yr}" ${yr === activeTransactionYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
-                </select>
-            </div>
-        `;
-    }
+    const yearSelectorHtml = buildYearSelectorHtml(years, activeTransactionYear, isTransactionMonthsExpanded, 'setTransactionYear', false);
 
     // 2. Build Month Tabs HTML for selected year
     let monthTabsHtml = '';
@@ -1778,11 +1718,6 @@ function renderMonthTabs() {
     container.innerHTML = `
         <div class="flex items-center gap-1.5 flex-wrap">
             ${yearSelectorHtml}
-            <button type="button" onclick="setTransactionYear('${activeTransactionYear}')"
-                class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
-                title="${isTransactionMonthsExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
-                <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isTransactionMonthsExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
-            </button>
             <div class="flex items-center gap-1.5 flex-wrap">
                 ${monthTabsHtml}
                 ${addMonthBtnHtml}
@@ -2010,15 +1945,7 @@ function syncDailyInvoiceForCustomerDate(customerName, dateStr) {
     const invIdx = invoiceData.findIndex(i => i.customer_name === customerName && i.date === dateStr);
     if (invIdx === -1) return null;
 
-    let remainingTrx = [];
-    for (let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if (t.customer === customerName && t.date === dateStr) {
-                remainingTrx.push(t);
-            }
-        });
-    }
-
+    const remainingTrx = getAllTransactions().filter(t => t.customer === customerName && t.date === dateStr);
     const inv = invoiceData[invIdx];
     if (remainingTrx.length === 0) {
         invoiceData.splice(invIdx, 1);
@@ -2081,35 +2008,14 @@ function confirmDeleteTrx(id) {
                 const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
                 if(error) throw error;
             }
-            if (invSync && invSync.inv) {
-                const invObj = invSync.inv;
-                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-                if (invSync.action === 'delete') {
-                    await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
-                } else {
-                    await supabaseClient.from('invoices').update({
-                        total_amount: invObj.total_amount,
-                        status: invObj.status
-                    }).eq(matchCol, matchVal);
-                }
-            }
+            await syncDailyInvoiceCloud(invSync);
         });
     });
 }
 
 async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
-    let trx = (transactionData[activeMonthSheet] || []).find(t => String(t.id) === String(id));
-    if (!trx) {
-        for (let mk in transactionData) {
-            const found = (transactionData[mk] || []).find(t => String(t.id) === String(id));
-            if (found) {
-                trx = found;
-                break;
-            }
-        }
-    }
+    const trx = (transactionData[activeMonthSheet] || []).find(t => String(t.id) === String(id)) || findTransactionById(id);
     let oldStatus = 'Belum Lunas';
     let invSync = null;
     if(trx) {
@@ -2134,21 +2040,12 @@ async function updateTrxStatus(id, newStatus) {
             const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
             if(error) throw error;
         }
-        if (invSync && invSync.action === 'update' && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
-        }
+        await syncDailyInvoiceCloud(invSync);
     });
 }
 
 async function downloadPDF(trxId) {
-    let targetTrx = null;
-    for(let m in transactionData) {
-        const found = transactionData[m].find(t => String(t.id) === String(trxId));
-        if(found) { targetTrx = found; break; }
-    }
+    const targetTrx = findTransactionById(trxId);
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
 
     // Jika pengaturan nota adalah Thermal 58mm atau 80mm
@@ -2179,19 +2076,7 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     let tbody = document.getElementById('inv-cart-body');
     if(!tbody) return;
 
-    const itemCount = matchingTransactions.length;
-    let tdPadding = "py-2 px-1.5";
-    let fontSize = "text-xs";
-    if (itemCount > 10 && itemCount <= 18) {
-        tdPadding = "py-1 px-1.5";
-        fontSize = "text-[11px]";
-    } else if (itemCount > 18 && itemCount <= 30) {
-        tdPadding = "py-0.5 px-1";
-        fontSize = "text-[10px]";
-    } else if (itemCount > 30) {
-        tdPadding = "py-0 px-1 leading-tight";
-        fontSize = "text-[9px]";
-    }
+    const { tdPadding, fontSize } = getPdfRowDensity(matchingTransactions.length);
 
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
@@ -2209,15 +2094,7 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     document.getElementById('inv-meta-customer').innerText = targetTrx.customer;
     document.getElementById('inv-meta-date').innerText = targetTrx.date;
     document.getElementById('inv-meta-no').innerText = `INV-${targetTrx.date.replace(/-/g,'')}-${targetTrx.id}`;
-    const subRowEl = document.getElementById('pdf-subtotal-row');
-    if (subRowEl && !document.getElementById('inv-subtotal')) {
-        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
-    } else if (subRowEl && subRowEl.firstElementChild) {
-        subRowEl.firstElementChild.innerText = 'Subtotal';
-    }
-    const subEl = document.getElementById('inv-subtotal');
-    if (subEl) subEl.innerText = 'Rp ' + grandTotal.toLocaleString();
-    document.getElementById('inv-grand-total').innerText = 'Rp ' + grandTotal.toLocaleString();
+    setPdfSubtotalRow(grandTotal);
 }
 
 async function printMonthlyRecapPDF() {
@@ -2252,7 +2129,7 @@ async function printMonthlyRecapPDF() {
     updateInvoicePDFStatus('');
     document.getElementById('pdf-meta-subtitle').innerText = "Periode Bulan:";
     document.getElementById('inv-meta-customer').innerText = activeMonthSheet;
-    document.getElementById('inv-meta-date').innerText = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    document.getElementById('inv-meta-date').innerText = getLocalDateStr();
     document.getElementById('pdf-meta-id-wrap').style.display = "none";
     document.getElementById('pdf-subtotal-row').innerHTML = `<span>Total Modal (HPP)</span><span id="inv-subtotal" class="font-medium">Rp ${totalModal.toLocaleString()}</span>`;
     document.getElementById('pdf-total-label').innerText = "Keuntungan Bersih (Lunas)";
@@ -2270,11 +2147,7 @@ async function printMonthlyRecapPDF() {
 }
 
 async function sendWhatsAppOnly(trxId) {
-    let targetTrx = null;
-    for(let m in transactionData) {
-        const found = transactionData[m].find(t => String(t.id) === String(trxId));
-        if(found) { targetTrx = found; break; }
-    }
+    const targetTrx = findTransactionById(trxId);
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
     const matchingTransactions = (transactionData[targetTrx.monthKey] || []).filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
 
@@ -2303,12 +2176,10 @@ async function sendWhatsAppOnly(trxId) {
 }
 
 function openExpenseModal() {
-    document.getElementById('expense-modal').classList.remove('hidden');
-    document.getElementById('expense-modal').classList.add('flex');
+    openModalById('expense-modal');
 }
 function closeExpenseModal() {
-    document.getElementById('expense-modal').classList.remove('flex');
-    document.getElementById('expense-modal').classList.add('hidden');
+    closeModalById('expense-modal');
 }
 
 async function saveExpense() {
@@ -2729,8 +2600,7 @@ function openBulkOrderModal() {
     const tDateInput = document.getElementById('t-date');
     const bulkDate = document.getElementById('bulk-date');
     if (bulkDate) {
-        const localToday = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
-        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : localToday;
+        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : getLocalDateStr();
     }
 
     // Populate Customers
@@ -2759,18 +2629,12 @@ function openBulkOrderModal() {
     const bulkStatus = document.getElementById('bulk-status');
     if (bulkStatus) bulkStatus.value = 'Belum Lunas';
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
+    openModalById('modal-bulk-order');
     renderBulkProductChecklist();
 }
 
 function closeBulkOrderModal() {
-    const modal = document.getElementById('modal-bulk-order');
-    if (modal) {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-    }
+    closeModalById('modal-bulk-order');
 }
 
 function renderBulkProductChecklist() {

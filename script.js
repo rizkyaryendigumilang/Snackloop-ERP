@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T16:44:45.581Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T17:05:43.653Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -485,6 +485,63 @@ function normalizeWaPhone(rawPhone, fallback = '') {
     return clean;
 }
 
+function getAllTransactions() {
+    if (typeof transactionData === 'undefined' || !transactionData) return [];
+    return Object.values(transactionData).flat().filter(Boolean);
+}
+
+function findTransactionById(trxId) {
+    const target = String(trxId);
+    for (const mk in (typeof transactionData !== 'undefined' ? transactionData : {})) {
+        const found = (transactionData[mk] || []).find(t => String(t.id) === target);
+        if (found) return found;
+    }
+    return null;
+}
+
+function downloadBlobFile(content, filename, mimeType = 'application/json;charset=utf-8;') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function applyStateBundle(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.transactionData) transactionData = data.transactionData;
+    if (data.masterData) masterData = data.masterData;
+    if (data.customerData) customerData = data.customerData;
+    if (data.agentData) agentData = data.agentData;
+    if (data.repackData) repackData = data.repackData;
+    if (data.expenseData) expenseData = data.expenseData;
+    if (data.invoiceData) invoiceData = data.invoiceData;
+    if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
+    if (data.returnData) returnData = data.returnData;
+    if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+    if (Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
+}
+
+function refreshAllViews() {
+    if (typeof renderMonthTabs === 'function') renderMonthTabs();
+    if (typeof renderMaster === 'function') renderMaster();
+    if (typeof renderCustomer === 'function') renderCustomer();
+    if (typeof renderAgents === 'function') renderAgents();
+    if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+    if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+    if (typeof renderReturns === 'function') renderReturns();
+    if (typeof renderJastip === 'function') renderJastip();
+    if (typeof renderUsers === 'function') renderUsers();
+    if (typeof renderDropdowns === 'function') renderDropdowns();
+    if (typeof updateDashboard === 'function') updateDashboard();
+    if (typeof renderFinancialChart === 'function') renderFinancialChart();
+    if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
+}
+
 function toggleNavbarCollapse(forceCollapsed) {
     if (typeof document === 'undefined' || !document.body) return false;
     const isCurrentlyCollapsed = document.body.classList.contains('navbar-collapsed');
@@ -784,7 +841,7 @@ async function logAuditActivity(action, target, details, prevVal = null, newVal 
 
 // ----------------- SNAPSHOT ENGINE (DISASTER RECOVERY) ----------------- //
 async function checkAndCreateDailySnapshot() {
-    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const today = getLocalDateStr();
     const lastSnapDate = localStorage.getItem('snackloop_last_snapshot_date');
     if (lastSnapDate === today) return;
 
@@ -792,7 +849,7 @@ async function checkAndCreateDailySnapshot() {
 }
 
 async function createDailySnapshot(dateKey = null) {
-    const key = dateKey || (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10));
+    const key = dateKey || getLocalDateStr();
     try {
         const jData = typeof jastipData !== 'undefined' ? jastipData : [];
         const snapshotPayload = {
@@ -873,32 +930,12 @@ async function restoreDailySnapshot(dateKey) {
                 return showNotification("Gagal", "Data snapshot tidak ditemukan.", "error");
             }
 
-            const data = snap.data;
-            if (data.transactionData) transactionData = data.transactionData;
-            if (data.masterData) masterData = data.masterData;
-            if (data.customerData) customerData = data.customerData;
-            if (data.agentData) agentData = data.agentData;
-            if (data.repackData) repackData = data.repackData;
-            if (data.expenseData) expenseData = data.expenseData;
-            if (data.invoiceData) invoiceData = data.invoiceData;
-            if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
-            if (data.returnData) returnData = data.returnData;
-            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+            applyStateBundle(snap.data);
 
             await saveCacheToLocal(true);
             localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
             syncRestoredStateToCloud();
-
-            if (typeof renderMonthTabs === 'function') renderMonthTabs();
-            if (typeof renderMaster === 'function') renderMaster();
-            if (typeof renderCustomer === 'function') renderCustomer();
-            if (typeof renderAgents === 'function') renderAgents();
-            if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
-            if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
-            if (typeof renderReturns === 'function') renderReturns();
-            if (typeof updateDashboard === 'function') updateDashboard();
-            if (typeof renderFinancialChart === 'function') renderFinancialChart();
-            if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
+            refreshAllViews();
 
             logAuditActivity('DATA_RESTORE', `Snapshot ${dateKey}`, `Memulihkan database dari snapshot otomatis tanggal ${dateKey}`);
             showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
@@ -940,30 +977,25 @@ async function syncRestoredStateToCloud() {
         if (typeof jastipData !== 'undefined' && Array.isArray(jastipData) && jastipData.length > 0) {
             tasks.push(supabaseClient.from('jastip_orders').upsert(jastipData));
         }
-        const flatTrx = [];
-        for (const mk in (transactionData || {})) {
-            (transactionData[mk] || []).forEach(t => {
-                flatTrx.push({
-                    id: t.id,
-                    month_key: t.monthKey || mk,
-                    date: t.date,
-                    customer: t.customer,
-                    item_name: t.itemName || t.item || '',
-                    source: t.source,
-                    qty: t.qty,
-                    batch: t.batch || '-',
-                    buy: t.buy,
-                    extra_cost: t.extraCost || 0,
-                    extra_cost_note: t.extraCostNote || '-',
-                    total_modal: t.totalModal,
-                    sell: t.sell,
-                    total_sell: t.totalSell,
-                    status: t.status,
-                    profit_per_item: t.profitPerItem,
-                    notes: t.notes || '-'
-                });
-            });
-        }
+        const flatTrx = getAllTransactions().map(t => ({
+            id: t.id,
+            month_key: t.monthKey || getCurrentMonthKey(new Date((t.date || getLocalDateStr()) + 'T00:00:00')),
+            date: t.date,
+            customer: t.customer,
+            item_name: t.itemName || t.item || '',
+            source: t.source,
+            qty: t.qty,
+            batch: t.batch || '-',
+            buy: t.buy,
+            extra_cost: t.extraCost || 0,
+            extra_cost_note: t.extraCostNote || '-',
+            total_modal: t.totalModal,
+            sell: t.sell,
+            total_sell: t.totalSell,
+            status: t.status,
+            profit_per_item: t.profitPerItem,
+            notes: t.notes || '-'
+        }));
         if (flatTrx.length > 0) {
             tasks.push(supabaseClient.from('transactions').upsert(flatTrx));
         }
@@ -1228,7 +1260,57 @@ async function syncInvoicePayloadToCloud(inv) {
     }
 }
 
+async function syncDailyInvoiceCloud(invSync) {
+    if (!invSync || !invSync.inv || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    const invObj = invSync.inv;
+    const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+    const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+    if (invSync.action === 'delete') {
+        await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
+    } else {
+        await supabaseClient.from('invoices').update({
+            total_amount: invObj.total_amount,
+            status: invObj.status
+        }).eq(matchCol, matchVal);
+    }
+}
+
+const OUTBOX_SIMPLE_ROUTES = {
+    INSERT_EXPENSE: { table: 'expenses', op: 'insert' },
+    INSERT_CUSTOMER: { table: 'customers', op: 'insert' },
+    DELETE_CUSTOMER: { table: 'customers', op: 'delete' },
+    INSERT_AGENT: { table: 'agents', op: 'insert' },
+    DELETE_AGENT: { table: 'agents', op: 'delete' },
+    INSERT_REPACK: { table: 'repack', op: 'insert' },
+    DELETE_REPACK: { table: 'repack', op: 'delete' },
+    INSERT_MASTER: { table: 'master', op: 'insert' },
+    DELETE_MASTER: { table: 'master', op: 'delete' },
+    DELETE_INVOICE: { table: 'invoices', op: 'delete' },
+    UPSERT_JASTIP: { table: 'jastip_orders', op: 'upsert', softFail: true },
+    DELETE_JASTIP: { table: 'jastip_orders', op: 'delete', softFail: true },
+    INSERT_RETURN: { table: 'returns', op: 'insert', unwrapData: true },
+    UPDATE_RETURN: { table: 'returns', op: 'update', unwrapData: true },
+    DELETE_RETURN: { table: 'returns', op: 'delete', unwrapData: true },
+    INSERT_AUDIT_LOG: { table: 'audit_logs', op: 'insert', unwrapData: true }
+};
+
 async function syncSingleOutboxItem(item) {
+    const route = OUTBOX_SIMPLE_ROUTES[item.type];
+    if (route) {
+        const data = (route.unwrapData && item.payload && item.payload.data) ? item.payload.data : item.payload;
+        try {
+            let res;
+            if (route.op === 'insert') res = await supabaseClient.from(route.table).insert([data]);
+            else if (route.op === 'upsert') res = await supabaseClient.from(route.table).upsert([data]);
+            else if (route.op === 'update') res = await supabaseClient.from(route.table).update(data).eq('id', data.id);
+            else if (route.op === 'delete') res = await supabaseClient.from(route.table).delete().eq('id', data.id || item.payload.id);
+            if (res && res.error && !route.softFail) throw res.error;
+        } catch (err) {
+            if (!route.softFail) throw err;
+        }
+        return;
+    }
+
     if (item.type === 'INSERT_TRANSACTION') {
         if (item.payload && item.payload.repackUpdate) {
             await supabaseClient.from('repack')
@@ -1288,20 +1370,7 @@ async function syncSingleOutboxItem(item) {
             const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
             if (error) throw error;
         }
-        const invSync = item.payload.invSync;
-        if (invSync && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            if (invSync.action === 'delete') {
-                await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
-            } else {
-                await supabaseClient.from('invoices').update({
-                    total_amount: invObj.total_amount,
-                    status: invObj.status
-                }).eq(matchCol, matchVal);
-            }
-        }
+        await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
         if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
             const { error } = await supabaseClient.from('transactions')
@@ -1309,13 +1378,7 @@ async function syncSingleOutboxItem(item) {
                 .eq('id', item.payload.id);
             if (error) throw error;
         }
-        const invSync = item.payload.invSync;
-        if (invSync && invSync.action === 'update' && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
-        }
+        await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'DELETE_MONTH_SHEET') {
         if (item.payload && item.payload.month_key) {
             const { error } = await supabaseClient.from('transactions').delete().eq('month_key', item.payload.month_key);
@@ -1328,42 +1391,12 @@ async function syncSingleOutboxItem(item) {
         } else if (item.payload && item.payload.jastipId) {
             await supabaseClient.from('transactions').delete().eq('source', 'Jastip').ilike('item_name', `%[${item.payload.jastipId}]%`);
         }
-    } else if (item.type === 'INSERT_EXPENSE') {
-        const { error } = await supabaseClient.from('expenses').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_REPACK') {
-        const { error } = await supabaseClient.from('repack').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_REPACK') {
-        const { error } = await supabaseClient.from('repack').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_CUSTOMER') {
-        const { error } = await supabaseClient.from('customers').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_CUSTOMER') {
-        const { error } = await supabaseClient.from('customers').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_AGENT') {
-        const { error } = await supabaseClient.from('agents').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_AGENT') {
-        const { error } = await supabaseClient.from('agents').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_MASTER') {
-        const { error } = await supabaseClient.from('master').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_MASTER') {
-        const { error } = await supabaseClient.from('master').delete().eq('id', item.payload.id);
-        if (error) throw error;
     } else if (item.type === 'UPDATE_MASTER') {
         const { error } = await supabaseClient.from('master').update(item.payload.updates).eq('id', item.payload.id);
         if (error) throw error;
         if (item.payload.history) {
             await supabaseClient.from('price_history').insert([item.payload.history]);
         }
-    } else if (item.type === 'DELETE_INVOICE') {
-        const { error } = await supabaseClient.from('invoices').delete().eq('id', item.payload.id);
-        if (error) throw error;
     } else if (item.type === 'UPDATE_INVOICE_PAID') {
         if (item.payload.invId && !String(item.payload.invId).startsWith('inv_')) {
             await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
@@ -1375,36 +1408,6 @@ async function syncSingleOutboxItem(item) {
             if (item.payload.date) trxQuery = trxQuery.eq('date', item.payload.date);
             await trxQuery;
         }
-    } else if (item.type === 'UPSERT_JASTIP') {
-        try {
-            const { error } = await supabaseClient.from('jastip_orders').upsert([item.payload]);
-            if (error) console.warn("Supabase jastip_orders note:", error.message);
-        } catch (e) {
-            console.warn("Supabase jastip sync skipped:", e);
-        }
-    } else if (item.type === 'DELETE_JASTIP') {
-        try {
-            const { error } = await supabaseClient.from('jastip_orders').delete().eq('id', item.payload.id);
-            if (error) console.warn("Supabase jastip_orders delete note:", error.message);
-        } catch (e) {
-            console.warn("Supabase jastip delete skipped:", e);
-        }
-    } else if (item.type === 'INSERT_RETURN') {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('returns').insert([payload]);
-        if (error) throw error;
-    } else if (item.type === 'UPDATE_RETURN') {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('returns').update(payload).eq('id', payload.id);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_RETURN') {
-        const id = item.payload.id || (item.payload.data && item.payload.data.id);
-        const { error } = await supabaseClient.from('returns').delete().eq('id', id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_AUDIT_LOG' || (item.table === 'audit_logs' && item.action === 'insert')) {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('audit_logs').insert([payload]);
-        if (error) throw error;
     } else if (item.table && item.action) {
         if (item.action === 'insert') {
             const { error } = await supabaseClient.from(item.table).insert([item.payload]);
@@ -1484,42 +1487,19 @@ async function syncBatchedItems(type, batchItems) {
         for (const inv of invPayloads) {
             await syncInvoicePayloadToCloud(inv);
         }
-    } else if (type === 'INSERT_RETURN') {
-        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('returns').insert(rows);
-        if (error) throw error;
-    } else if (type === 'DELETE_RETURN') {
-        const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
-        const { error } = await supabaseClient.from('returns').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'INSERT_EXPENSE') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('expenses').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_CUSTOMER') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('customers').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_AGENT') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('agents').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_REPACK') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('repack').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_MASTER') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('master').insert(rows);
-        if (error) throw error;
-    } else if (type === 'UPSERT_JASTIP') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('jastip_orders').upsert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_AUDIT_LOG') {
-        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('audit_logs').insert(rows);
-        if (error) throw error;
+    } else if (OUTBOX_SIMPLE_ROUTES[type] && OUTBOX_SIMPLE_ROUTES[type].op !== 'update') {
+        const route = OUTBOX_SIMPLE_ROUTES[type];
+        if (route.op === 'insert' || route.op === 'upsert') {
+            const rows = batchItems.map(it => (route.unwrapData && it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+            const { error } = route.op === 'upsert'
+                ? await supabaseClient.from(route.table).upsert(rows)
+                : await supabaseClient.from(route.table).insert(rows);
+            if (error && !route.softFail) throw error;
+        } else if (route.op === 'delete') {
+            const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
+            const { error } = await supabaseClient.from(route.table).delete().in('id', ids);
+            if (error && !route.softFail) throw error;
+        }
     } else if (type === 'DELETE_TRANSACTION') {
         // Kembalikan stok repack jika ada
         batchItems.forEach(it => {
@@ -1533,32 +1513,8 @@ async function syncBatchedItems(type, batchItems) {
         const ids = batchItems.map(it => it.payload.id).filter(Boolean);
         const { error } = await supabaseClient.from('transactions').delete().in('id', ids);
         if (error) throw error;
-    } else if (type === 'DELETE_CUSTOMER') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('customers').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_AGENT') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('agents').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_MASTER') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('master').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_REPACK') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('repack').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_INVOICE') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('invoices').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_JASTIP') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('jastip_orders').delete().in('id', ids);
-        if (error) throw error;
     } else {
-        // Tipe lain yang disparate / non-batchable (misal UPDATE_MASTER, UPDATE_INVOICE_PAID)
+        // Tipe lain yang disparate / non-batchable (misal UPDATE_MASTER, UPDATE_INVOICE_PAID, UPDATE_RETURN)
         for (const it of batchItems) {
             await syncSingleOutboxItem(it);
         }
@@ -1931,16 +1887,7 @@ function exportAuditLogsCSV() {
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    a.download = `SnackLoop_AuditLogs_${dateStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlobFile(csvContent, `SnackLoop_AuditLogs_${getLocalDateStr()}.csv`, 'text/csv;charset=utf-8;');
     showNotification("Sukses", "File rekap Audit Log (CSV) berhasil diunduh.", "success");
 }
 
@@ -1948,14 +1895,7 @@ function exportAuditLogsJSON() {
     if (!auditLogData || auditLogData.length === 0) {
         return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
     }
-    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditLogData, null, 2));
-    const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${dateStr}.json`);
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
-    dlAnchor.remove();
+    downloadBlobFile(JSON.stringify(auditLogData, null, 2), `SnackLoop_AuditLogs_${getLocalDateStr()}.json`);
     showNotification("Sukses", "File JSON Audit Log berhasil diunduh.", "success");
 }
 
@@ -2028,7 +1968,7 @@ async function renderSnapshotListUI() {
 }
 
 async function triggerManualSnapshot() {
-    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const today = getLocalDateStr();
     showNotification("Memproses Snapshot", "Mencadangkan snapshot lokal ke IndexedDB...", "info");
     await createDailySnapshot(today);
     await renderSnapshotListUI();
@@ -2037,7 +1977,25 @@ async function triggerManualSnapshot() {
 
 
 // --- [MODULE: 05-modals.js] ---
-// ======================= MODAL KONFIRMASI KUSTOM ======================= //
+// ======================= MODAL KONFIRMASI KUSTOM & HELPER MODAL ======================= //
+function openModalById(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    if (el.style.display === 'none') el.style.display = 'flex';
+    return el;
+}
+
+function closeModalById(id) {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.classList.remove('flex');
+    el.classList.add('hidden');
+    if (el.style.display === 'flex') el.style.display = 'none';
+    return true;
+}
+
 function showConfirmModal(title, message, onConfirmCallback) {
     const modal = document.getElementById('custom-confirm-modal');
     const titleEl = document.getElementById('confirm-title');
@@ -2131,9 +2089,7 @@ function createNewMonthSheet() {
 }
 
 function closeCustomPromptModal() {
-    const modal = document.getElementById('custom-prompt-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('custom-prompt-modal');
 }
 
 function confirmDeleteMonthSheet(monthKey) {
@@ -2221,70 +2177,18 @@ function toggleDarkMode() {
 // ERGONOMI KASIR & AKSESIBILITAS DIALOG (ESC, BACKDROP CLICK, SHORTCUT CTRL+K)
 // =========================================================================
 function openShortcutsGuideModal() {
-    const modal = document.getElementById('modal-shortcuts-guide');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-shortcuts-guide');
 }
 
 function closeShortcutsGuideModal() {
-    const modal = document.getElementById('modal-shortcuts-guide');
-    if (!modal) return;
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('modal-shortcuts-guide');
 }
 
 function closeTopmostModal() {
-    // 1. Modal konfirmasi & prompt
-    const confirmModal = document.getElementById('custom-confirm-modal');
-    if (confirmModal && !confirmModal.classList.contains('hidden')) {
-        confirmModal.classList.remove('flex');
-        confirmModal.classList.add('hidden');
-        return true;
-    }
-    const promptModal = document.getElementById('custom-prompt-modal');
-    if (promptModal && !promptModal.classList.contains('hidden')) {
-        closeCustomPromptModal();
-        return true;
-    }
-
-    // 2. Seluruh modal operasional terdaftar
-    const modalHandlers = [
-        { id: 'modal-shortcuts-guide', closeFn: () => typeof closeShortcutsGuideModal === 'function' && closeShortcutsGuideModal() },
-        { id: 'modal-wa-invoice-templates', closeFn: () => typeof closeWaInvoiceTemplatesModal === 'function' && closeWaInvoiceTemplatesModal() },
-        { id: 'modal-settings', closeFn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
-        { id: 'modal-return', closeFn: () => typeof closeReturnModal === 'function' && closeReturnModal() },
-        { id: 'modal-print-agent-claim', closeFn: () => typeof closePrintAgentClaimModal === 'function' && closePrintAgentClaimModal() },
-        { id: 'modal-jastip-calculator', closeFn: () => typeof closeJastipCalculatorModal === 'function' && closeJastipCalculatorModal() },
-        { id: 'modal-jastip-order', closeFn: () => typeof closeJastipOrderModal === 'function' && closeJastipOrderModal() },
-        { id: 'modal-jastip-checklist', closeFn: () => typeof closeJastipChecklistModal === 'function' && closeJastipChecklistModal() },
-        { id: 'modal-jastip-customs', closeFn: () => typeof closeJastipCustomsModal === 'function' && closeJastipCustomsModal() },
-        { id: 'modal-jastip-photo-preview', closeFn: () => typeof closeJastipPhotoModal === 'function' && closeJastipPhotoModal() },
-        { id: 'modal-install-guide', closeFn: () => typeof closeInstallGuideModal === 'function' && closeInstallGuideModal() },
-        { id: 'edit-master-modal', closeFn: () => typeof closeEditMasterModal === 'function' && closeEditMasterModal() },
-        { id: 'history-master-modal', closeFn: () => typeof closeHistoryModal === 'function' && closeHistoryModal() },
-        { id: 'modal-forgot-password', closeFn: () => typeof closeForgotPasswordModal === 'function' && closeForgotPasswordModal() },
-        { id: 'modal-reset-password', closeFn: () => typeof closeResetPasswordModal === 'function' && closeResetPasswordModal() },
-        { id: 'expense-modal', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() },
-        { id: 'modal-bulk-order', closeFn: () => typeof closeBulkOrderModal === 'function' && closeBulkOrderModal() }
-    ];
-
-    for (const m of modalHandlers) {
-        const el = document.getElementById(m.id);
-        if (el && !el.classList.contains('hidden')) {
-            if (m.closeFn) m.closeFn();
-            el.classList.remove('flex');
-            el.classList.add('hidden');
-            return true;
-        }
-    }
-
-    // 3. Fallback selector generik
-    const genericModal = document.querySelector('.fixed.flex[id*="modal"], .fixed.flex[id*="custom-"]');
-    if (genericModal) {
-        genericModal.classList.remove('flex');
-        genericModal.classList.add('hidden');
-        return true;
+    const openModals = document.querySelectorAll('.fixed:not(.hidden)[id*="modal"], .fixed:not(.hidden)[id*="custom-"]');
+    if (openModals.length > 0) {
+        const topmost = openModals[openModals.length - 1];
+        return closeModalById(topmost.id);
     }
     return false;
 }
@@ -2447,10 +2351,7 @@ function logoutApp() {
 // ======================= FITUR LUPA & RESET PASSWORD (SUPABASE) ======================= //
 function openForgotPasswordModal(e) {
     if (e) e.preventDefault();
-    const modal = document.getElementById('modal-forgot-password');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!openModalById('modal-forgot-password')) return;
     const input = document.getElementById('forgot-identifier');
     if (input) {
         input.value = '';
@@ -2464,10 +2365,7 @@ function openForgotPasswordModal(e) {
 }
 
 function closeForgotPasswordModal() {
-    const modal = document.getElementById('modal-forgot-password');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModalById('modal-forgot-password');
 }
 
 async function handleForgotPassword(e) {
@@ -2580,10 +2478,7 @@ async function handleForgotPassword(e) {
 }
 
 function openResetPasswordModal() {
-    const modal = document.getElementById('modal-reset-password');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!openModalById('modal-reset-password')) return;
     const passInput = document.getElementById('new-password');
     if (passInput) {
         passInput.value = '';
@@ -2594,10 +2489,7 @@ function openResetPasswordModal() {
 }
 
 function closeResetPasswordModal() {
-    const modal = document.getElementById('modal-reset-password');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModalById('modal-reset-password');
 }
 
 async function handleResetPassword(e) {
@@ -2863,18 +2755,16 @@ function renderAgentPerformanceOverview() {
         };
     });
 
-    for(let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if(t.source && statsMap[t.source]) {
-                const ag = statsMap[t.source];
-                ag.totalSoldQty += (t.qty || 0);
-                ag.totalRevenue += (t.totalSell || 0);
-                ag.totalModal += (t.totalModal || 0);
-                ag.transactionCount += 1;
-                ag.topItems[t.itemName] = (ag.topItems[t.itemName] || 0) + (t.qty || 0);
-            }
-        });
-    }
+    getAllTransactions().forEach(t => {
+        if(t.source && statsMap[t.source]) {
+            const ag = statsMap[t.source];
+            ag.totalSoldQty += (t.qty || 0);
+            ag.totalRevenue += (t.totalSell || 0);
+            ag.totalModal += (t.totalModal || 0);
+            ag.transactionCount += 1;
+            ag.topItems[t.itemName] = (ag.topItems[t.itemName] || 0) + (t.qty || 0);
+        }
+    });
 
     const cards = agentData.map(ag => {
         const stat = statsMap[ag.name];
@@ -3102,7 +2992,7 @@ function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const timestamp = new Date().toISOString();
-    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : timestamp.slice(0, 10);
+    const dateFormatted = getLocalDateStr();
     const backupObj = {
         meta: {
             system: "SnackLoop ERP",
@@ -3124,17 +3014,7 @@ function backupDataJSON() {
         auditLogData: typeof auditLogData !== 'undefined' ? auditLogData : []
     };
 
-    const jsonStr = JSON.stringify(backupObj, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const dlAnchor = document.createElement('a');
-    dlAnchor.href = url;
-    dlAnchor.download = `SnackLoop_Backup_Lengkap_${dateFormatted}.json`;
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
-    dlAnchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
+    downloadBlobFile(JSON.stringify(backupObj, null, 2), `SnackLoop_Backup_Lengkap_${dateFormatted}.json`);
     logAuditActivity('DATA_BACKUP', `Backup-${dateFormatted}`, "Mengunduh file cadangan database JSON lengkap");
     showNotification("Sukses", "Pencadangan penuh berhasil diunduh ke perangkat Anda!", "success");
 }
@@ -3151,17 +3031,7 @@ function restoreDataJSON(event) {
                 const data = JSON.parse(e.target.result);
                 if (!data || typeof data !== 'object') throw new Error("Format JSON tidak valid");
 
-                if (data.transactionData) transactionData = data.transactionData;
-                if (data.masterData) masterData = data.masterData;
-                if (data.customerData) customerData = data.customerData;
-                if (data.agentData) agentData = data.agentData;
-                if (data.repackData) repackData = data.repackData;
-                if (data.expenseData) expenseData = data.expenseData;
-                if (data.invoiceData) invoiceData = data.invoiceData;
-                if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
-                if (data.returnData) returnData = data.returnData;
-                if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
-                if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
+                applyStateBundle(data);
 
                 if (data.appSettings && typeof appSettings !== 'undefined') {
                     appSettings = { ...DEFAULT_APP_SETTINGS, ...data.appSettings };
@@ -3172,14 +3042,7 @@ function restoreDataJSON(event) {
                 await saveCacheToLocal(true);
                 localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
                 if (typeof syncRestoredStateToCloud === 'function') syncRestoredStateToCloud();
-                renderMonthTabs();
-                renderMaster();
-                renderCustomer();
-                renderAgents();
-                renderRepackWarehouse();
-                renderInvoicesTable();
-                renderReturns();
-                updateDashboard();
+                refreshAllViews();
                 if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
 
                 logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);
@@ -3238,16 +3101,11 @@ function openEditMasterModal(id) {
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
-
-    const modal = document.getElementById('edit-master-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('edit-master-modal');
 }
 
 function closeEditMasterModal() {
-    const modal = document.getElementById('edit-master-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('edit-master-modal');
 }
 
 document.getElementById('edit-master-form')?.addEventListener('submit', async function(e) {
@@ -3339,15 +3197,11 @@ function openHistoryModal(masterId) {
         tbody.innerHTML = rows;
     }
 
-    const modal = document.getElementById('history-master-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('history-master-modal');
 }
 
 function closeHistoryModal() {
-    const modal = document.getElementById('history-master-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('history-master-modal');
 }
 
 function confirmDeleteMaster(id) {
@@ -3507,7 +3361,7 @@ function calculateRepack() {
 
     currentRepackCalcResult = {
         id: `BATCH-${Date.now().toString().slice(-5)}`,
-        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10),
+        date: getLocalDateStr(),
         name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
     };
     if (currentRole === 'super_admin' || currentRole === 'staff_rekap') {
@@ -3596,8 +3450,7 @@ function confirmDeleteRepackBatch(batchId) {
 // GENERATOR NOMOR INVOICE ANTI-TABRAKAN (HIGH-ENTROPY COLLISION-FREE)
 // =========================================================================
 function generateInvoiceNumber(dateStr) {
-    const fallbackDate = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    const cleanDate = (dateStr || fallbackDate).replace(/-/g, '');
+    const cleanDate = (dateStr || getLocalDateStr()).replace(/-/g, '');
     const timestampPart = Date.now().toString().slice(-4);
     const entropyHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `INV-${cleanDate}-${timestampPart}${entropyHex}`;
@@ -4175,6 +4028,51 @@ function selectInvoiceMonthSheet(mk) {
     renderInvoicesTable();
 }
 
+function buildYearSelectorHtml(years, activeYear, isExpanded, onClickFnName, isAllActive = false) {
+    let selectorHtml = '';
+    if (years.length <= 1) {
+        const isYrActive = !isAllActive && isExpanded;
+        selectorHtml = `
+            <button type="button" onclick="${onClickFnName}('${activeYear}')"
+                aria-expanded="${isExpanded}"
+                class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isYrActive ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
+                title="Klik untuk buka/tutup daftar bulan Tahun ${activeYear}">
+                <i class="fa-solid fa-calendar-days text-indigo-500"></i>
+                <span>Tahun ${activeYear}</span>
+            </button>`;
+    } else if (years.length <= 4) {
+        selectorHtml = `
+            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                ${years.map(yr => {
+                    const isYrSelected = yr === activeYear && !isAllActive;
+                    return `
+                        <button type="button" onclick="${onClickFnName}('${yr}')"
+                            aria-expanded="${isYrSelected && isExpanded}"
+                            class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrSelected ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
+                            title="Klik untuk melihat/melipat Tahun ${yr}">
+                            <i class="fa-solid fa-calendar-days ${isYrSelected ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
+                            <span>Tahun ${yr}</span>
+                        </button>`;
+                }).join('')}
+            </div>`;
+    } else {
+        selectorHtml = `
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
+                <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
+                <select onchange="${onClickFnName}(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
+                    ${years.map(yr => `<option value="${yr}" ${yr === activeYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
+                </select>
+            </div>`;
+    }
+
+    return `${selectorHtml}
+        <button type="button" onclick="${onClickFnName}('${activeYear}')"
+            class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
+            title="${isExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
+            <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
+        </button>`;
+}
+
 function renderInvoiceMonthTabs() {
     const container = document.getElementById('invoice-month-tabs-container');
     const summaryBadge = document.getElementById('invoice-month-summary-badge');
@@ -4240,53 +4138,7 @@ function renderInvoiceMonthTabs() {
             <div class="text-slate-300 dark:text-slate-600 text-xs font-light select-none px-0.5">
                 <i class="fa-solid fa-chevron-right text-[11px]"></i>
             </div>
-        `;
-
-        if (invoiceYears.length === 1) {
-            const isYrActive = !isAllActive && isInvoiceMonthsExpanded;
-            tabsHtml += `
-                <button type="button" onclick="setInvoiceYear('${activeInvoiceYear}')"
-                    aria-expanded="${isInvoiceMonthsExpanded}"
-                    class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isYrActive ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
-                    title="Klik untuk buka/tutup daftar bulan Tahun ${activeInvoiceYear}">
-                    <i class="fa-solid fa-calendar-days text-indigo-500"></i>
-                    <span>Tahun ${activeInvoiceYear}</span>
-                </button>
-            `;
-        } else if (invoiceYears.length <= 4) {
-            tabsHtml += `
-                <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                    ${invoiceYears.map(yr => {
-                        const isYrSelected = yr === activeInvoiceYear && !isAllActive;
-                        return `
-                            <button type="button" onclick="setInvoiceYear('${yr}')"
-                                aria-expanded="${isYrSelected && isInvoiceMonthsExpanded}"
-                                class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrSelected ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
-                                title="Klik untuk melihat/melipat nota Tahun ${yr}">
-                                <i class="fa-solid fa-calendar-days ${isYrSelected ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
-                                <span>Tahun ${yr}</span>
-                            </button>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-        } else {
-            tabsHtml += `
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                    <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
-                    <select onchange="setInvoiceYear(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
-                        ${invoiceYears.map(yr => `<option value="${yr}" ${yr === activeInvoiceYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-        }
-
-        tabsHtml += `
-            <button type="button" onclick="setInvoiceYear('${activeInvoiceYear}')"
-                class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
-                title="${isInvoiceMonthsExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
-                <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isInvoiceMonthsExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
-            </button>
+            ${buildYearSelectorHtml(invoiceYears, activeInvoiceYear, isInvoiceMonthsExpanded, 'setInvoiceYear', isAllActive)}
         `;
 
         if (isInvoiceMonthsExpanded) {
@@ -4636,20 +4488,11 @@ function openWaInvoiceTemplatesModal(invNumber) {
     }
 
     selectWaTemplate(currentWaSelectedTemplate);
-
-    const modal = document.getElementById('modal-wa-invoice-templates');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
+    openModalById('modal-wa-invoice-templates');
 }
 
 function closeWaInvoiceTemplatesModal() {
-    const modal = document.getElementById('modal-wa-invoice-templates');
-    if (modal) {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-    }
+    closeModalById('modal-wa-invoice-templates');
 }
 
 function selectWaTemplate(tplKey) {
@@ -4807,29 +4650,27 @@ function setLeaderboardPeriod(period) {
 
 function calculateCustomerLeaderboard(period = 'all') {
     const custMap = {};
-    for (let mk in transactionData) {
-        if (period === 'month' && mk !== activeMonthSheet) continue;
-        (transactionData[mk] || []).forEach(t => {
-            const cName = (t.customer || 'Pelanggan Umum').trim();
-            if (!custMap[cName]) {
-                custMap[cName] = {
-                    name: cName,
-                    totalSpent: 0,
-                    orderCount: 0,
-                    totalQty: 0,
-                    lastDate: t.date,
-                    items: {}
-                };
-            }
-            custMap[cName].totalSpent += (t.totalSell || 0);
-            custMap[cName].orderCount += 1;
-            custMap[cName].totalQty += (t.qty || 0);
-            if (t.date > custMap[cName].lastDate) {
-                custMap[cName].lastDate = t.date;
-            }
-            custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
-        });
-    }
+    const list = period === 'month' ? (transactionData[activeMonthSheet] || []) : getAllTransactions();
+    list.forEach(t => {
+        const cName = (t.customer || 'Pelanggan Umum').trim();
+        if (!custMap[cName]) {
+            custMap[cName] = {
+                name: cName,
+                totalSpent: 0,
+                orderCount: 0,
+                totalQty: 0,
+                lastDate: t.date,
+                items: {}
+            };
+        }
+        custMap[cName].totalSpent += (t.totalSell || 0);
+        custMap[cName].orderCount += 1;
+        custMap[cName].totalQty += (t.qty || 0);
+        if (t.date > custMap[cName].lastDate) {
+            custMap[cName].lastDate = t.date;
+        }
+        custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
+    });
 
     return Object.values(custMap).sort((a, b) => b.totalSpent - a.totalSpent);
 }
@@ -4964,16 +4805,14 @@ async function markInvoiceAsPaid(invId, custName) {
     const inv = invoiceData.find(i => String(i.id) === String(invId));
     if(inv) inv.status = 'Lunas';
 
-    for(let mk in transactionData) {
-        transactionData[mk].forEach((t) => {
-            const isMatch = inv 
-                ? ((t.customer === custName && t.date === inv.date) || (inv.invoice_number && t.notes && t.notes.includes(inv.invoice_number)))
-                : (t.customer === custName);
-            if(isMatch && t.status === 'Belum Lunas') {
-                t.status = 'Lunas';
-            }
-        });
-    }
+    getAllTransactions().forEach((t) => {
+        const isMatch = inv 
+            ? ((t.customer === custName && t.date === inv.date) || (inv.invoice_number && t.notes && t.notes.includes(inv.invoice_number)))
+            : (t.customer === custName);
+        if(isMatch && t.status === 'Belum Lunas') {
+            t.status = 'Lunas';
+        }
+    });
 
     saveCacheToLocal();
     renderInvoicesTable();
@@ -5111,6 +4950,27 @@ async function renderSinglePagePDF(printAreaEl, fileName) {
     }
 }
 
+function getPdfRowDensity(itemCount) {
+    if (itemCount > 30) return { tdPadding: "py-0 px-1 leading-tight", fontSize: "text-[9px]" };
+    if (itemCount > 18) return { tdPadding: "py-0.5 px-1", fontSize: "text-[10px]" };
+    if (itemCount > 10) return { tdPadding: "py-1 px-1.5", fontSize: "text-[11px]" };
+    return { tdPadding: "py-2 px-1.5", fontSize: "text-xs" };
+}
+
+function setPdfSubtotalRow(amount) {
+    const subRowEl = document.getElementById('pdf-subtotal-row');
+    if (subRowEl && !document.getElementById('inv-subtotal')) {
+        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
+    } else if (subRowEl && subRowEl.firstElementChild) {
+        subRowEl.firstElementChild.innerText = 'Subtotal';
+    }
+    const formatted = 'Rp ' + (Number(amount) || 0).toLocaleString();
+    const subEl = document.getElementById('inv-subtotal');
+    if (subEl) subEl.innerText = formatted;
+    const grandEl = document.getElementById('inv-grand-total');
+    if (grandEl) grandEl.innerText = formatted;
+}
+
 async function downloadInvoicePDF(invNumber, statusInv) {
     const inv = invoiceData.find(i => i.invoice_number === invNumber);
     if(!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
@@ -5132,41 +4992,12 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     document.getElementById('inv-meta-customer').innerText = inv.customer_name;
     document.getElementById('inv-meta-date').innerText = inv.date;
     document.getElementById('inv-meta-no').innerText = inv.invoice_number;
-    const subRowEl = document.getElementById('pdf-subtotal-row');
-    if (subRowEl && !document.getElementById('inv-subtotal')) {
-        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
-    } else if (subRowEl && subRowEl.firstElementChild) {
-        subRowEl.firstElementChild.innerText = 'Subtotal';
-    }
-    const subEl = document.getElementById('inv-subtotal');
-    if (subEl) subEl.innerText = 'Rp ' + inv.total_amount.toLocaleString();
-    document.getElementById('inv-grand-total').innerText = 'Rp ' + inv.total_amount.toLocaleString();
+    setPdfSubtotalRow(inv.total_amount);
 
-    let matchingTrx = [];
-    for (let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if (t.customer === inv.customer_name && t.date === inv.date) {
-                matchingTrx.push(t);
-            }
-        });
-    }
-
+    const matchingTrx = getAllTransactions().filter(t => t.customer === inv.customer_name && t.date === inv.date);
     let tbody = document.getElementById('inv-cart-body');
     const itemCount = matchingTrx.length;
-
-    // Dynamic density scaling untuk kenyamanan membaca & proporsi 1 lembar
-    let tdPadding = "py-2 px-1.5";
-    let fontSize = "text-xs";
-    if (itemCount > 10 && itemCount <= 18) {
-        tdPadding = "py-1 px-1.5";
-        fontSize = "text-[11px]";
-    } else if (itemCount > 18 && itemCount <= 30) {
-        tdPadding = "py-0.5 px-1";
-        fontSize = "text-[10px]";
-    } else if (itemCount > 30) {
-        tdPadding = "py-0 px-1 leading-tight";
-        fontSize = "text-[9px]";
-    }
+    const { tdPadding, fontSize } = getPdfRowDensity(itemCount);
 
     if (itemCount > 0) {
         tbody.innerHTML = matchingTrx.map(t => `
@@ -5286,44 +5117,7 @@ function renderMonthTabs() {
     const canDelete = isSuperAdmin && keys.length > 1;
 
     // 1. Build Interactive Year Switcher HTML
-    let yearSelectorHtml = '';
-    if (years.length <= 1) {
-        yearSelectorHtml = `
-            <button type="button" onclick="setTransactionYear('${activeTransactionYear}')"
-                aria-expanded="${isTransactionMonthsExpanded}"
-                class="year-selector-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 cursor-pointer select-none ${isTransactionMonthsExpanded ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 shadow-xs' : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 shadow-xs'}"
-                title="Klik untuk buka/tutup daftar bulan Tahun ${activeTransactionYear}">
-                <i class="fa-solid fa-calendar-days text-indigo-500"></i>
-                <span>Tahun ${activeTransactionYear}</span>
-            </button>
-        `;
-    } else if (years.length <= 4) {
-        yearSelectorHtml = `
-            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                ${years.map(yr => {
-                    const isYrActive = yr === activeTransactionYear;
-                    return `
-                        <button type="button" onclick="setTransactionYear('${yr}')"
-                            aria-expanded="${isYrActive && isTransactionMonthsExpanded}"
-                            class="year-selector-btn px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${isYrActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80'}"
-                            title="Klik untuk tampilkan/lipat sheet transaksi Tahun ${yr}">
-                            <i class="fa-solid fa-calendar-days ${isYrActive ? 'text-white' : 'text-indigo-500'} text-[11px]"></i>
-                            <span>Tahun ${yr}</span>
-                        </button>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    } else {
-        yearSelectorHtml = `
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-xs shrink-0">
-                <i class="fa-solid fa-calendar-days text-indigo-500 text-xs pl-1"></i>
-                <select onchange="setTransactionYear(this.value, true)" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer pr-1">
-                    ${years.map(yr => `<option value="${yr}" ${yr === activeTransactionYear ? 'selected' : ''} class="text-slate-900 bg-white dark:bg-slate-800 dark:text-slate-100">Tahun ${yr}</option>`).join('')}
-                </select>
-            </div>
-        `;
-    }
+    const yearSelectorHtml = buildYearSelectorHtml(years, activeTransactionYear, isTransactionMonthsExpanded, 'setTransactionYear', false);
 
     // 2. Build Month Tabs HTML for selected year
     let monthTabsHtml = '';
@@ -5372,11 +5166,6 @@ function renderMonthTabs() {
     container.innerHTML = `
         <div class="flex items-center gap-1.5 flex-wrap">
             ${yearSelectorHtml}
-            <button type="button" onclick="setTransactionYear('${activeTransactionYear}')"
-                class="year-chevron-btn w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-indigo-500 cursor-pointer select-none shrink-0"
-                title="${isTransactionMonthsExpanded ? 'Lipat daftar bulan' : 'Buka daftar bulan'}">
-                <i class="fa-solid fa-chevron-right text-[11px] year-chevron-icon ${isTransactionMonthsExpanded ? 'is-expanded' : 'is-collapsed'}"></i>
-            </button>
             <div class="flex items-center gap-1.5 flex-wrap">
                 ${monthTabsHtml}
                 ${addMonthBtnHtml}
@@ -5604,15 +5393,7 @@ function syncDailyInvoiceForCustomerDate(customerName, dateStr) {
     const invIdx = invoiceData.findIndex(i => i.customer_name === customerName && i.date === dateStr);
     if (invIdx === -1) return null;
 
-    let remainingTrx = [];
-    for (let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if (t.customer === customerName && t.date === dateStr) {
-                remainingTrx.push(t);
-            }
-        });
-    }
-
+    const remainingTrx = getAllTransactions().filter(t => t.customer === customerName && t.date === dateStr);
     const inv = invoiceData[invIdx];
     if (remainingTrx.length === 0) {
         invoiceData.splice(invIdx, 1);
@@ -5675,35 +5456,14 @@ function confirmDeleteTrx(id) {
                 const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
                 if(error) throw error;
             }
-            if (invSync && invSync.inv) {
-                const invObj = invSync.inv;
-                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-                if (invSync.action === 'delete') {
-                    await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
-                } else {
-                    await supabaseClient.from('invoices').update({
-                        total_amount: invObj.total_amount,
-                        status: invObj.status
-                    }).eq(matchCol, matchVal);
-                }
-            }
+            await syncDailyInvoiceCloud(invSync);
         });
     });
 }
 
 async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
-    let trx = (transactionData[activeMonthSheet] || []).find(t => String(t.id) === String(id));
-    if (!trx) {
-        for (let mk in transactionData) {
-            const found = (transactionData[mk] || []).find(t => String(t.id) === String(id));
-            if (found) {
-                trx = found;
-                break;
-            }
-        }
-    }
+    const trx = (transactionData[activeMonthSheet] || []).find(t => String(t.id) === String(id)) || findTransactionById(id);
     let oldStatus = 'Belum Lunas';
     let invSync = null;
     if(trx) {
@@ -5728,21 +5488,12 @@ async function updateTrxStatus(id, newStatus) {
             const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
             if(error) throw error;
         }
-        if (invSync && invSync.action === 'update' && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
-        }
+        await syncDailyInvoiceCloud(invSync);
     });
 }
 
 async function downloadPDF(trxId) {
-    let targetTrx = null;
-    for(let m in transactionData) {
-        const found = transactionData[m].find(t => String(t.id) === String(trxId));
-        if(found) { targetTrx = found; break; }
-    }
+    const targetTrx = findTransactionById(trxId);
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
 
     // Jika pengaturan nota adalah Thermal 58mm atau 80mm
@@ -5773,19 +5524,7 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     let tbody = document.getElementById('inv-cart-body');
     if(!tbody) return;
 
-    const itemCount = matchingTransactions.length;
-    let tdPadding = "py-2 px-1.5";
-    let fontSize = "text-xs";
-    if (itemCount > 10 && itemCount <= 18) {
-        tdPadding = "py-1 px-1.5";
-        fontSize = "text-[11px]";
-    } else if (itemCount > 18 && itemCount <= 30) {
-        tdPadding = "py-0.5 px-1";
-        fontSize = "text-[10px]";
-    } else if (itemCount > 30) {
-        tdPadding = "py-0 px-1 leading-tight";
-        fontSize = "text-[9px]";
-    }
+    const { tdPadding, fontSize } = getPdfRowDensity(matchingTransactions.length);
 
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
@@ -5803,15 +5542,7 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     document.getElementById('inv-meta-customer').innerText = targetTrx.customer;
     document.getElementById('inv-meta-date').innerText = targetTrx.date;
     document.getElementById('inv-meta-no').innerText = `INV-${targetTrx.date.replace(/-/g,'')}-${targetTrx.id}`;
-    const subRowEl = document.getElementById('pdf-subtotal-row');
-    if (subRowEl && !document.getElementById('inv-subtotal')) {
-        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
-    } else if (subRowEl && subRowEl.firstElementChild) {
-        subRowEl.firstElementChild.innerText = 'Subtotal';
-    }
-    const subEl = document.getElementById('inv-subtotal');
-    if (subEl) subEl.innerText = 'Rp ' + grandTotal.toLocaleString();
-    document.getElementById('inv-grand-total').innerText = 'Rp ' + grandTotal.toLocaleString();
+    setPdfSubtotalRow(grandTotal);
 }
 
 async function printMonthlyRecapPDF() {
@@ -5846,7 +5577,7 @@ async function printMonthlyRecapPDF() {
     updateInvoicePDFStatus('');
     document.getElementById('pdf-meta-subtitle').innerText = "Periode Bulan:";
     document.getElementById('inv-meta-customer').innerText = activeMonthSheet;
-    document.getElementById('inv-meta-date').innerText = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    document.getElementById('inv-meta-date').innerText = getLocalDateStr();
     document.getElementById('pdf-meta-id-wrap').style.display = "none";
     document.getElementById('pdf-subtotal-row').innerHTML = `<span>Total Modal (HPP)</span><span id="inv-subtotal" class="font-medium">Rp ${totalModal.toLocaleString()}</span>`;
     document.getElementById('pdf-total-label').innerText = "Keuntungan Bersih (Lunas)";
@@ -5864,11 +5595,7 @@ async function printMonthlyRecapPDF() {
 }
 
 async function sendWhatsAppOnly(trxId) {
-    let targetTrx = null;
-    for(let m in transactionData) {
-        const found = transactionData[m].find(t => String(t.id) === String(trxId));
-        if(found) { targetTrx = found; break; }
-    }
+    const targetTrx = findTransactionById(trxId);
     if (!targetTrx) return showNotification('Gagal', 'Data tidak valid!', 'error');
     const matchingTransactions = (transactionData[targetTrx.monthKey] || []).filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
 
@@ -5897,12 +5624,10 @@ async function sendWhatsAppOnly(trxId) {
 }
 
 function openExpenseModal() {
-    document.getElementById('expense-modal').classList.remove('hidden');
-    document.getElementById('expense-modal').classList.add('flex');
+    openModalById('expense-modal');
 }
 function closeExpenseModal() {
-    document.getElementById('expense-modal').classList.remove('flex');
-    document.getElementById('expense-modal').classList.add('hidden');
+    closeModalById('expense-modal');
 }
 
 async function saveExpense() {
@@ -6323,8 +6048,7 @@ function openBulkOrderModal() {
     const tDateInput = document.getElementById('t-date');
     const bulkDate = document.getElementById('bulk-date');
     if (bulkDate) {
-        const localToday = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
-        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : localToday;
+        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : getLocalDateStr();
     }
 
     // Populate Customers
@@ -6353,18 +6077,12 @@ function openBulkOrderModal() {
     const bulkStatus = document.getElementById('bulk-status');
     if (bulkStatus) bulkStatus.value = 'Belum Lunas';
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
+    openModalById('modal-bulk-order');
     renderBulkProductChecklist();
 }
 
 function closeBulkOrderModal() {
-    const modal = document.getElementById('modal-bulk-order');
-    if (modal) {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-    }
+    closeModalById('modal-bulk-order');
 }
 
 function renderBulkProductChecklist() {
@@ -6902,14 +6620,10 @@ function getFilteredReportData() {
         periodLabel = "Semua Data";
     }
 
-    const toLocalStr = (d, fb) => !d ? fb : (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : d.toISOString().split('T')[0]);
-    const fStr = (currentReportRange === 'custom' && customReportFrom) ? customReportFrom : toLocalStr(fromDate, '2020-01-01');
-    const tStr = (currentReportRange === 'custom' && customReportTo) ? customReportTo : toLocalStr(toDate, '2099-12-31');
+    const fStr = (currentReportRange === 'custom' && customReportFrom) ? customReportFrom : (fromDate ? getLocalDateStr(fromDate) : '2020-01-01');
+    const tStr = (currentReportRange === 'custom' && customReportTo) ? customReportTo : (toDate ? getLocalDateStr(toDate) : '2099-12-31');
 
-    let allTrx = [];
-    for (let mk in transactionData) {
-        allTrx = allTrx.concat(transactionData[mk] || []);
-    }
+    const allTrx = getAllTransactions();
 
     const filteredTrx = allTrx.filter(t => {
         if (!t.date) return false;
@@ -7319,7 +7033,7 @@ function exportToExcel(reportType) {
 
     const data = getFilteredReportData();
     const wb = XLSX.utils.book_new();
-    const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
 
     // Helper calculations
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
@@ -7644,7 +7358,7 @@ function exportToPdf(reportType) {
     `;
 
     const typeLabel = reportType === 'all' ? 'Eksekutif_Lengkap' : reportType.toUpperCase();
-    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    const todayDateStr = getLocalDateStr();
     const fileName = `SnackLoop_${typeLabel}_${todayDateStr}.pdf`;
 
     const opt = {
@@ -7888,16 +7602,11 @@ function openReturnModal(prefill = null) {
         if (prefill.notes) document.getElementById('ret-notes').value = prefill.notes;
     }
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-return');
 }
 
 function closeReturnModal() {
-    const modal = document.getElementById('modal-return');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-return');
 }
 
 function onReturnProductSelect() {
@@ -7922,21 +7631,13 @@ function onReturnProductSelect() {
 }
 
 function openReturnModalFromTrx(trxId) {
-    let foundTrx = null;
-    for (let mk in transactionData) {
-        const item = (transactionData[mk] || []).find(t => String(t.id) === String(trxId));
-        if (item) {
-            foundTrx = item;
-            break;
-        }
-    }
-
+    const foundTrx = findTransactionById(trxId);
     if (!foundTrx) {
         return showNotification("Peringatan", "Data transaksi tidak ditemukan.", "warning");
     }
 
     openReturnModal({
-        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0],
+        date: getLocalDateStr(),
         customer: foundTrx.customer,
         itemName: foundTrx.itemName,
         agent: foundTrx.source !== 'Repack' ? foundTrx.source : (agentData[0]?.name || ''),
@@ -8144,7 +7845,7 @@ function resolveReturnClaim(returnId) {
     if (!item) return;
 
     item.claim_status = 'selesai';
-    item.resolved_date = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    item.resolved_date = getLocalDateStr();
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'update', {
@@ -8204,15 +7905,8 @@ function confirmDeleteReturn(returnId) {
             if (item.action_type === 'beban_rusak' && item.item_name) {
                 supabaseClient.from('expenses').delete().eq('date', item.date).ilike('description', `%Kerugian Retur Rusak: ${item.item_name}%`).then(() => {}).catch(() => {});
             }
-            if (invSync && invSync.inv) {
-                const invObj = invSync.inv;
-                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-                if (invSync.action === 'delete') {
-                    supabaseClient.from('invoices').delete().eq(matchCol, matchVal).then(() => {}).catch(() => {});
-                } else if (typeof syncInvoicePayloadToCloud === 'function') {
-                    syncInvoicePayloadToCloud({ ...invObj, isUpdate: true }).catch(() => {});
-                }
+            if (invSync && typeof syncDailyInvoiceCloud === 'function') {
+                syncDailyInvoiceCloud(invSync).catch(() => {});
             }
         }
 
@@ -8247,16 +7941,11 @@ function openPrintAgentClaimModal() {
     if (driverInput) driverInput.value = currentUser || '';
 
     previewAgentClaimItems();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-print-agent-claim');
 }
 
 function closePrintAgentClaimModal() {
-    const modal = document.getElementById('modal-print-agent-claim');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-print-agent-claim');
 }
 
 function previewAgentClaimItems() {
@@ -8586,15 +8275,7 @@ async function fetchJastipFromCloud() {
 
 function dispatchJastipMutation(type, payload) {
     if (typeof dispatchMutation === 'function') {
-        dispatchMutation({ type, payload }, async () => {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                if (type === 'UPSERT_JASTIP') {
-                    await supabaseClient.from('jastip_orders').upsert([payload]);
-                } else if (type === 'DELETE_JASTIP') {
-                    await supabaseClient.from('jastip_orders').delete().eq('id', payload.id);
-                }
-            }
-        });
+        dispatchMutation({ type, payload }, () => syncSingleOutboxItem({ type, payload }));
     }
 }
 
@@ -8871,19 +8552,12 @@ function onJastipSearch(e) {
 
 // 5. Kalkulator Landed Cost Pop-up Simulator
 function openJastipCalculatorModal() {
-    const modal = document.getElementById('modal-jastip-calculator');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-calculator');
     onJastipCalcCurrencyChange();
 }
 
 function closeJastipCalculatorModal() {
-    const modal = document.getElementById('modal-jastip-calculator');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-calculator');
 }
 
 function onJastipCalcCurrencyChange() {
@@ -9028,16 +8702,11 @@ function openJastipOrderModal(orderId = null) {
         onJastipFormCurrencyChange();
     }
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-order');
 }
 
 function closeJastipOrderModal() {
-    const modal = document.getElementById('modal-jastip-order');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-order');
 }
 
 function onJastipFormCurrencyChange() {
@@ -9270,7 +8939,7 @@ function bookJastipToFinance(id) {
         if (!transactionData[monthKey]) transactionData[monthKey] = [];
 
         const trxId = 'trx_jst_' + item.id;
-        const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10);
+        const dateStr = getLocalDateStr(now);
         const itemNameLabel = `${item.item_name} [${item.id}]`;
         const totalModalComputed = item.total_selling_price - item.total_net_profit;
         const profitPerItemComputed = Math.round(item.total_net_profit / (item.item_qty || 1));
@@ -9552,24 +9221,16 @@ if (typeof document !== 'undefined') {
 let currentChecklistSearch = '';
 
 function openJastipChecklistModal() {
-    const modal = document.getElementById('modal-jastip-checklist');
-    if (!modal) return;
-
     currentChecklistSearch = '';
     const searchInput = document.getElementById('jastip-checklist-search');
     if (searchInput) searchInput.value = '';
 
     renderJastipChecklist();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-checklist');
 }
 
 function closeJastipChecklistModal() {
-    const modal = document.getElementById('modal-jastip-checklist');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-checklist');
 }
 
 function onJastipChecklistSearch(e) {
@@ -9686,20 +9347,12 @@ function toggleChecklistPurchased(id) {
 
 // 11. Dokumen Pabean & Packing List Bandara (Customs Compliance USD 500)
 function openJastipCustomsModal() {
-    const modal = document.getElementById('modal-jastip-customs');
-    if (!modal) return;
-
     renderJastipCustomsSummary();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-customs');
 }
 
 function closeJastipCustomsModal() {
-    const modal = document.getElementById('modal-jastip-customs');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-customs');
 }
 
 function renderJastipCustomsSummary() {
@@ -9778,7 +9431,7 @@ function generateJastipCustomsPDF() {
     if (!printArea) return;
 
     if (typeof html2pdf !== 'undefined') {
-        const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+        const todayLocal = getLocalDateStr();
         const opt = {
             margin: [10, 10, 10, 10],
             filename: `Packing_List_Customs_ECD_${todayLocal}.pdf`,
@@ -9816,17 +9469,12 @@ function viewJastipReceiptImage(id) {
             return showNotification("Keamanan", "Format tautan gambar tidak valid.", "warning");
         }
         if (labelEl) labelEl.innerText = `${item.id} - ${item.item_name} (${item.purchase_receipt_note || 'Struk Kasir'})`;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        openModalById('modal-jastip-photo-preview');
     }
 }
 
 function closeJastipPhotoModal() {
-    const modal = document.getElementById('modal-jastip-photo-preview');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-photo-preview');
 }
 
 // 13. Ekspor & Impor Data Jastip (Excel & JSON)
@@ -9865,18 +9513,12 @@ function exportJastipExcel() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Jastip SnackLoop");
-    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${todayLocal}.xlsx`);
+    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${getLocalDateStr()}.xlsx`);
     showNotification("Sukses", "Berkas Excel rekap Jastip berhasil diunduh!", "success");
 }
 
 function exportJastipJSON() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jastipData, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    dlAnchorElem.setAttribute("download", `snackloop_jastip_backup_${todayLocal}.json`);
-    dlAnchorElem.click();
+    downloadBlobFile(JSON.stringify(jastipData, null, 2), `snackloop_jastip_backup_${getLocalDateStr()}.json`);
     showNotification("Dicadangkan", "File backup JSON Jastip berhasil disimpan.", "success");
 }
 
@@ -10025,20 +9667,13 @@ function switchInstallGuideTab(tab) {
 }
 
 function openInstallGuideModal(preferredTab = null) {
-    const modal = document.getElementById('modal-install-guide');
-    if (!modal) return;
     const tabToOpen = preferredTab || getDeviceType();
     switchInstallGuideTab(tabToOpen);
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-install-guide');
 }
 
 function closeInstallGuideModal() {
-    const modal = document.getElementById('modal-install-guide');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-install-guide');
 }
 
 function openIosInstallModal() {
@@ -10171,19 +9806,11 @@ function openSettingsModal(initialTab = 'profile') {
     updateLanguageButtonsUI();
     updateSettingsInstallButton();
     switchSettingsTab(initialTab);
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modal.style.display = 'flex';
+    openModalById('modal-settings');
 }
 
 function closeSettingsModal() {
-    const modal = document.getElementById('modal-settings');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        modal.style.display = 'none';
-    }
+    closeModalById('modal-settings');
 }
 
 function switchSettingsTab(tabName) {
@@ -10506,31 +10133,10 @@ function printThermalReceiptFromTrx(targetTrx, format) {
 }
 
 function printThermalReceiptFromInvoice(inv, format) {
-    let items = [];
-    let foundTrxList = [];
-    for (let m in transactionData) {
-        const matches = (transactionData[m] || []).filter(t => t.date === inv.date && t.customer === inv.customer_name);
-        if (matches.length > 0) {
-            foundTrxList = matches;
-            break;
-        }
-    }
-
-    if (foundTrxList.length > 0) {
-        foundTrxList.forEach(t => {
-            items.push({
-                name: t.itemName,
-                qty: t.qty,
-                sell: t.sell
-            });
-        });
-    } else {
-        items.push({
-            name: "Pembelian Produk SnackLoop",
-            qty: 1,
-            sell: inv.total_amount
-        });
-    }
+    const foundTrxList = getAllTransactions().filter(t => t.date === inv.date && t.customer === inv.customer_name);
+    const items = foundTrxList.length > 0
+        ? foundTrxList.map(t => ({ name: t.itemName, qty: t.qty, sell: t.sell }))
+        : [{ name: "Pembelian Produk SnackLoop", qty: 1, sell: inv.total_amount }];
 
     printThermalReceipt({
         noNota: inv.invoice_number,
@@ -10551,7 +10157,7 @@ function testThermalPrintFromSettings() {
         return showNotification("Format A4", "Format yang dipilih saat ini adalah Dokumen A4. Pilih 58mm atau 80mm untuk tes cetak printer thermal bluetooth.", "info");
     }
 
-    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0,10);
+    const todayDateStr = getLocalDateStr();
     printThermalReceipt({
         noNota: `TES-${todayDateStr.replace(/-/g, '')}-001`,
         date: new Date().toLocaleDateString('id-ID'),

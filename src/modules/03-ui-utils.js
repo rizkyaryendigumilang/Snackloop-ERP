@@ -110,6 +110,63 @@ function normalizeWaPhone(rawPhone, fallback = '') {
     return clean;
 }
 
+function getAllTransactions() {
+    if (typeof transactionData === 'undefined' || !transactionData) return [];
+    return Object.values(transactionData).flat().filter(Boolean);
+}
+
+function findTransactionById(trxId) {
+    const target = String(trxId);
+    for (const mk in (typeof transactionData !== 'undefined' ? transactionData : {})) {
+        const found = (transactionData[mk] || []).find(t => String(t.id) === target);
+        if (found) return found;
+    }
+    return null;
+}
+
+function downloadBlobFile(content, filename, mimeType = 'application/json;charset=utf-8;') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function applyStateBundle(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.transactionData) transactionData = data.transactionData;
+    if (data.masterData) masterData = data.masterData;
+    if (data.customerData) customerData = data.customerData;
+    if (data.agentData) agentData = data.agentData;
+    if (data.repackData) repackData = data.repackData;
+    if (data.expenseData) expenseData = data.expenseData;
+    if (data.invoiceData) invoiceData = data.invoiceData;
+    if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
+    if (data.returnData) returnData = data.returnData;
+    if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+    if (Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
+}
+
+function refreshAllViews() {
+    if (typeof renderMonthTabs === 'function') renderMonthTabs();
+    if (typeof renderMaster === 'function') renderMaster();
+    if (typeof renderCustomer === 'function') renderCustomer();
+    if (typeof renderAgents === 'function') renderAgents();
+    if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+    if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+    if (typeof renderReturns === 'function') renderReturns();
+    if (typeof renderJastip === 'function') renderJastip();
+    if (typeof renderUsers === 'function') renderUsers();
+    if (typeof renderDropdowns === 'function') renderDropdowns();
+    if (typeof updateDashboard === 'function') updateDashboard();
+    if (typeof renderFinancialChart === 'function') renderFinancialChart();
+    if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
+}
+
 function toggleNavbarCollapse(forceCollapsed) {
     if (typeof document === 'undefined' || !document.body) return false;
     const isCurrentlyCollapsed = document.body.classList.contains('navbar-collapsed');

@@ -153,15 +153,7 @@ async function fetchJastipFromCloud() {
 
 function dispatchJastipMutation(type, payload) {
     if (typeof dispatchMutation === 'function') {
-        dispatchMutation({ type, payload }, async () => {
-            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-                if (type === 'UPSERT_JASTIP') {
-                    await supabaseClient.from('jastip_orders').upsert([payload]);
-                } else if (type === 'DELETE_JASTIP') {
-                    await supabaseClient.from('jastip_orders').delete().eq('id', payload.id);
-                }
-            }
-        });
+        dispatchMutation({ type, payload }, () => syncSingleOutboxItem({ type, payload }));
     }
 }
 
@@ -438,19 +430,12 @@ function onJastipSearch(e) {
 
 // 5. Kalkulator Landed Cost Pop-up Simulator
 function openJastipCalculatorModal() {
-    const modal = document.getElementById('modal-jastip-calculator');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-calculator');
     onJastipCalcCurrencyChange();
 }
 
 function closeJastipCalculatorModal() {
-    const modal = document.getElementById('modal-jastip-calculator');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-calculator');
 }
 
 function onJastipCalcCurrencyChange() {
@@ -595,16 +580,11 @@ function openJastipOrderModal(orderId = null) {
         onJastipFormCurrencyChange();
     }
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-order');
 }
 
 function closeJastipOrderModal() {
-    const modal = document.getElementById('modal-jastip-order');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-order');
 }
 
 function onJastipFormCurrencyChange() {
@@ -837,7 +817,7 @@ function bookJastipToFinance(id) {
         if (!transactionData[monthKey]) transactionData[monthKey] = [];
 
         const trxId = 'trx_jst_' + item.id;
-        const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10);
+        const dateStr = getLocalDateStr(now);
         const itemNameLabel = `${item.item_name} [${item.id}]`;
         const totalModalComputed = item.total_selling_price - item.total_net_profit;
         const profitPerItemComputed = Math.round(item.total_net_profit / (item.item_qty || 1));
@@ -1119,24 +1099,16 @@ if (typeof document !== 'undefined') {
 let currentChecklistSearch = '';
 
 function openJastipChecklistModal() {
-    const modal = document.getElementById('modal-jastip-checklist');
-    if (!modal) return;
-
     currentChecklistSearch = '';
     const searchInput = document.getElementById('jastip-checklist-search');
     if (searchInput) searchInput.value = '';
 
     renderJastipChecklist();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-checklist');
 }
 
 function closeJastipChecklistModal() {
-    const modal = document.getElementById('modal-jastip-checklist');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-checklist');
 }
 
 function onJastipChecklistSearch(e) {
@@ -1253,20 +1225,12 @@ function toggleChecklistPurchased(id) {
 
 // 11. Dokumen Pabean & Packing List Bandara (Customs Compliance USD 500)
 function openJastipCustomsModal() {
-    const modal = document.getElementById('modal-jastip-customs');
-    if (!modal) return;
-
     renderJastipCustomsSummary();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-jastip-customs');
 }
 
 function closeJastipCustomsModal() {
-    const modal = document.getElementById('modal-jastip-customs');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-customs');
 }
 
 function renderJastipCustomsSummary() {
@@ -1345,7 +1309,7 @@ function generateJastipCustomsPDF() {
     if (!printArea) return;
 
     if (typeof html2pdf !== 'undefined') {
-        const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+        const todayLocal = getLocalDateStr();
         const opt = {
             margin: [10, 10, 10, 10],
             filename: `Packing_List_Customs_ECD_${todayLocal}.pdf`,
@@ -1383,17 +1347,12 @@ function viewJastipReceiptImage(id) {
             return showNotification("Keamanan", "Format tautan gambar tidak valid.", "warning");
         }
         if (labelEl) labelEl.innerText = `${item.id} - ${item.item_name} (${item.purchase_receipt_note || 'Struk Kasir'})`;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        openModalById('modal-jastip-photo-preview');
     }
 }
 
 function closeJastipPhotoModal() {
-    const modal = document.getElementById('modal-jastip-photo-preview');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-jastip-photo-preview');
 }
 
 // 13. Ekspor & Impor Data Jastip (Excel & JSON)
@@ -1432,18 +1391,12 @@ function exportJastipExcel() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Jastip SnackLoop");
-    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${todayLocal}.xlsx`);
+    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${getLocalDateStr()}.xlsx`);
     showNotification("Sukses", "Berkas Excel rekap Jastip berhasil diunduh!", "success");
 }
 
 function exportJastipJSON() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jastipData, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    dlAnchorElem.setAttribute("download", `snackloop_jastip_backup_${todayLocal}.json`);
-    dlAnchorElem.click();
+    downloadBlobFile(JSON.stringify(jastipData, null, 2), `snackloop_jastip_backup_${getLocalDateStr()}.json`);
     showNotification("Dicadangkan", "File backup JSON Jastip berhasil disimpan.", "success");
 }
 

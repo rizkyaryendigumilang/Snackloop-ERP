@@ -84,19 +84,11 @@ function openSettingsModal(initialTab = 'profile') {
     updateLanguageButtonsUI();
     updateSettingsInstallButton();
     switchSettingsTab(initialTab);
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modal.style.display = 'flex';
+    openModalById('modal-settings');
 }
 
 function closeSettingsModal() {
-    const modal = document.getElementById('modal-settings');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        modal.style.display = 'none';
-    }
+    closeModalById('modal-settings');
 }
 
 function switchSettingsTab(tabName) {

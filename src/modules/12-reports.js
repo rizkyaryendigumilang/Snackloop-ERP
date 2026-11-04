@@ -95,14 +95,10 @@ function getFilteredReportData() {
         periodLabel = "Semua Data";
     }
 
-    const toLocalStr = (d, fb) => !d ? fb : (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : d.toISOString().split('T')[0]);
-    const fStr = (currentReportRange === 'custom' && customReportFrom) ? customReportFrom : toLocalStr(fromDate, '2020-01-01');
-    const tStr = (currentReportRange === 'custom' && customReportTo) ? customReportTo : toLocalStr(toDate, '2099-12-31');
+    const fStr = (currentReportRange === 'custom' && customReportFrom) ? customReportFrom : (fromDate ? getLocalDateStr(fromDate) : '2020-01-01');
+    const tStr = (currentReportRange === 'custom' && customReportTo) ? customReportTo : (toDate ? getLocalDateStr(toDate) : '2099-12-31');
 
-    let allTrx = [];
-    for (let mk in transactionData) {
-        allTrx = allTrx.concat(transactionData[mk] || []);
-    }
+    const allTrx = getAllTransactions();
 
     const filteredTrx = allTrx.filter(t => {
         if (!t.date) return false;
@@ -512,7 +508,7 @@ function exportToExcel(reportType) {
 
     const data = getFilteredReportData();
     const wb = XLSX.utils.book_new();
-    const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
 
     // Helper calculations
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
@@ -837,7 +833,7 @@ function exportToPdf(reportType) {
     `;
 
     const typeLabel = reportType === 'all' ? 'Eksekutif_Lengkap' : reportType.toUpperCase();
-    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    const todayDateStr = getLocalDateStr();
     const fileName = `SnackLoop_${typeLabel}_${todayDateStr}.pdf`;
 
     const opt = {

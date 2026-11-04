@@ -216,16 +216,11 @@ function openReturnModal(prefill = null) {
         if (prefill.notes) document.getElementById('ret-notes').value = prefill.notes;
     }
 
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-return');
 }
 
 function closeReturnModal() {
-    const modal = document.getElementById('modal-return');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-return');
 }
 
 function onReturnProductSelect() {
@@ -250,21 +245,13 @@ function onReturnProductSelect() {
 }
 
 function openReturnModalFromTrx(trxId) {
-    let foundTrx = null;
-    for (let mk in transactionData) {
-        const item = (transactionData[mk] || []).find(t => String(t.id) === String(trxId));
-        if (item) {
-            foundTrx = item;
-            break;
-        }
-    }
-
+    const foundTrx = findTransactionById(trxId);
     if (!foundTrx) {
         return showNotification("Peringatan", "Data transaksi tidak ditemukan.", "warning");
     }
 
     openReturnModal({
-        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0],
+        date: getLocalDateStr(),
         customer: foundTrx.customer,
         itemName: foundTrx.itemName,
         agent: foundTrx.source !== 'Repack' ? foundTrx.source : (agentData[0]?.name || ''),
@@ -472,7 +459,7 @@ function resolveReturnClaim(returnId) {
     if (!item) return;
 
     item.claim_status = 'selesai';
-    item.resolved_date = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    item.resolved_date = getLocalDateStr();
 
     saveCacheToLocal();
     dispatchOutboxMutation('returns', 'update', {
@@ -532,15 +519,8 @@ function confirmDeleteReturn(returnId) {
             if (item.action_type === 'beban_rusak' && item.item_name) {
                 supabaseClient.from('expenses').delete().eq('date', item.date).ilike('description', `%Kerugian Retur Rusak: ${item.item_name}%`).then(() => {}).catch(() => {});
             }
-            if (invSync && invSync.inv) {
-                const invObj = invSync.inv;
-                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-                if (invSync.action === 'delete') {
-                    supabaseClient.from('invoices').delete().eq(matchCol, matchVal).then(() => {}).catch(() => {});
-                } else if (typeof syncInvoicePayloadToCloud === 'function') {
-                    syncInvoicePayloadToCloud({ ...invObj, isUpdate: true }).catch(() => {});
-                }
+            if (invSync && typeof syncDailyInvoiceCloud === 'function') {
+                syncDailyInvoiceCloud(invSync).catch(() => {});
             }
         }
 
@@ -575,16 +555,11 @@ function openPrintAgentClaimModal() {
     if (driverInput) driverInput.value = currentUser || '';
 
     previewAgentClaimItems();
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-print-agent-claim');
 }
 
 function closePrintAgentClaimModal() {
-    const modal = document.getElementById('modal-print-agent-claim');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-print-agent-claim');
 }
 
 function previewAgentClaimItems() {

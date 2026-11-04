@@ -25,7 +25,7 @@ function calculateRepack() {
 
     currentRepackCalcResult = {
         id: `BATCH-${Date.now().toString().slice(-5)}`,
-        date: typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10),
+        date: getLocalDateStr(),
         name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
     };
     if (currentRole === 'super_admin' || currentRole === 'staff_rekap') {

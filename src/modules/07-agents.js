@@ -41,18 +41,16 @@ function renderAgentPerformanceOverview() {
         };
     });
 
-    for(let mk in transactionData) {
-        (transactionData[mk] || []).forEach(t => {
-            if(t.source && statsMap[t.source]) {
-                const ag = statsMap[t.source];
-                ag.totalSoldQty += (t.qty || 0);
-                ag.totalRevenue += (t.totalSell || 0);
-                ag.totalModal += (t.totalModal || 0);
-                ag.transactionCount += 1;
-                ag.topItems[t.itemName] = (ag.topItems[t.itemName] || 0) + (t.qty || 0);
-            }
-        });
-    }
+    getAllTransactions().forEach(t => {
+        if(t.source && statsMap[t.source]) {
+            const ag = statsMap[t.source];
+            ag.totalSoldQty += (t.qty || 0);
+            ag.totalRevenue += (t.totalSell || 0);
+            ag.totalModal += (t.totalModal || 0);
+            ag.transactionCount += 1;
+            ag.topItems[t.itemName] = (ag.topItems[t.itemName] || 0) + (t.qty || 0);
+        }
+    });
 
     const cards = agentData.map(ag => {
         const stat = statsMap[ag.name];

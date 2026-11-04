@@ -166,7 +166,7 @@ async function logAuditActivity(action, target, details, prevVal = null, newVal 
 
 // ----------------- SNAPSHOT ENGINE (DISASTER RECOVERY) ----------------- //
 async function checkAndCreateDailySnapshot() {
-    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const today = getLocalDateStr();
     const lastSnapDate = localStorage.getItem('snackloop_last_snapshot_date');
     if (lastSnapDate === today) return;
 
@@ -174,7 +174,7 @@ async function checkAndCreateDailySnapshot() {
 }
 
 async function createDailySnapshot(dateKey = null) {
-    const key = dateKey || (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10));
+    const key = dateKey || getLocalDateStr();
     try {
         const jData = typeof jastipData !== 'undefined' ? jastipData : [];
         const snapshotPayload = {
@@ -255,32 +255,12 @@ async function restoreDailySnapshot(dateKey) {
                 return showNotification("Gagal", "Data snapshot tidak ditemukan.", "error");
             }
 
-            const data = snap.data;
-            if (data.transactionData) transactionData = data.transactionData;
-            if (data.masterData) masterData = data.masterData;
-            if (data.customerData) customerData = data.customerData;
-            if (data.agentData) agentData = data.agentData;
-            if (data.repackData) repackData = data.repackData;
-            if (data.expenseData) expenseData = data.expenseData;
-            if (data.invoiceData) invoiceData = data.invoiceData;
-            if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
-            if (data.returnData) returnData = data.returnData;
-            if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
+            applyStateBundle(snap.data);
 
             await saveCacheToLocal(true);
             localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
             syncRestoredStateToCloud();
-
-            if (typeof renderMonthTabs === 'function') renderMonthTabs();
-            if (typeof renderMaster === 'function') renderMaster();
-            if (typeof renderCustomer === 'function') renderCustomer();
-            if (typeof renderAgents === 'function') renderAgents();
-            if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
-            if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
-            if (typeof renderReturns === 'function') renderReturns();
-            if (typeof updateDashboard === 'function') updateDashboard();
-            if (typeof renderFinancialChart === 'function') renderFinancialChart();
-            if (typeof renderTransactionsForActiveSheet === 'function') renderTransactionsForActiveSheet();
+            refreshAllViews();
 
             logAuditActivity('DATA_RESTORE', `Snapshot ${dateKey}`, `Memulihkan database dari snapshot otomatis tanggal ${dateKey}`);
             showNotification("Berhasil", `Sistem berhasil dipulihkan ke kondisi snapshot ${dateKey}!`, "success");
@@ -322,30 +302,25 @@ async function syncRestoredStateToCloud() {
         if (typeof jastipData !== 'undefined' && Array.isArray(jastipData) && jastipData.length > 0) {
             tasks.push(supabaseClient.from('jastip_orders').upsert(jastipData));
         }
-        const flatTrx = [];
-        for (const mk in (transactionData || {})) {
-            (transactionData[mk] || []).forEach(t => {
-                flatTrx.push({
-                    id: t.id,
-                    month_key: t.monthKey || mk,
-                    date: t.date,
-                    customer: t.customer,
-                    item_name: t.itemName || t.item || '',
-                    source: t.source,
-                    qty: t.qty,
-                    batch: t.batch || '-',
-                    buy: t.buy,
-                    extra_cost: t.extraCost || 0,
-                    extra_cost_note: t.extraCostNote || '-',
-                    total_modal: t.totalModal,
-                    sell: t.sell,
-                    total_sell: t.totalSell,
-                    status: t.status,
-                    profit_per_item: t.profitPerItem,
-                    notes: t.notes || '-'
-                });
-            });
-        }
+        const flatTrx = getAllTransactions().map(t => ({
+            id: t.id,
+            month_key: t.monthKey || getCurrentMonthKey(new Date((t.date || getLocalDateStr()) + 'T00:00:00')),
+            date: t.date,
+            customer: t.customer,
+            item_name: t.itemName || t.item || '',
+            source: t.source,
+            qty: t.qty,
+            batch: t.batch || '-',
+            buy: t.buy,
+            extra_cost: t.extraCost || 0,
+            extra_cost_note: t.extraCostNote || '-',
+            total_modal: t.totalModal,
+            sell: t.sell,
+            total_sell: t.totalSell,
+            status: t.status,
+            profit_per_item: t.profitPerItem,
+            notes: t.notes || '-'
+        }));
         if (flatTrx.length > 0) {
             tasks.push(supabaseClient.from('transactions').upsert(flatTrx));
         }
@@ -610,7 +585,57 @@ async function syncInvoicePayloadToCloud(inv) {
     }
 }
 
+async function syncDailyInvoiceCloud(invSync) {
+    if (!invSync || !invSync.inv || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    const invObj = invSync.inv;
+    const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+    const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+    if (invSync.action === 'delete') {
+        await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
+    } else {
+        await supabaseClient.from('invoices').update({
+            total_amount: invObj.total_amount,
+            status: invObj.status
+        }).eq(matchCol, matchVal);
+    }
+}
+
+const OUTBOX_SIMPLE_ROUTES = {
+    INSERT_EXPENSE: { table: 'expenses', op: 'insert' },
+    INSERT_CUSTOMER: { table: 'customers', op: 'insert' },
+    DELETE_CUSTOMER: { table: 'customers', op: 'delete' },
+    INSERT_AGENT: { table: 'agents', op: 'insert' },
+    DELETE_AGENT: { table: 'agents', op: 'delete' },
+    INSERT_REPACK: { table: 'repack', op: 'insert' },
+    DELETE_REPACK: { table: 'repack', op: 'delete' },
+    INSERT_MASTER: { table: 'master', op: 'insert' },
+    DELETE_MASTER: { table: 'master', op: 'delete' },
+    DELETE_INVOICE: { table: 'invoices', op: 'delete' },
+    UPSERT_JASTIP: { table: 'jastip_orders', op: 'upsert', softFail: true },
+    DELETE_JASTIP: { table: 'jastip_orders', op: 'delete', softFail: true },
+    INSERT_RETURN: { table: 'returns', op: 'insert', unwrapData: true },
+    UPDATE_RETURN: { table: 'returns', op: 'update', unwrapData: true },
+    DELETE_RETURN: { table: 'returns', op: 'delete', unwrapData: true },
+    INSERT_AUDIT_LOG: { table: 'audit_logs', op: 'insert', unwrapData: true }
+};
+
 async function syncSingleOutboxItem(item) {
+    const route = OUTBOX_SIMPLE_ROUTES[item.type];
+    if (route) {
+        const data = (route.unwrapData && item.payload && item.payload.data) ? item.payload.data : item.payload;
+        try {
+            let res;
+            if (route.op === 'insert') res = await supabaseClient.from(route.table).insert([data]);
+            else if (route.op === 'upsert') res = await supabaseClient.from(route.table).upsert([data]);
+            else if (route.op === 'update') res = await supabaseClient.from(route.table).update(data).eq('id', data.id);
+            else if (route.op === 'delete') res = await supabaseClient.from(route.table).delete().eq('id', data.id || item.payload.id);
+            if (res && res.error && !route.softFail) throw res.error;
+        } catch (err) {
+            if (!route.softFail) throw err;
+        }
+        return;
+    }
+
     if (item.type === 'INSERT_TRANSACTION') {
         if (item.payload && item.payload.repackUpdate) {
             await supabaseClient.from('repack')
@@ -670,20 +695,7 @@ async function syncSingleOutboxItem(item) {
             const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
             if (error) throw error;
         }
-        const invSync = item.payload.invSync;
-        if (invSync && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            if (invSync.action === 'delete') {
-                await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
-            } else {
-                await supabaseClient.from('invoices').update({
-                    total_amount: invObj.total_amount,
-                    status: invObj.status
-                }).eq(matchCol, matchVal);
-            }
-        }
+        await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
         if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
             const { error } = await supabaseClient.from('transactions')
@@ -691,13 +703,7 @@ async function syncSingleOutboxItem(item) {
                 .eq('id', item.payload.id);
             if (error) throw error;
         }
-        const invSync = item.payload.invSync;
-        if (invSync && invSync.action === 'update' && invSync.inv) {
-            const invObj = invSync.inv;
-            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
-            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
-            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
-        }
+        await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'DELETE_MONTH_SHEET') {
         if (item.payload && item.payload.month_key) {
             const { error } = await supabaseClient.from('transactions').delete().eq('month_key', item.payload.month_key);
@@ -710,42 +716,12 @@ async function syncSingleOutboxItem(item) {
         } else if (item.payload && item.payload.jastipId) {
             await supabaseClient.from('transactions').delete().eq('source', 'Jastip').ilike('item_name', `%[${item.payload.jastipId}]%`);
         }
-    } else if (item.type === 'INSERT_EXPENSE') {
-        const { error } = await supabaseClient.from('expenses').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_REPACK') {
-        const { error } = await supabaseClient.from('repack').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_REPACK') {
-        const { error } = await supabaseClient.from('repack').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_CUSTOMER') {
-        const { error } = await supabaseClient.from('customers').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_CUSTOMER') {
-        const { error } = await supabaseClient.from('customers').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_AGENT') {
-        const { error } = await supabaseClient.from('agents').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_AGENT') {
-        const { error } = await supabaseClient.from('agents').delete().eq('id', item.payload.id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_MASTER') {
-        const { error } = await supabaseClient.from('master').insert([item.payload]);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_MASTER') {
-        const { error } = await supabaseClient.from('master').delete().eq('id', item.payload.id);
-        if (error) throw error;
     } else if (item.type === 'UPDATE_MASTER') {
         const { error } = await supabaseClient.from('master').update(item.payload.updates).eq('id', item.payload.id);
         if (error) throw error;
         if (item.payload.history) {
             await supabaseClient.from('price_history').insert([item.payload.history]);
         }
-    } else if (item.type === 'DELETE_INVOICE') {
-        const { error } = await supabaseClient.from('invoices').delete().eq('id', item.payload.id);
-        if (error) throw error;
     } else if (item.type === 'UPDATE_INVOICE_PAID') {
         if (item.payload.invId && !String(item.payload.invId).startsWith('inv_')) {
             await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
@@ -757,36 +733,6 @@ async function syncSingleOutboxItem(item) {
             if (item.payload.date) trxQuery = trxQuery.eq('date', item.payload.date);
             await trxQuery;
         }
-    } else if (item.type === 'UPSERT_JASTIP') {
-        try {
-            const { error } = await supabaseClient.from('jastip_orders').upsert([item.payload]);
-            if (error) console.warn("Supabase jastip_orders note:", error.message);
-        } catch (e) {
-            console.warn("Supabase jastip sync skipped:", e);
-        }
-    } else if (item.type === 'DELETE_JASTIP') {
-        try {
-            const { error } = await supabaseClient.from('jastip_orders').delete().eq('id', item.payload.id);
-            if (error) console.warn("Supabase jastip_orders delete note:", error.message);
-        } catch (e) {
-            console.warn("Supabase jastip delete skipped:", e);
-        }
-    } else if (item.type === 'INSERT_RETURN') {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('returns').insert([payload]);
-        if (error) throw error;
-    } else if (item.type === 'UPDATE_RETURN') {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('returns').update(payload).eq('id', payload.id);
-        if (error) throw error;
-    } else if (item.type === 'DELETE_RETURN') {
-        const id = item.payload.id || (item.payload.data && item.payload.data.id);
-        const { error } = await supabaseClient.from('returns').delete().eq('id', id);
-        if (error) throw error;
-    } else if (item.type === 'INSERT_AUDIT_LOG' || (item.table === 'audit_logs' && item.action === 'insert')) {
-        const payload = item.payload.data || item.payload;
-        const { error } = await supabaseClient.from('audit_logs').insert([payload]);
-        if (error) throw error;
     } else if (item.table && item.action) {
         if (item.action === 'insert') {
             const { error } = await supabaseClient.from(item.table).insert([item.payload]);
@@ -866,42 +812,19 @@ async function syncBatchedItems(type, batchItems) {
         for (const inv of invPayloads) {
             await syncInvoicePayloadToCloud(inv);
         }
-    } else if (type === 'INSERT_RETURN') {
-        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('returns').insert(rows);
-        if (error) throw error;
-    } else if (type === 'DELETE_RETURN') {
-        const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
-        const { error } = await supabaseClient.from('returns').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'INSERT_EXPENSE') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('expenses').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_CUSTOMER') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('customers').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_AGENT') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('agents').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_REPACK') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('repack').insert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_MASTER') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('master').insert(rows);
-        if (error) throw error;
-    } else if (type === 'UPSERT_JASTIP') {
-        const rows = batchItems.map(it => it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('jastip_orders').upsert(rows);
-        if (error) throw error;
-    } else if (type === 'INSERT_AUDIT_LOG') {
-        const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
-        const { error } = await supabaseClient.from('audit_logs').insert(rows);
-        if (error) throw error;
+    } else if (OUTBOX_SIMPLE_ROUTES[type] && OUTBOX_SIMPLE_ROUTES[type].op !== 'update') {
+        const route = OUTBOX_SIMPLE_ROUTES[type];
+        if (route.op === 'insert' || route.op === 'upsert') {
+            const rows = batchItems.map(it => (route.unwrapData && it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
+            const { error } = route.op === 'upsert'
+                ? await supabaseClient.from(route.table).upsert(rows)
+                : await supabaseClient.from(route.table).insert(rows);
+            if (error && !route.softFail) throw error;
+        } else if (route.op === 'delete') {
+            const ids = batchItems.map(it => it.payload.id || (it.payload.data && it.payload.data.id)).filter(Boolean);
+            const { error } = await supabaseClient.from(route.table).delete().in('id', ids);
+            if (error && !route.softFail) throw error;
+        }
     } else if (type === 'DELETE_TRANSACTION') {
         // Kembalikan stok repack jika ada
         batchItems.forEach(it => {
@@ -915,32 +838,8 @@ async function syncBatchedItems(type, batchItems) {
         const ids = batchItems.map(it => it.payload.id).filter(Boolean);
         const { error } = await supabaseClient.from('transactions').delete().in('id', ids);
         if (error) throw error;
-    } else if (type === 'DELETE_CUSTOMER') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('customers').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_AGENT') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('agents').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_MASTER') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('master').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_REPACK') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('repack').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_INVOICE') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('invoices').delete().in('id', ids);
-        if (error) throw error;
-    } else if (type === 'DELETE_JASTIP') {
-        const ids = batchItems.map(it => it.payload.id).filter(Boolean);
-        const { error } = await supabaseClient.from('jastip_orders').delete().in('id', ids);
-        if (error) throw error;
     } else {
-        // Tipe lain yang disparate / non-batchable (misal UPDATE_MASTER, UPDATE_INVOICE_PAID)
+        // Tipe lain yang disparate / non-batchable (misal UPDATE_MASTER, UPDATE_INVOICE_PAID, UPDATE_RETURN)
         for (const it of batchItems) {
             await syncSingleOutboxItem(it);
         }
@@ -1313,16 +1212,7 @@ function exportAuditLogsCSV() {
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    a.download = `SnackLoop_AuditLogs_${dateStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlobFile(csvContent, `SnackLoop_AuditLogs_${getLocalDateStr()}.csv`, 'text/csv;charset=utf-8;');
     showNotification("Sukses", "File rekap Audit Log (CSV) berhasil diunduh.", "success");
 }
 
@@ -1330,14 +1220,7 @@ function exportAuditLogsJSON() {
     if (!auditLogData || auditLogData.length === 0) {
         return showNotification("Info", "Belum ada catatan log aktivitas untuk diekspor.", "info");
     }
-    const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditLogData, null, 2));
-    const dlAnchor = document.createElement('a');
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `SnackLoop_AuditLogs_${dateStr}.json`);
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
-    dlAnchor.remove();
+    downloadBlobFile(JSON.stringify(auditLogData, null, 2), `SnackLoop_AuditLogs_${getLocalDateStr()}.json`);
     showNotification("Sukses", "File JSON Audit Log berhasil diunduh.", "success");
 }
 
@@ -1410,7 +1293,7 @@ async function renderSnapshotListUI() {
 }
 
 async function triggerManualSnapshot() {
-    const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const today = getLocalDateStr();
     showNotification("Memproses Snapshot", "Mencadangkan snapshot lokal ke IndexedDB...", "info");
     await createDailySnapshot(today);
     await renderSnapshotListUI();

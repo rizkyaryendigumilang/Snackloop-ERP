@@ -113,20 +113,13 @@ function switchInstallGuideTab(tab) {
 }
 
 function openInstallGuideModal(preferredTab = null) {
-    const modal = document.getElementById('modal-install-guide');
-    if (!modal) return;
     const tabToOpen = preferredTab || getDeviceType();
     switchInstallGuideTab(tabToOpen);
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-install-guide');
 }
 
 function closeInstallGuideModal() {
-    const modal = document.getElementById('modal-install-guide');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    closeModalById('modal-install-guide');
 }
 
 function openIosInstallModal() {

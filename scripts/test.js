@@ -234,7 +234,11 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
   assert.strictEqual(calcFlat.totalSellingPrice, 362000);
   assert.strictEqual(calcFlat.totalNetProfit, 102000);
 
-  // Unit test syncDailyInvoiceForCustomerDate from 11-transactions.js
+  // Unit test getAllTransactions, findTransactionById & syncDailyInvoiceForCustomerDate
+  const getAllIdx = uiUtilsCode.indexOf('function getAllTransactions()');
+  const getAllEnd = uiUtilsCode.indexOf('function downloadBlobFile(', getAllIdx);
+  vm.runInContext(uiUtilsCode.slice(getAllIdx, getAllEnd), sandbox);
+
   const syncInvIdx = trxCode.indexOf('function syncDailyInvoiceForCustomerDate(customerName, dateStr)');
   const syncInvEnd = trxCode.indexOf('function confirmDeleteTrx(id)', syncInvIdx);
   sandbox.invoiceData = [
@@ -246,6 +250,8 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
       { id: 2, customer: 'Toko Berkah', date: '2026-11-05', totalSell: -25000, status: 'Lunas', isReturn: true }
     ]
   };
+  assert.strictEqual(sandbox.getAllTransactions().length, 2);
+  assert.strictEqual(sandbox.findTransactionById(2).totalSell, -25000);
   vm.runInContext(trxCode.slice(syncInvIdx, syncInvEnd), sandbox);
 
   const resUpdate = sandbox.syncDailyInvoiceForCustomerDate('Toko Berkah', '2026-11-05');

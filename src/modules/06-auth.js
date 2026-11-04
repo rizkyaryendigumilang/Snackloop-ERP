@@ -106,10 +106,7 @@ function logoutApp() {
 // ======================= FITUR LUPA & RESET PASSWORD (SUPABASE) ======================= //
 function openForgotPasswordModal(e) {
     if (e) e.preventDefault();
-    const modal = document.getElementById('modal-forgot-password');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!openModalById('modal-forgot-password')) return;
     const input = document.getElementById('forgot-identifier');
     if (input) {
         input.value = '';
@@ -123,10 +120,7 @@ function openForgotPasswordModal(e) {
 }
 
 function closeForgotPasswordModal() {
-    const modal = document.getElementById('modal-forgot-password');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModalById('modal-forgot-password');
 }
 
 async function handleForgotPassword(e) {
@@ -239,10 +233,7 @@ async function handleForgotPassword(e) {
 }
 
 function openResetPasswordModal() {
-    const modal = document.getElementById('modal-reset-password');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    if (!openModalById('modal-reset-password')) return;
     const passInput = document.getElementById('new-password');
     if (passInput) {
         passInput.value = '';
@@ -253,10 +244,7 @@ function openResetPasswordModal() {
 }
 
 function closeResetPasswordModal() {
-    const modal = document.getElementById('modal-reset-password');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    closeModalById('modal-reset-password');
 }
 
 async function handleResetPassword(e) {

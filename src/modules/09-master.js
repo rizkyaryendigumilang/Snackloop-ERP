@@ -39,16 +39,11 @@ function openEditMasterModal(id) {
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
-
-    const modal = document.getElementById('edit-master-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('edit-master-modal');
 }
 
 function closeEditMasterModal() {
-    const modal = document.getElementById('edit-master-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('edit-master-modal');
 }
 
 document.getElementById('edit-master-form')?.addEventListener('submit', async function(e) {
@@ -140,15 +135,11 @@ function openHistoryModal(masterId) {
         tbody.innerHTML = rows;
     }
 
-    const modal = document.getElementById('history-master-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('history-master-modal');
 }
 
 function closeHistoryModal() {
-    const modal = document.getElementById('history-master-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('history-master-modal');
 }
 
 function confirmDeleteMaster(id) {

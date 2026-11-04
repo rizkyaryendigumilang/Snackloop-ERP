@@ -101,7 +101,7 @@ function backupDataJSON() {
     if(currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const timestamp = new Date().toISOString();
-    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : timestamp.slice(0, 10);
+    const dateFormatted = getLocalDateStr();
     const backupObj = {
         meta: {
             system: "SnackLoop ERP",
@@ -123,17 +123,7 @@ function backupDataJSON() {
         auditLogData: typeof auditLogData !== 'undefined' ? auditLogData : []
     };
 
-    const jsonStr = JSON.stringify(backupObj, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const dlAnchor = document.createElement('a');
-    dlAnchor.href = url;
-    dlAnchor.download = `SnackLoop_Backup_Lengkap_${dateFormatted}.json`;
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
-    dlAnchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
+    downloadBlobFile(JSON.stringify(backupObj, null, 2), `SnackLoop_Backup_Lengkap_${dateFormatted}.json`);
     logAuditActivity('DATA_BACKUP', `Backup-${dateFormatted}`, "Mengunduh file cadangan database JSON lengkap");
     showNotification("Sukses", "Pencadangan penuh berhasil diunduh ke perangkat Anda!", "success");
 }
@@ -150,17 +140,7 @@ function restoreDataJSON(event) {
                 const data = JSON.parse(e.target.result);
                 if (!data || typeof data !== 'object') throw new Error("Format JSON tidak valid");
 
-                if (data.transactionData) transactionData = data.transactionData;
-                if (data.masterData) masterData = data.masterData;
-                if (data.customerData) customerData = data.customerData;
-                if (data.agentData) agentData = data.agentData;
-                if (data.repackData) repackData = data.repackData;
-                if (data.expenseData) expenseData = data.expenseData;
-                if (data.invoiceData) invoiceData = data.invoiceData;
-                if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
-                if (data.returnData) returnData = data.returnData;
-                if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
-                if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
+                applyStateBundle(data);
 
                 if (data.appSettings && typeof appSettings !== 'undefined') {
                     appSettings = { ...DEFAULT_APP_SETTINGS, ...data.appSettings };
@@ -171,14 +151,7 @@ function restoreDataJSON(event) {
                 await saveCacheToLocal(true);
                 localStorage.setItem('snackloop_pending_restore_sync', String(Date.now()));
                 if (typeof syncRestoredStateToCloud === 'function') syncRestoredStateToCloud();
-                renderMonthTabs();
-                renderMaster();
-                renderCustomer();
-                renderAgents();
-                renderRepackWarehouse();
-                renderInvoicesTable();
-                renderReturns();
-                updateDashboard();
+                refreshAllViews();
                 if (typeof renderAuditLogsTable === 'function') renderAuditLogsTable();
 
                 logAuditActivity('DATA_RESTORE', file.name, `Memulihkan database sistem dari file cadangan JSON: ${file.name}`);

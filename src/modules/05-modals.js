@@ -1,4 +1,22 @@
-// ======================= MODAL KONFIRMASI KUSTOM ======================= //
+// ======================= MODAL KONFIRMASI KUSTOM & HELPER MODAL ======================= //
+function openModalById(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+    if (el.style.display === 'none') el.style.display = 'flex';
+    return el;
+}
+
+function closeModalById(id) {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.classList.remove('flex');
+    el.classList.add('hidden');
+    if (el.style.display === 'flex') el.style.display = 'none';
+    return true;
+}
+
 function showConfirmModal(title, message, onConfirmCallback) {
     const modal = document.getElementById('custom-confirm-modal');
     const titleEl = document.getElementById('confirm-title');
@@ -92,9 +110,7 @@ function createNewMonthSheet() {
 }
 
 function closeCustomPromptModal() {
-    const modal = document.getElementById('custom-prompt-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('custom-prompt-modal');
 }
 
 function confirmDeleteMonthSheet(monthKey) {
@@ -182,70 +198,18 @@ function toggleDarkMode() {
 // ERGONOMI KASIR & AKSESIBILITAS DIALOG (ESC, BACKDROP CLICK, SHORTCUT CTRL+K)
 // =========================================================================
 function openShortcutsGuideModal() {
-    const modal = document.getElementById('modal-shortcuts-guide');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openModalById('modal-shortcuts-guide');
 }
 
 function closeShortcutsGuideModal() {
-    const modal = document.getElementById('modal-shortcuts-guide');
-    if (!modal) return;
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    closeModalById('modal-shortcuts-guide');
 }
 
 function closeTopmostModal() {
-    // 1. Modal konfirmasi & prompt
-    const confirmModal = document.getElementById('custom-confirm-modal');
-    if (confirmModal && !confirmModal.classList.contains('hidden')) {
-        confirmModal.classList.remove('flex');
-        confirmModal.classList.add('hidden');
-        return true;
-    }
-    const promptModal = document.getElementById('custom-prompt-modal');
-    if (promptModal && !promptModal.classList.contains('hidden')) {
-        closeCustomPromptModal();
-        return true;
-    }
-
-    // 2. Seluruh modal operasional terdaftar
-    const modalHandlers = [
-        { id: 'modal-shortcuts-guide', closeFn: () => typeof closeShortcutsGuideModal === 'function' && closeShortcutsGuideModal() },
-        { id: 'modal-wa-invoice-templates', closeFn: () => typeof closeWaInvoiceTemplatesModal === 'function' && closeWaInvoiceTemplatesModal() },
-        { id: 'modal-settings', closeFn: () => typeof closeSettingsModal === 'function' && closeSettingsModal() },
-        { id: 'modal-return', closeFn: () => typeof closeReturnModal === 'function' && closeReturnModal() },
-        { id: 'modal-print-agent-claim', closeFn: () => typeof closePrintAgentClaimModal === 'function' && closePrintAgentClaimModal() },
-        { id: 'modal-jastip-calculator', closeFn: () => typeof closeJastipCalculatorModal === 'function' && closeJastipCalculatorModal() },
-        { id: 'modal-jastip-order', closeFn: () => typeof closeJastipOrderModal === 'function' && closeJastipOrderModal() },
-        { id: 'modal-jastip-checklist', closeFn: () => typeof closeJastipChecklistModal === 'function' && closeJastipChecklistModal() },
-        { id: 'modal-jastip-customs', closeFn: () => typeof closeJastipCustomsModal === 'function' && closeJastipCustomsModal() },
-        { id: 'modal-jastip-photo-preview', closeFn: () => typeof closeJastipPhotoModal === 'function' && closeJastipPhotoModal() },
-        { id: 'modal-install-guide', closeFn: () => typeof closeInstallGuideModal === 'function' && closeInstallGuideModal() },
-        { id: 'edit-master-modal', closeFn: () => typeof closeEditMasterModal === 'function' && closeEditMasterModal() },
-        { id: 'history-master-modal', closeFn: () => typeof closeHistoryModal === 'function' && closeHistoryModal() },
-        { id: 'modal-forgot-password', closeFn: () => typeof closeForgotPasswordModal === 'function' && closeForgotPasswordModal() },
-        { id: 'modal-reset-password', closeFn: () => typeof closeResetPasswordModal === 'function' && closeResetPasswordModal() },
-        { id: 'expense-modal', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() },
-        { id: 'modal-bulk-order', closeFn: () => typeof closeBulkOrderModal === 'function' && closeBulkOrderModal() }
-    ];
-
-    for (const m of modalHandlers) {
-        const el = document.getElementById(m.id);
-        if (el && !el.classList.contains('hidden')) {
-            if (m.closeFn) m.closeFn();
-            el.classList.remove('flex');
-            el.classList.add('hidden');
-            return true;
-        }
-    }
-
-    // 3. Fallback selector generik
-    const genericModal = document.querySelector('.fixed.flex[id*="modal"], .fixed.flex[id*="custom-"]');
-    if (genericModal) {
-        genericModal.classList.remove('flex');
-        genericModal.classList.add('hidden');
-        return true;
+    const openModals = document.querySelectorAll('.fixed:not(.hidden)[id*="modal"], .fixed:not(.hidden)[id*="custom-"]');
+    if (openModals.length > 0) {
+        const topmost = openModals[openModals.length - 1];
+        return closeModalById(topmost.id);
     }
     return false;
 }
