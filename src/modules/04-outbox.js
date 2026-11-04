@@ -286,30 +286,68 @@ async function restoreDailySnapshot(dateKey) {
     });
 }
 
-// ----------------- LOCAL / INDEXEDDB CACHING ----------------- //
-function saveCacheToLocal() {
+// ----------------- LOCAL / INDEXEDDB CACHING (OPTIMIZED & DEBOUNCED) ----------------- //
+let _saveCacheTimer = null;
+let _pendingSavePromise = null;
+
+function saveCacheToLocal(immediate = false) {
+    if (immediate) {
+        if (_saveCacheTimer) {
+            clearTimeout(_saveCacheTimer);
+            _saveCacheTimer = null;
+        }
+        return _executeSaveCache();
+    }
+
+    if (!_saveCacheTimer) {
+        _pendingSavePromise = new Promise(resolve => {
+            _saveCacheTimer = setTimeout(() => {
+                _saveCacheTimer = null;
+                resolve(_executeSaveCache());
+            }, 120);
+        });
+    }
+    return _pendingSavePromise;
+}
+
+function _executeSaveCache() {
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const cacheObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData };
 
-    // 1. Asinkron ke IndexedDB (Kapasitas Besar & Bebas Quota Limit)
+    // 1. Asinkron ke IndexedDB (Kapasitas Besar & Non-Blocking)
     const p = idbSet('snackloop_cache_v2', cacheObj).catch(err => {
         console.warn("[Storage] idbSet warn:", err);
     });
 
-    // 2. Mirror ringan ke localStorage jika ukuran aman (< 2.5 MB)
-    try {
-        const jsonStr = JSON.stringify(cacheObj);
-        if (jsonStr.length < 2500000) {
-            localStorage.setItem('snackloop_cache', jsonStr);
-        } else {
+    // 2. Mirror ringan ke localStorage menggunakan idle callback agar tidak menjeda UI thread
+    const saveToLocalStorage = () => {
+        try {
+            const jsonStr = JSON.stringify(cacheObj);
+            if (jsonStr.length < 2500000) {
+                localStorage.setItem('snackloop_cache', jsonStr);
+            } else {
+                localStorage.removeItem('snackloop_cache');
+                localStorage.setItem('snackloop_storage_mode', 'indexeddb');
+            }
+        } catch(e) {
             localStorage.removeItem('snackloop_cache');
-            localStorage.setItem('snackloop_storage_mode', 'indexeddb');
         }
-    } catch(e) {
-        localStorage.removeItem('snackloop_cache');
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(saveToLocalStorage, { timeout: 1000 });
+    } else {
+        setTimeout(saveToLocalStorage, 0);
     }
 
     return p;
+}
+
+// Flush data instan jika user menutup atau me-refresh browser
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+        saveCacheToLocal(true);
+    });
 }
 
 async function loadCacheFromLocal() {

@@ -724,7 +724,7 @@
                                     <option value="all">Semua Agen</option>
                                 </select>
                                 <div class="relative w-full md:w-56">
-                                    <input type="text" id="ret-search" oninput="renderReturns()" placeholder="Cari toko / snack..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none">
+                                    <input type="text" id="ret-search" oninput="debouncedRenderReturns()" placeholder="Cari toko / snack..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none">
                                     <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs opacity-50"></i>
                                 </div>
                             </div>
@@ -2911,7 +2911,7 @@
             <div class="flex flex-wrap justify-between items-center gap-2 shrink-0">
                 <div class="relative flex-1 min-w-[200px]">
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs opacity-50"></i>
-                    <input type="text" id="bulk-product-search" oninput="filterBulkProductChecklist()" placeholder="Cari nama snack / produk..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="bulk-product-search" oninput="debouncedFilterBulkProductChecklist()" placeholder="Cari nama snack / produk..." class="w-full pl-8 pr-3 py-1.5 theme-input border rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div class="flex items-center gap-2 text-xs">
                     <button type="button" onclick="toggleSelectAllBulk(true)" class="px-2.5 py-1.5 rounded-lg border theme-input hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-medium transition">

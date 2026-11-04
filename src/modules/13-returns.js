@@ -15,6 +15,14 @@ function setReturnStatusFilter(status) {
     renderReturns();
 }
 
+let _retSearchTimer = null;
+function debouncedRenderReturns() {
+    clearTimeout(_retSearchTimer);
+    _retSearchTimer = setTimeout(() => {
+        renderReturns();
+    }, 150);
+}
+
 function renderReturns() {
     const tbody = document.getElementById('returns-table-body');
     if (!tbody) return;
@@ -24,8 +32,6 @@ function renderReturns() {
     let pendingCost = 0;
     let totalValRetur = 0;
     let resolvedQty = 0;
-
-    const currentMonthKeyStr = getCurrentMonthKey(new Date());
 
     returnData.forEach(r => {
         if (r.claim_status === 'menunggu_agen') {
@@ -47,12 +53,12 @@ function renderReturns() {
     if (kpiTotalValEl) kpiTotalValEl.innerText = `Rp ${totalValRetur.toLocaleString('id-ID')}`;
     if (kpiResolvedQtyEl) kpiResolvedQtyEl.innerText = `${resolvedQty.toLocaleString('id-ID')} pcs`;
 
-    // 2. Update Dropdown Agen Filter
+    // 2. Update Dropdown Agen Filter (Hanya jika jumlah agen berubah untuk hindari DOM thrashing)
     const filterAgentEl = document.getElementById('ret-filter-agent');
-    if (filterAgentEl) {
+    if (filterAgentEl && filterAgentEl.children.length !== ((agentData?.length || 0) + 1)) {
         const curVal = filterAgentEl.value || 'all';
         let opts = `<option value="all">Semua Agen</option>`;
-        agentData.forEach(ag => {
+        (agentData || []).forEach(ag => {
             opts += `<option value="${ag.name}">${ag.name}</option>`;
         });
         filterAgentEl.innerHTML = opts;

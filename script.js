@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T02:29:42.467Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T02:38:16.519Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -825,30 +825,68 @@ async function restoreDailySnapshot(dateKey) {
     });
 }
 
-// ----------------- LOCAL / INDEXEDDB CACHING ----------------- //
-function saveCacheToLocal() {
+// ----------------- LOCAL / INDEXEDDB CACHING (OPTIMIZED & DEBOUNCED) ----------------- //
+let _saveCacheTimer = null;
+let _pendingSavePromise = null;
+
+function saveCacheToLocal(immediate = false) {
+    if (immediate) {
+        if (_saveCacheTimer) {
+            clearTimeout(_saveCacheTimer);
+            _saveCacheTimer = null;
+        }
+        return _executeSaveCache();
+    }
+
+    if (!_saveCacheTimer) {
+        _pendingSavePromise = new Promise(resolve => {
+            _saveCacheTimer = setTimeout(() => {
+                _saveCacheTimer = null;
+                resolve(_executeSaveCache());
+            }, 120);
+        });
+    }
+    return _pendingSavePromise;
+}
+
+function _executeSaveCache() {
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
     const cacheObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData };
 
-    // 1. Asinkron ke IndexedDB (Kapasitas Besar & Bebas Quota Limit)
+    // 1. Asinkron ke IndexedDB (Kapasitas Besar & Non-Blocking)
     const p = idbSet('snackloop_cache_v2', cacheObj).catch(err => {
         console.warn("[Storage] idbSet warn:", err);
     });
 
-    // 2. Mirror ringan ke localStorage jika ukuran aman (< 2.5 MB)
-    try {
-        const jsonStr = JSON.stringify(cacheObj);
-        if (jsonStr.length < 2500000) {
-            localStorage.setItem('snackloop_cache', jsonStr);
-        } else {
+    // 2. Mirror ringan ke localStorage menggunakan idle callback agar tidak menjeda UI thread
+    const saveToLocalStorage = () => {
+        try {
+            const jsonStr = JSON.stringify(cacheObj);
+            if (jsonStr.length < 2500000) {
+                localStorage.setItem('snackloop_cache', jsonStr);
+            } else {
+                localStorage.removeItem('snackloop_cache');
+                localStorage.setItem('snackloop_storage_mode', 'indexeddb');
+            }
+        } catch(e) {
             localStorage.removeItem('snackloop_cache');
-            localStorage.setItem('snackloop_storage_mode', 'indexeddb');
         }
-    } catch(e) {
-        localStorage.removeItem('snackloop_cache');
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(saveToLocalStorage, { timeout: 1000 });
+    } else {
+        setTimeout(saveToLocalStorage, 0);
     }
 
     return p;
+}
+
+// Flush data instan jika user menutup atau me-refresh browser
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+        saveCacheToLocal(true);
+    });
 }
 
 async function loadCacheFromLocal() {
@@ -5180,47 +5218,52 @@ function updateDashboard() {
 
     const todayObj = new Date();
     todayObj.setHours(0,0,0,0);
+    const todayTime = todayObj.getTime();
+    const todayStr = todayObj.toISOString().split('T')[0];
+
+    // Zero-Allocation Cutoff Strings untuk eliminasi ribuan instance new Date()
+    let cutoff7Str = '';
+    let cutoff30Str = '';
+    if (currentDashboardTimeFilter === '7days') {
+        const d7 = new Date(todayTime - 7 * 86400000);
+        cutoff7Str = d7.toISOString().split('T')[0];
+    } else if (currentDashboardTimeFilter === '30days') {
+        const d30 = new Date(todayTime - 30 * 86400000);
+        cutoff30Str = d30.toISOString().split('T')[0];
+    }
 
     for(let mk in transactionData) {
-        transactionData[mk].forEach((t) => {
-            const tDate = new Date(t.date);
-            tDate.setHours(0,0,0,0);
-            
-            const diffTime = todayObj - tDate;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        (transactionData[mk] || []).forEach((t) => {
+            const tDateStr = t.date || '';
+            if (currentDashboardTimeFilter === 'today' && tDateStr !== todayStr) return;
+            if (currentDashboardTimeFilter === '7days' && (tDateStr < cutoff7Str || tDateStr > todayStr)) return;
+            if (currentDashboardTimeFilter === '30days' && (tDateStr < cutoff30Str || tDateStr > todayStr)) return;
 
-            if (currentDashboardTimeFilter === 'today' && diffDays !== 0) return;
-            if (currentDashboardTimeFilter === '7days' && (diffDays < 0 || diffDays > 7)) return;
-            if (currentDashboardTimeFilter === '30days' && (diffDays < 0 || diffDays > 30)) return;
-
-            modal += t.totalModal;
+            modal += (t.totalModal || 0);
 
             if(t.status === 'Lunas') {
-                Pendapatan += t.totalSell; 
-                KeuntunganKotor += (t.profitPerItem * t.qty);
+                Pendapatan += (t.totalSell || 0); 
+                KeuntunganKotor += ((t.profitPerItem || 0) * (t.qty || 0));
             } else { 
-                Hutang += t.totalSell; 
+                Hutang += (t.totalSell || 0); 
                 unpaidList.push(t); 
             }
 
             if(!productSalesMap[t.itemName]) {
                 productSalesMap[t.itemName] = { qty: 0, revenue: 0 };
             }
-            productSalesMap[t.itemName].qty += t.qty;
-            productSalesMap[t.itemName].revenue += t.totalSell;
+            productSalesMap[t.itemName].qty += (t.qty || 0);
+            productSalesMap[t.itemName].revenue += (t.totalSell || 0);
         });
     }
 
-    expenseData.forEach(exp => {
-        const expDate = new Date(exp.date);
-        expDate.setHours(0,0,0,0);
-        const diffDaysExp = Math.floor((todayObj - expDate) / (1000 * 60 * 60 * 24));
+    (expenseData || []).forEach(exp => {
+        const expDateStr = exp.date || '';
+        if (currentDashboardTimeFilter === 'today' && expDateStr !== todayStr) return;
+        if (currentDashboardTimeFilter === '7days' && (expDateStr < cutoff7Str || expDateStr > todayStr)) return;
+        if (currentDashboardTimeFilter === '30days' && (expDateStr < cutoff30Str || expDateStr > todayStr)) return;
 
-        if (currentDashboardTimeFilter === 'today' && diffDaysExp !== 0) return;
-        if (currentDashboardTimeFilter === '7days' && (diffDaysExp < 0 || diffDaysExp > 7)) return;
-        if (currentDashboardTimeFilter === '30days' && (diffDaysExp < 0 || diffDaysExp > 30)) return;
-
-        totalExpense += exp.amount;
+        totalExpense += (exp.amount || 0);
     });
 
     const NetProfitFinal = KeuntunganKotor - totalExpense;
@@ -5251,19 +5294,20 @@ function updateDashboard() {
         if(unpaidList.length === 0) {
             uBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center opacity-60">Tidak ada Piutang aktif. Mantap!</td></tr>`;
         } else {
-            const uRows = unpaidList.map(t => {
-                const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus(${t.id}, 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2.5 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
-                const custObj = customerData.find(c => c.name === t.customer);
-                let phone = custObj && custObj.phone ? custObj.phone.replace(/\D/g, '') : '';
-                if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-                if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+            // O(1) Customer phone lookup dictionary
+            const custMap = new Map((customerData || []).map(c => [c.name, c.phone || '']));
+            const defaultPhone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+            const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
 
-                // Hitung umur piutang
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const tDate = new Date(t.date);
-                tDate.setHours(0,0,0,0);
-                const diffDays = Math.max(0, Math.floor((today - tDate) / (1000 * 60 * 60 * 24)));
+            const uRows = unpaidList.map(t => {
+                const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2.5 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
+                let rawPhone = custMap.get(t.customer) || defaultPhone;
+                let phone = rawPhone.replace(/\D/g, '');
+                if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+
+                // Hitung umur piutang via timestamp math tanpa overhead alokasi Date
+                const tTime = Date.parse(t.date) || todayTime;
+                const diffDays = Math.max(0, Math.floor((todayTime - tTime) / 86400000));
                 
                 let agingBadge = '';
                 if (diffDays <= 7) {
@@ -5274,7 +5318,6 @@ function updateDashboard() {
                     agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold animate-pulse">${diffDays}h (Jatuh Tempo)</span>`;
                 }
 
-                const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
                 const safeWaParam = encodeURIComponent(waText).replace(/'/g, "%27");
                 const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${safeWaParam}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
@@ -5613,6 +5656,14 @@ function renderBulkTableRows() {
     }).join('');
 
     calculateBulkSummary();
+}
+
+let _bulkSearchTimer = null;
+function debouncedFilterBulkProductChecklist() {
+    clearTimeout(_bulkSearchTimer);
+    _bulkSearchTimer = setTimeout(() => {
+        filterBulkProductChecklist();
+    }, 150);
 }
 
 function filterBulkProductChecklist() {
@@ -6817,6 +6868,14 @@ function setReturnStatusFilter(status) {
     renderReturns();
 }
 
+let _retSearchTimer = null;
+function debouncedRenderReturns() {
+    clearTimeout(_retSearchTimer);
+    _retSearchTimer = setTimeout(() => {
+        renderReturns();
+    }, 150);
+}
+
 function renderReturns() {
     const tbody = document.getElementById('returns-table-body');
     if (!tbody) return;
@@ -6826,8 +6885,6 @@ function renderReturns() {
     let pendingCost = 0;
     let totalValRetur = 0;
     let resolvedQty = 0;
-
-    const currentMonthKeyStr = getCurrentMonthKey(new Date());
 
     returnData.forEach(r => {
         if (r.claim_status === 'menunggu_agen') {
@@ -6849,12 +6906,12 @@ function renderReturns() {
     if (kpiTotalValEl) kpiTotalValEl.innerText = `Rp ${totalValRetur.toLocaleString('id-ID')}`;
     if (kpiResolvedQtyEl) kpiResolvedQtyEl.innerText = `${resolvedQty.toLocaleString('id-ID')} pcs`;
 
-    // 2. Update Dropdown Agen Filter
+    // 2. Update Dropdown Agen Filter (Hanya jika jumlah agen berubah untuk hindari DOM thrashing)
     const filterAgentEl = document.getElementById('ret-filter-agent');
-    if (filterAgentEl) {
+    if (filterAgentEl && filterAgentEl.children.length !== ((agentData?.length || 0) + 1)) {
         const curVal = filterAgentEl.value || 'all';
         let opts = `<option value="all">Semua Agen</option>`;
-        agentData.forEach(ag => {
+        (agentData || []).forEach(ag => {
             opts += `<option value="${ag.name}">${ag.name}</option>`;
         });
         filterAgentEl.innerHTML = opts;
