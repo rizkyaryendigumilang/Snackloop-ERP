@@ -180,6 +180,35 @@ function updateLanguageButtonsUI() {
     if (btnEn) btnEn.className = currentLanguage === 'en' ? activeClass : inactiveClass;
 }
 
+const TAB_TITLES = {
+    id: {
+        dashboard: 'Dashboard Keuangan',
+        transactions: 'Buku Transaksi',
+        invoices: 'Manajemen Invoice',
+        returns: 'Retur & Klaim Agen',
+        jastip: 'Jastip & Personal Shopper',
+        reports: 'Laporan Bisnis & Analitik',
+        calculator: 'Kalkulator & Gudang Repack',
+        master: 'Data Master Produk',
+        customers: 'Manajemen Pelanggan',
+        agents: 'Kelola Agen & Supplier',
+        users: 'Kelola Akun User'
+    },
+    en: {
+        dashboard: 'Financial Dashboard',
+        transactions: 'Transaction Ledger',
+        invoices: 'Invoice Management',
+        returns: 'Returns & Agent Claims',
+        jastip: 'Jastip & Personal Shopper',
+        reports: 'Business Reports & Analytics',
+        calculator: 'Repack Calculator & Warehouse',
+        master: 'Product Master Data',
+        customers: 'Customer Management',
+        agents: 'Agent Pool Management',
+        users: 'User Account Management'
+    }
+};
+
 function setAppLanguage(lang) {
     if (lang !== 'id' && lang !== 'en') return;
     currentLanguage = lang;
@@ -191,19 +220,7 @@ function setAppLanguage(lang) {
     const activeTabLink = document.querySelector('.navbar__link.active');
     if (activeTabLink && activeTabLink.id) {
         const tabKey = activeTabLink.id.replace('btn-', '');
-        const titlesId = { 
-            'dashboard': 'Dashboard Keuangan', 'transactions': 'Buku Transaksi', 'invoices': 'Manajemen Invoice',
-            'returns': 'Retur & Klaim Agen', 'jastip': 'Jastip & Personal Shopper', 'reports': 'Laporan Bisnis & Analitik',
-            'calculator': 'Kalkulator & Gudang Repack', 'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan',
-            'agents': 'Kelola Agen & Supplier', 'users': 'Kelola Akses User' 
-        };
-        const titlesEn = {
-            'dashboard': 'Financial Dashboard', 'transactions': 'Transaction Ledger', 'invoices': 'Invoice Management',
-            'returns': 'Returns & Agent Claims', 'jastip': 'Personal Shopper (Jastip)', 'reports': 'Business Reports & Analytics',
-            'calculator': 'Repack Calculator & Warehouse', 'master': 'Product Master Data', 'customers': 'Customer Management',
-            'agents': 'Agent & Supplier Management', 'users': 'User Access Management'
-        };
-        const titles = currentLanguage === 'en' ? titlesEn : titlesId;
+        const titles = TAB_TITLES[currentLanguage] || TAB_TITLES.id;
         const pageTitleEl = document.getElementById('page-title');
         if (pageTitleEl && titles[tabKey]) pageTitleEl.innerText = titles[tabKey];
     }

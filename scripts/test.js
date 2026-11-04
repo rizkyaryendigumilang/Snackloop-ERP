@@ -193,6 +193,67 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
   if (waBody.includes('%0A')) {
     throw new Error('sendWhatsAppOnly still contains literal %0A that would be double-encoded by encodeURIComponent');
   }
+
+  // Verify hardcoded admin_kiky is removed from 06-auth.js, 04-outbox.js, and 08-users.js
+  const usersCode = fs.readFileSync(path.join(modulesDir, '08-users.js'), 'utf8');
+  if (authCode.includes('admin_kiky') || outboxCode.includes('admin_kiky') || usersCode.includes('admin_kiky')) {
+    throw new Error('Hardcoded admin_kiky reference still present in auth/outbox/users modules');
+  }
+
+  // Verify flat INSERT_TRANSACTION payload support in 04-outbox.js
+  if (!outboxCode.includes('item.payload.transaction || item.payload')) {
+    throw new Error('04-outbox.js does not support flat INSERT_TRANSACTION payloads from dispatchOutboxMutation');
+  }
+
+  // Unit test computeJastipLandedCost from 13b-jastip.js
+  const jastipCode = fs.readFileSync(path.join(modulesDir, '13b-jastip.js'), 'utf8');
+  const jastipFnIdx = jastipCode.indexOf('function computeJastipLandedCost(params)');
+  const jastipFnEnd = jastipCode.indexOf('// 3. Render Dashboard', jastipFnIdx);
+  vm.runInContext(jastipCode.slice(jastipFnIdx, jastipFnEnd), sandbox);
+
+  const calcFlat = sandbox.computeJastipLandedCost({
+    qty: 2,
+    priceValas: 1000,
+    realRate: 100,
+    catalogRate: 110,
+    taxPercent: 10,
+    taxRefundPercent: 10,
+    opsPerItem: 10000,
+    logisticsPerItem: 20000,
+    customsPerItem: 0,
+    feeType: 'flat',
+    feeAmount: 30000
+  });
+  // Net valas = 1000 * 1.1 - 1000 * 0.1 = 1000 -> * 100 = 100,000 + 30,000 = 130,000 landed/item
+  // Selling = 1000 * 1.1 * 110 (121,000) + 30,000 + 30,000 fee = 181,000/item
+  assert.strictEqual(calcFlat.landedCostPerItem, 130000);
+  assert.strictEqual(calcFlat.sellingPricePerItem, 181000);
+  assert.strictEqual(calcFlat.totalSellingPrice, 362000);
+  assert.strictEqual(calcFlat.totalNetProfit, 102000);
+
+  // Unit test syncDailyInvoiceForCustomerDate from 11-transactions.js
+  const syncInvIdx = trxCode.indexOf('function syncDailyInvoiceForCustomerDate(customerName, dateStr)');
+  const syncInvEnd = trxCode.indexOf('function confirmDeleteTrx(id)', syncInvIdx);
+  sandbox.invoiceData = [
+    { id: 101, invoice_number: 'INV-001', customer_name: 'Toko Berkah', date: '2026-11-05', total_amount: 100000, status: 'Belum Lunas' }
+  ];
+  sandbox.transactionData = {
+    'Nov 2026': [
+      { id: 1, customer: 'Toko Berkah', date: '2026-11-05', totalSell: 100000, status: 'Lunas' },
+      { id: 2, customer: 'Toko Berkah', date: '2026-11-05', totalSell: -25000, status: 'Lunas', isReturn: true }
+    ]
+  };
+  vm.runInContext(trxCode.slice(syncInvIdx, syncInvEnd), sandbox);
+
+  const resUpdate = sandbox.syncDailyInvoiceForCustomerDate('Toko Berkah', '2026-11-05');
+  assert.strictEqual(resUpdate.action, 'update');
+  assert.strictEqual(sandbox.invoiceData[0].total_amount, 75000);
+  assert.strictEqual(sandbox.invoiceData[0].status, 'Lunas');
+
+  sandbox.transactionData['Nov 2026'] = [];
+  const resDelete = sandbox.syncDailyInvoiceForCustomerDate('Toko Berkah', '2026-11-05');
+  assert.strictEqual(resDelete.action, 'delete');
+  assert.strictEqual(sandbox.invoiceData.length, 0);
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);

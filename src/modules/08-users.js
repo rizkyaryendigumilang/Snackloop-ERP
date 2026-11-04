@@ -3,7 +3,7 @@ async function renderUsers() {
     const tbody = document.getElementById('user-table-body');
     if(!tbody) return;
     const rows = userData.map((u) => {
-        const deleteBtn = (u.username === 'admin' || u.username === 'admin_kiky') ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
+        const deleteBtn = u.username === 'admin' ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
         
         let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
@@ -117,7 +117,7 @@ function backupDataJSON() {
         transactionData: typeof transactionData !== 'undefined' ? transactionData : {},
         expenseData: typeof expenseData !== 'undefined' ? expenseData : [],
         invoiceData: typeof invoiceData !== 'undefined' ? invoiceData : [],
-        priceHistoryData: typeof priceHistoryData !== 'undefined' ? priceHistoryData : {},
+        priceHistoryData: (typeof priceHistoryData !== 'undefined' && Array.isArray(priceHistoryData)) ? priceHistoryData : [],
         returnData: typeof returnData !== 'undefined' ? returnData : [],
         jastipData: jData,
         auditLogData: typeof auditLogData !== 'undefined' ? auditLogData : []
@@ -157,7 +157,7 @@ function restoreDataJSON(event) {
                 if (data.repackData) repackData = data.repackData;
                 if (data.expenseData) expenseData = data.expenseData;
                 if (data.invoiceData) invoiceData = data.invoiceData;
-                if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
+                if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
                 if (data.returnData) returnData = data.returnData;
                 if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
                 if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;

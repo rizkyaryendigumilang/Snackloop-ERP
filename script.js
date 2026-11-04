@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T16:17:01.731Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T16:38:34.960Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -281,6 +281,35 @@ function updateLanguageButtonsUI() {
     if (btnEn) btnEn.className = currentLanguage === 'en' ? activeClass : inactiveClass;
 }
 
+const TAB_TITLES = {
+    id: {
+        dashboard: 'Dashboard Keuangan',
+        transactions: 'Buku Transaksi',
+        invoices: 'Manajemen Invoice',
+        returns: 'Retur & Klaim Agen',
+        jastip: 'Jastip & Personal Shopper',
+        reports: 'Laporan Bisnis & Analitik',
+        calculator: 'Kalkulator & Gudang Repack',
+        master: 'Data Master Produk',
+        customers: 'Manajemen Pelanggan',
+        agents: 'Kelola Agen & Supplier',
+        users: 'Kelola Akun User'
+    },
+    en: {
+        dashboard: 'Financial Dashboard',
+        transactions: 'Transaction Ledger',
+        invoices: 'Invoice Management',
+        returns: 'Returns & Agent Claims',
+        jastip: 'Jastip & Personal Shopper',
+        reports: 'Business Reports & Analytics',
+        calculator: 'Repack Calculator & Warehouse',
+        master: 'Product Master Data',
+        customers: 'Customer Management',
+        agents: 'Agent Pool Management',
+        users: 'User Account Management'
+    }
+};
+
 function setAppLanguage(lang) {
     if (lang !== 'id' && lang !== 'en') return;
     currentLanguage = lang;
@@ -292,19 +321,7 @@ function setAppLanguage(lang) {
     const activeTabLink = document.querySelector('.navbar__link.active');
     if (activeTabLink && activeTabLink.id) {
         const tabKey = activeTabLink.id.replace('btn-', '');
-        const titlesId = { 
-            'dashboard': 'Dashboard Keuangan', 'transactions': 'Buku Transaksi', 'invoices': 'Manajemen Invoice',
-            'returns': 'Retur & Klaim Agen', 'jastip': 'Jastip & Personal Shopper', 'reports': 'Laporan Bisnis & Analitik',
-            'calculator': 'Kalkulator & Gudang Repack', 'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan',
-            'agents': 'Kelola Agen & Supplier', 'users': 'Kelola Akses User' 
-        };
-        const titlesEn = {
-            'dashboard': 'Financial Dashboard', 'transactions': 'Transaction Ledger', 'invoices': 'Invoice Management',
-            'returns': 'Returns & Agent Claims', 'jastip': 'Personal Shopper (Jastip)', 'reports': 'Business Reports & Analytics',
-            'calculator': 'Repack Calculator & Warehouse', 'master': 'Product Master Data', 'customers': 'Customer Management',
-            'agents': 'Agent & Supplier Management', 'users': 'User Access Management'
-        };
-        const titles = currentLanguage === 'en' ? titlesEn : titlesId;
+        const titles = TAB_TITLES[currentLanguage] || TAB_TITLES.id;
         const pageTitleEl = document.getElementById('page-title');
         if (pageTitleEl && titles[tabKey]) pageTitleEl.innerText = titles[tabKey];
     }
@@ -1192,18 +1209,21 @@ async function syncInvoicePayloadToCloud(inv) {
 
 async function syncSingleOutboxItem(item) {
     if (item.type === 'INSERT_TRANSACTION') {
-        if (item.payload.repackUpdate) {
+        if (item.payload && item.payload.repackUpdate) {
             await supabaseClient.from('repack')
                 .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
                 .eq('id', item.payload.repackUpdate.batchId);
         }
-        const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]).select();
-        if (trxErr) throw trxErr;
-        if (insertedTrx && insertedTrx.length > 0) {
-            reconcileOfflineTransactionIds(insertedTrx);
+        const trxRow = item.payload && (item.payload.transaction || item.payload);
+        if (trxRow) {
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
+            if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0) {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
         }
 
-        if (item.payload.invoice) {
+        if (item.payload && item.payload.invoice) {
             await syncInvoicePayloadToCloud(item.payload.invoice);
         }
     } else if (item.type === 'INSERT_BULK_TRANSACTIONS') {
@@ -1429,7 +1449,7 @@ async function syncBatchedItems(type, batchItems) {
         }
 
         // 2. Bulk Insert Transactions (1 HTTP POST)
-        const trxRows = batchItems.map(it => it.payload && it.payload.transaction).filter(Boolean);
+        const trxRows = batchItems.map(it => it.payload && (it.payload.transaction || it.payload)).filter(Boolean);
         if (trxRows.length > 0) {
             const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(trxRows).select();
             if (trxErr) throw trxErr;
@@ -2365,20 +2385,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
             }
         }
     }
-
-    // 3. Initial Setup Bootstrap (hanya jika database users sama sekali kosong)
-    if (!userInfo && userData.length === 0) {
-        try {
-            const { count } = await supabaseClient.from('users').select('*', { count: 'exact', head: true });
-            if (count === 0 && u.toLowerCase() === 'admin_kiky' && p === '123456') {
-                const { data: newAdmin } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'admin_kiky', password: hashedInput, role: 'super_admin' }])
-                    .select();
-                if (newAdmin && newAdmin.length > 0) userInfo = newAdmin[0];
-            }
-        } catch(err) {}
-    }
         
     if (!userInfo) {
         showNotification("Gagal", "Username atau Password salah.", "error");
@@ -2706,7 +2712,7 @@ async function loadDataFromCloud() {
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
             supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
-            supabaseClient.from('jastip_orders').select('*').order('order_date', { ascending: false }).catch(() => ({ data: null }))
+            supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
@@ -2716,10 +2722,10 @@ async function loadDataFromCloud() {
         expenseData = resExp.data || [];
         userData = resUsers.data || [];
 
-        if (resReturns && resReturns.data && Array.isArray(resReturns.data) && resReturns.data.length > 0) {
+        if (resReturns && !resReturns.error && Array.isArray(resReturns.data)) {
             returnData = resReturns.data;
         }
-        if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
+        if (resJastip && !resJastip.error && Array.isArray(resJastip.data)) {
             jastipData = resJastip.data;
         }
         invoiceData = resInv.data || [];
@@ -2767,33 +2773,9 @@ function switchTab(tabId) {
     const activeBtn = document.getElementById('btn-' + tabId);
     if(activeBtn) activeBtn.classList.add('active');
 
-    const titlesId = { 
-        'dashboard': 'Dashboard Keuangan', 
-        'transactions': 'Buku Transaksi', 
-        'invoices': 'Manajemen Invoice',
-        'returns': 'Retur & Klaim Agen',
-        'jastip': 'Jastip & Personal Shopper',
-        'reports': 'Laporan Bisnis & Analitik',
-        'calculator': 'Kalkulator & Gudang Repack', 
-        'master': 'Data Master Produk', 
-        'customers': 'Manajemen Pelanggan', 
-        'agents': 'Kelola Agen & Supplier',
-        'users': 'Kelola Akun User' 
-    };
-    const titlesEn = {
-        'dashboard': 'Financial Dashboard',
-        'transactions': 'Transaction Ledger',
-        'invoices': 'Invoice Management',
-        'returns': 'Returns & Agent Claims',
-        'jastip': 'Jastip & Personal Shopper',
-        'reports': 'Business Reports & Analytics',
-        'calculator': 'Repack Calculator & Warehouse',
-        'master': 'Product Master Data',
-        'customers': 'Customer Management',
-        'agents': 'Agent Pool Management',
-        'users': 'User Account Management'
-    };
-    const titles = currentLanguage === 'en' ? titlesEn : titlesId;
+    const titles = (typeof TAB_TITLES !== 'undefined' && TAB_TITLES[currentLanguage])
+        ? TAB_TITLES[currentLanguage]
+        : (typeof TAB_TITLES !== 'undefined' ? TAB_TITLES.id : {});
     const pageTitleEl = document.getElementById('page-title');
     if(pageTitleEl) pageTitleEl.innerText = titles[tabId] || 'SnackLoop ERP';
     
@@ -3001,7 +2983,7 @@ async function renderUsers() {
     const tbody = document.getElementById('user-table-body');
     if(!tbody) return;
     const rows = userData.map((u) => {
-        const deleteBtn = (u.username === 'admin' || u.username === 'admin_kiky') ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
+        const deleteBtn = u.username === 'admin' ? `<span class="text-xs opacity-40 font-semibold text-indigo-500">Utama</span>` : `<button onclick="confirmDeleteUser(${u.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>`;
         
         let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
@@ -3115,7 +3097,7 @@ function backupDataJSON() {
         transactionData: typeof transactionData !== 'undefined' ? transactionData : {},
         expenseData: typeof expenseData !== 'undefined' ? expenseData : [],
         invoiceData: typeof invoiceData !== 'undefined' ? invoiceData : [],
-        priceHistoryData: typeof priceHistoryData !== 'undefined' ? priceHistoryData : {},
+        priceHistoryData: (typeof priceHistoryData !== 'undefined' && Array.isArray(priceHistoryData)) ? priceHistoryData : [],
         returnData: typeof returnData !== 'undefined' ? returnData : [],
         jastipData: jData,
         auditLogData: typeof auditLogData !== 'undefined' ? auditLogData : []
@@ -3155,7 +3137,7 @@ function restoreDataJSON(event) {
                 if (data.repackData) repackData = data.repackData;
                 if (data.expenseData) expenseData = data.expenseData;
                 if (data.invoiceData) invoiceData = data.invoiceData;
-                if (data.priceHistoryData) priceHistoryData = data.priceHistoryData;
+                if (Array.isArray(data.priceHistoryData)) priceHistoryData = data.priceHistoryData;
                 if (data.returnData) returnData = data.returnData;
                 if (data.jastipData && typeof jastipData !== 'undefined') jastipData = data.jastipData;
                 if (data.auditLogData && Array.isArray(data.auditLogData)) auditLogData = data.auditLogData;
@@ -7728,7 +7710,7 @@ function renderReturns() {
         const curVal = filterAgentEl.value || 'all';
         let opts = `<option value="all">Semua Agen</option>`;
         (agentData || []).forEach(ag => {
-            opts += `<option value="${ag.name}">${ag.name}</option>`;
+            opts += `<option value="${escapeHtml(ag.name)}">${escapeHtml(ag.name)}</option>`;
         });
         filterAgentEl.innerHTML = opts;
         filterAgentEl.value = curVal;
@@ -7858,7 +7840,7 @@ function openReturnModal(prefill = null) {
     const agentSel = document.getElementById('ret-agent');
     if (agentSel) {
         let opts = `<option value="" disabled selected>Pilih Agen</option>`;
-        opts += agentData.map(ag => `<option value="${ag.name}">${ag.name}</option>`).join('');
+        opts += agentData.map(ag => `<option value="${escapeHtml(ag.name)}">${escapeHtml(ag.name)}</option>`).join('');
         agentSel.innerHTML = opts;
     }
 
@@ -7903,11 +7885,11 @@ function onReturnProductSelect() {
 
     const matched = masterData.find(m => m.name.toLowerCase() === pName.toLowerCase());
     if (matched) {
-        if (matched.buy_price) {
-            document.getElementById('ret-buy').value = parseInt(matched.buy_price, 10).toLocaleString('id-ID');
+        if (matched.buy != null) {
+            document.getElementById('ret-buy').value = parseInt(matched.buy, 10).toLocaleString('id-ID');
         }
-        if (matched.sell_price) {
-            document.getElementById('ret-sell').value = parseInt(matched.sell_price, 10).toLocaleString('id-ID');
+        if (matched.sell != null) {
+            document.getElementById('ret-sell').value = parseInt(matched.sell, 10).toLocaleString('id-ID');
         }
         if (matched.source) {
             const agentSel = document.getElementById('ret-agent');
@@ -7990,7 +7972,7 @@ function saveReturnRecord(e) {
     };
 
     // 1. Integrasi ke Buku Transaksi (Jika Potong Tagihan atau Beban Toko)
-    const monthKey = getCurrentMonthKey(new Date(date));
+    const monthKey = getCurrentMonthKey(new Date(date + 'T00:00:00'));
     if (!transactionData[monthKey]) transactionData[monthKey] = [];
 
     if (actionType === 'potong_tagihan') {
@@ -8093,6 +8075,13 @@ function saveReturnRecord(e) {
         });
     }
 
+    if (actionType === 'potong_tagihan' || actionType === 'beban_rusak') {
+        const invSync = typeof syncDailyInvoiceForCustomerDate === 'function' ? syncDailyInvoiceForCustomerDate(customer, date) : null;
+        if (invSync && invSync.inv && typeof syncInvoicePayloadToCloud === 'function' && navigator.onLine) {
+            syncInvoicePayloadToCloud({ ...invSync.inv, isUpdate: true }).catch(() => {});
+        }
+    }
+
     // 2. Simpan Catatan Retur
     returnData.unshift(newReturn);
     saveCacheToLocal();
@@ -8177,20 +8166,32 @@ function confirmDeleteReturn(returnId) {
             }
         }
 
-        // 3. Hapus dari returnData lokal
+        // 3. Hapus dari returnData lokal & sinkronkan invoice harian pelanggan
         const retIdx = returnData.findIndex(r => r.id === returnId);
         if (retIdx !== -1) returnData.splice(retIdx, 1);
+
+        const invSync = typeof syncDailyInvoiceForCustomerDate === 'function' ? syncDailyInvoiceForCustomerDate(item.customer, item.date) : null;
 
         saveCacheToLocal();
         dispatchOutboxMutation('returns', 'delete', { id: returnId });
 
-        // 4. Sinkronkan penghapusan transaksi koreksi & beban retur di Supabase Cloud
+        // 4. Sinkronkan penghapusan transaksi koreksi, invoice & beban retur di Supabase Cloud
         if (navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
             if (item.return_code) {
                 supabaseClient.from('transactions').delete().ilike('notes', `%${item.return_code}%`).then(() => {}).catch(() => {});
             }
             if (item.action_type === 'beban_rusak' && item.item_name) {
                 supabaseClient.from('expenses').delete().eq('date', item.date).ilike('description', `%Kerugian Retur Rusak: ${item.item_name}%`).then(() => {}).catch(() => {});
+            }
+            if (invSync && invSync.inv) {
+                const invObj = invSync.inv;
+                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+                if (invSync.action === 'delete') {
+                    supabaseClient.from('invoices').delete().eq(matchCol, matchVal).then(() => {}).catch(() => {});
+                } else if (typeof syncInvoicePayloadToCloud === 'function') {
+                    syncInvoicePayloadToCloud({ ...invObj, isUpdate: true }).catch(() => {});
+                }
             }
         }
 
@@ -8216,7 +8217,7 @@ function openPrintAgentClaimModal() {
         let opts = `<option value="" disabled selected>Pilih Agen</option>`;
         opts += agentData.map(ag => {
             const count = returnData.filter(r => r.agent === ag.name && r.claim_status === 'menunggu_agen').reduce((acc, r) => acc + (r.qty || 0), 0);
-            return `<option value="${ag.name}">${ag.name} (${count} pcs antre klaim)</option>`;
+            return `<option value="${escapeHtml(ag.name)}">${escapeHtml(ag.name)} (${count} pcs antre klaim)</option>`;
         }).join('');
         selAgent.innerHTML = opts;
     }
@@ -8285,7 +8286,10 @@ function generateAgentClaimPDF() {
     if (!renderArea) return;
 
     const todayFormatted = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-    const docNumber = `SJ-KLAIM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const docNumber = `SJ-KLAIM-${todayLocal.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+    const bizName = escapeHtml((typeof appSettings !== 'undefined' && appSettings?.businessName) ? appSettings.businessName : 'SnackLoop Distribution');
+    const bizTagline = escapeHtml((typeof appSettings !== 'undefined' && appSettings?.businessTagline) ? appSettings.businessTagline : 'Sistem Distribusi & Pengelolaan Stok Snack');
 
     let totalQty = 0;
     let totalModal = 0;
@@ -8316,8 +8320,8 @@ function generateAgentClaimPDF() {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <img src="Snackloop-logo.png" style="height: 40px; width: auto; object-fit: contain;">
                     <div>
-                        <h1 style="font-size: 16px; font-weight: 800; margin: 0; color: #1e1b4b;">SnackLoop Distribution</h1>
-                        <p style="font-size: 10px; color: #64748b; margin: 0;">Sistem Distribusi & Pengelolaan Stok Snack</p>
+                        <h1 style="font-size: 16px; font-weight: 800; margin: 0; color: #1e1b4b;">${bizName}</h1>
+                        <p style="font-size: 10px; color: #64748b; margin: 0;">${bizTagline}</p>
                     </div>
                 </div>
                 <div style="text-align: right; font-size: 10px; color: #475569;">
@@ -8387,7 +8391,7 @@ function generateAgentClaimPDF() {
     if (typeof html2pdf !== 'undefined') {
         const opt = {
             margin: [10, 10, 10, 10],
-            filename: `Surat_Jalan_Klaim_${selAgent.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`,
+            filename: `Surat_Jalan_Klaim_${selAgent.replace(/\s+/g, '_')}_${todayLocal}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }

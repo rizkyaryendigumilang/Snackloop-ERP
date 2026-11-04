@@ -65,20 +65,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
             }
         }
     }
-
-    // 3. Initial Setup Bootstrap (hanya jika database users sama sekali kosong)
-    if (!userInfo && userData.length === 0) {
-        try {
-            const { count } = await supabaseClient.from('users').select('*', { count: 'exact', head: true });
-            if (count === 0 && u.toLowerCase() === 'admin_kiky' && p === '123456') {
-                const { data: newAdmin } = await supabaseClient
-                    .from('users')
-                    .insert([{ username: 'admin_kiky', password: hashedInput, role: 'super_admin' }])
-                    .select();
-                if (newAdmin && newAdmin.length > 0) userInfo = newAdmin[0];
-            }
-        } catch(err) {}
-    }
         
     if (!userInfo) {
         showNotification("Gagal", "Username atau Password salah.", "error");
@@ -406,7 +392,7 @@ async function loadDataFromCloud() {
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
             supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
-            supabaseClient.from('jastip_orders').select('*').order('order_date', { ascending: false }).catch(() => ({ data: null }))
+            supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
@@ -416,10 +402,10 @@ async function loadDataFromCloud() {
         expenseData = resExp.data || [];
         userData = resUsers.data || [];
 
-        if (resReturns && resReturns.data && Array.isArray(resReturns.data) && resReturns.data.length > 0) {
+        if (resReturns && !resReturns.error && Array.isArray(resReturns.data)) {
             returnData = resReturns.data;
         }
-        if (resJastip && resJastip.data && Array.isArray(resJastip.data) && resJastip.data.length > 0) {
+        if (resJastip && !resJastip.error && Array.isArray(resJastip.data)) {
             jastipData = resJastip.data;
         }
         invoiceData = resInv.data || [];
@@ -467,33 +453,9 @@ function switchTab(tabId) {
     const activeBtn = document.getElementById('btn-' + tabId);
     if(activeBtn) activeBtn.classList.add('active');
 
-    const titlesId = { 
-        'dashboard': 'Dashboard Keuangan', 
-        'transactions': 'Buku Transaksi', 
-        'invoices': 'Manajemen Invoice',
-        'returns': 'Retur & Klaim Agen',
-        'jastip': 'Jastip & Personal Shopper',
-        'reports': 'Laporan Bisnis & Analitik',
-        'calculator': 'Kalkulator & Gudang Repack', 
-        'master': 'Data Master Produk', 
-        'customers': 'Manajemen Pelanggan', 
-        'agents': 'Kelola Agen & Supplier',
-        'users': 'Kelola Akun User' 
-    };
-    const titlesEn = {
-        'dashboard': 'Financial Dashboard',
-        'transactions': 'Transaction Ledger',
-        'invoices': 'Invoice Management',
-        'returns': 'Returns & Agent Claims',
-        'jastip': 'Jastip & Personal Shopper',
-        'reports': 'Business Reports & Analytics',
-        'calculator': 'Repack Calculator & Warehouse',
-        'master': 'Product Master Data',
-        'customers': 'Customer Management',
-        'agents': 'Agent Pool Management',
-        'users': 'User Account Management'
-    };
-    const titles = currentLanguage === 'en' ? titlesEn : titlesId;
+    const titles = (typeof TAB_TITLES !== 'undefined' && TAB_TITLES[currentLanguage])
+        ? TAB_TITLES[currentLanguage]
+        : (typeof TAB_TITLES !== 'undefined' ? TAB_TITLES.id : {});
     const pageTitleEl = document.getElementById('page-title');
     if(pageTitleEl) pageTitleEl.innerText = titles[tabId] || 'SnackLoop ERP';
     

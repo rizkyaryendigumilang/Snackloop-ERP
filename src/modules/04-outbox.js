@@ -612,18 +612,21 @@ async function syncInvoicePayloadToCloud(inv) {
 
 async function syncSingleOutboxItem(item) {
     if (item.type === 'INSERT_TRANSACTION') {
-        if (item.payload.repackUpdate) {
+        if (item.payload && item.payload.repackUpdate) {
             await supabaseClient.from('repack')
                 .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
                 .eq('id', item.payload.repackUpdate.batchId);
         }
-        const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]).select();
-        if (trxErr) throw trxErr;
-        if (insertedTrx && insertedTrx.length > 0) {
-            reconcileOfflineTransactionIds(insertedTrx);
+        const trxRow = item.payload && (item.payload.transaction || item.payload);
+        if (trxRow) {
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
+            if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0) {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
         }
 
-        if (item.payload.invoice) {
+        if (item.payload && item.payload.invoice) {
             await syncInvoicePayloadToCloud(item.payload.invoice);
         }
     } else if (item.type === 'INSERT_BULK_TRANSACTIONS') {
@@ -849,7 +852,7 @@ async function syncBatchedItems(type, batchItems) {
         }
 
         // 2. Bulk Insert Transactions (1 HTTP POST)
-        const trxRows = batchItems.map(it => it.payload && it.payload.transaction).filter(Boolean);
+        const trxRows = batchItems.map(it => it.payload && (it.payload.transaction || it.payload)).filter(Boolean);
         if (trxRows.length > 0) {
             const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(trxRows).select();
             if (trxErr) throw trxErr;
