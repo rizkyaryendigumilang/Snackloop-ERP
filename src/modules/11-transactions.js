@@ -2071,14 +2071,16 @@ function confirmDeleteTrx(id) {
 
         dispatchMutation({
             type: 'DELETE_TRANSACTION',
-            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty }
+            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync }
         }, async () => {
             if(trx.source === 'Repack' && trx.batch) {
                 const rItem = repackData.find(r => r.id === trx.batch);
                 if(rItem) await supabaseClient.from('repack').update({ remaining_qty: rItem.remaining_qty }).eq('id', trx.batch);
             }
-            const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
-            if(error) throw error;
+            if (!String(id).startsWith('trx_')) {
+                const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+                if(error) throw error;
+            }
             if (invSync && invSync.inv) {
                 const invObj = invSync.inv;
                 const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
@@ -2126,10 +2128,12 @@ async function updateTrxStatus(id, newStatus) {
 
     dispatchMutation({
         type: 'UPDATE_TRANSACTION_STATUS',
-        payload: { id, status: newStatus }
+        payload: { id, status: newStatus, invSync }
     }, async () => {
-        const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
-        if(error) throw error;
+        if (!String(id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
+            if(error) throw error;
+        }
         if (invSync && invSync.action === 'update' && invSync.inv) {
             const invObj = invSync.inv;
             const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';

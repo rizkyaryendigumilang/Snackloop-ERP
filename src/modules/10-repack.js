@@ -4,7 +4,7 @@ function calculateRepack() {
     const price = getCleanNumber('c-price');
     const disc = getCleanNumber('c-disc');
     const fee = getCleanNumber('c-fee');
-    const qty = parseInt(document.getElementById('c-qty').value) || 1;
+    const qty = Math.max(1, parseInt(document.getElementById('c-qty').value, 10) || 1);
     const plastic = getCleanNumber('c-plastic');
     const sellTarget = getCleanNumber('c-sell');
 

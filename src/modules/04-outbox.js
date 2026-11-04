@@ -663,13 +663,50 @@ async function syncSingleOutboxItem(item) {
                     .eq('id', item.payload.batch);
             }
         }
-        const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
-        if (error) throw error;
+        if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
+            if (error) throw error;
+        }
+        const invSync = item.payload.invSync;
+        if (invSync && invSync.inv) {
+            const invObj = invSync.inv;
+            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+            if (invSync.action === 'delete') {
+                await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
+            } else {
+                await supabaseClient.from('invoices').update({
+                    total_amount: invObj.total_amount,
+                    status: invObj.status
+                }).eq(matchCol, matchVal);
+            }
+        }
     } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
-        const { error } = await supabaseClient.from('transactions')
-            .update({ status: item.payload.status })
-            .eq('id', item.payload.id);
-        if (error) throw error;
+        if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions')
+                .update({ status: item.payload.status })
+                .eq('id', item.payload.id);
+            if (error) throw error;
+        }
+        const invSync = item.payload.invSync;
+        if (invSync && invSync.action === 'update' && invSync.inv) {
+            const invObj = invSync.inv;
+            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
+        }
+    } else if (item.type === 'DELETE_MONTH_SHEET') {
+        if (item.payload && item.payload.month_key) {
+            const { error } = await supabaseClient.from('transactions').delete().eq('month_key', item.payload.month_key);
+            if (error) throw error;
+        }
+    } else if (item.type === 'DELETE_JASTIP_FINANCE_TRX') {
+        const cloudIds = (item.payload && Array.isArray(item.payload.cloudIds)) ? item.payload.cloudIds : [];
+        if (cloudIds.length > 0) {
+            await supabaseClient.from('transactions').delete().in('id', cloudIds);
+        } else if (item.payload && item.payload.jastipId) {
+            await supabaseClient.from('transactions').delete().eq('source', 'Jastip').ilike('item_name', `%[${item.payload.jastipId}]%`);
+        }
     } else if (item.type === 'INSERT_EXPENSE') {
         const { error } = await supabaseClient.from('expenses').insert([item.payload]);
         if (error) throw error;

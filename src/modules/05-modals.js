@@ -114,6 +114,7 @@ function confirmDeleteMonthSheet(monthKey) {
         activeMonthSheet = remainingKeys[remainingKeys.length - 1];
 
         renderMonthTabs();
+        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
         updateDashboard();
         renderFinancialChart();
 
@@ -122,12 +123,14 @@ function confirmDeleteMonthSheet(monthKey) {
         }
         showNotification("Sukses", `Sheet arsip ${monthKey} berhasil dihapus dari sistem.`, "success");
 
-        if (typeof supabaseClient !== 'undefined' && supabaseClient && navigator.onLine) {
-            try {
-                await supabaseClient.from('transactions').delete().eq('month_key', monthKey);
-            } catch(e) {
-                console.warn('Gagal menghapus sheet di cloud:', e);
-            }
+        if (typeof dispatchMutation === 'function') {
+            dispatchMutation({
+                type: 'DELETE_MONTH_SHEET',
+                payload: { month_key: monthKey }
+            }, async () => {
+                const { error } = await supabaseClient.from('transactions').delete().eq('month_key', monthKey);
+                if (error) throw error;
+            });
         }
     });
 }

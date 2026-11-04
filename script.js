@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T16:08:07.833Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T16:17:01.731Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1243,13 +1243,50 @@ async function syncSingleOutboxItem(item) {
                     .eq('id', item.payload.batch);
             }
         }
-        const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
-        if (error) throw error;
+        if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
+            if (error) throw error;
+        }
+        const invSync = item.payload.invSync;
+        if (invSync && invSync.inv) {
+            const invObj = invSync.inv;
+            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+            if (invSync.action === 'delete') {
+                await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
+            } else {
+                await supabaseClient.from('invoices').update({
+                    total_amount: invObj.total_amount,
+                    status: invObj.status
+                }).eq(matchCol, matchVal);
+            }
+        }
     } else if (item.type === 'UPDATE_TRANSACTION_STATUS') {
-        const { error } = await supabaseClient.from('transactions')
-            .update({ status: item.payload.status })
-            .eq('id', item.payload.id);
-        if (error) throw error;
+        if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions')
+                .update({ status: item.payload.status })
+                .eq('id', item.payload.id);
+            if (error) throw error;
+        }
+        const invSync = item.payload.invSync;
+        if (invSync && invSync.action === 'update' && invSync.inv) {
+            const invObj = invSync.inv;
+            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
+        }
+    } else if (item.type === 'DELETE_MONTH_SHEET') {
+        if (item.payload && item.payload.month_key) {
+            const { error } = await supabaseClient.from('transactions').delete().eq('month_key', item.payload.month_key);
+            if (error) throw error;
+        }
+    } else if (item.type === 'DELETE_JASTIP_FINANCE_TRX') {
+        const cloudIds = (item.payload && Array.isArray(item.payload.cloudIds)) ? item.payload.cloudIds : [];
+        if (cloudIds.length > 0) {
+            await supabaseClient.from('transactions').delete().in('id', cloudIds);
+        } else if (item.payload && item.payload.jastipId) {
+            await supabaseClient.from('transactions').delete().eq('source', 'Jastip').ilike('item_name', `%[${item.payload.jastipId}]%`);
+        }
     } else if (item.type === 'INSERT_EXPENSE') {
         const { error } = await supabaseClient.from('expenses').insert([item.payload]);
         if (error) throw error;
@@ -2075,6 +2112,7 @@ function confirmDeleteMonthSheet(monthKey) {
         activeMonthSheet = remainingKeys[remainingKeys.length - 1];
 
         renderMonthTabs();
+        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
         updateDashboard();
         renderFinancialChart();
 
@@ -2083,12 +2121,14 @@ function confirmDeleteMonthSheet(monthKey) {
         }
         showNotification("Sukses", `Sheet arsip ${monthKey} berhasil dihapus dari sistem.`, "success");
 
-        if (typeof supabaseClient !== 'undefined' && supabaseClient && navigator.onLine) {
-            try {
-                await supabaseClient.from('transactions').delete().eq('month_key', monthKey);
-            } catch(e) {
-                console.warn('Gagal menghapus sheet di cloud:', e);
-            }
+        if (typeof dispatchMutation === 'function') {
+            dispatchMutation({
+                type: 'DELETE_MONTH_SHEET',
+                payload: { month_key: monthKey }
+            }, async () => {
+                const { error } = await supabaseClient.from('transactions').delete().eq('month_key', monthKey);
+                if (error) throw error;
+            });
         }
     });
 }
@@ -3443,7 +3483,7 @@ function calculateRepack() {
     const price = getCleanNumber('c-price');
     const disc = getCleanNumber('c-disc');
     const fee = getCleanNumber('c-fee');
-    const qty = parseInt(document.getElementById('c-qty').value) || 1;
+    const qty = Math.max(1, parseInt(document.getElementById('c-qty').value, 10) || 1);
     const plastic = getCleanNumber('c-plastic');
     const sellTarget = getCleanNumber('c-sell');
 
@@ -5622,14 +5662,16 @@ function confirmDeleteTrx(id) {
 
         dispatchMutation({
             type: 'DELETE_TRANSACTION',
-            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty }
+            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync }
         }, async () => {
             if(trx.source === 'Repack' && trx.batch) {
                 const rItem = repackData.find(r => r.id === trx.batch);
                 if(rItem) await supabaseClient.from('repack').update({ remaining_qty: rItem.remaining_qty }).eq('id', trx.batch);
             }
-            const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
-            if(error) throw error;
+            if (!String(id).startsWith('trx_')) {
+                const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+                if(error) throw error;
+            }
             if (invSync && invSync.inv) {
                 const invObj = invSync.inv;
                 const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
@@ -5677,10 +5719,12 @@ async function updateTrxStatus(id, newStatus) {
 
     dispatchMutation({
         type: 'UPDATE_TRANSACTION_STATUS',
-        payload: { id, status: newStatus }
+        payload: { id, status: newStatus, invSync }
     }, async () => {
-        const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
-        if(error) throw error;
+        if (!String(id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
+            if(error) throw error;
+        }
         if (invSync && invSync.action === 'update' && invSync.inv) {
             const invObj = invSync.inv;
             const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
@@ -8786,9 +8830,9 @@ function setJastipFilter(status) {
         const el = document.getElementById('jastip-filter-' + btn);
         if (el) {
             if (btn === status) {
-                el.className = 'px-3 py-1.5 rounded-full transition text-xs font-bold bg-indigo-600 text-white shadow-sm';
+                el.className = 'px-3 py-1.5 rounded-lg transition text-xs font-bold bg-indigo-600 text-white shadow-sm';
             } else {
-                el.className = 'px-3 py-1.5 rounded-full transition text-xs font-semibold opacity-70 hover:opacity-100 theme-input border';
+                el.className = 'px-3 py-1.5 rounded-lg transition text-xs font-semibold opacity-70 hover:opacity-100 theme-input border';
             }
         }
     });
@@ -8870,6 +8914,9 @@ function copyJastipBroadcastTemplate() {
     const rateInfo = DEFAULT_EXCHANGE_RATES[curr] || DEFAULT_EXCHANGE_RATES.IDR;
     const priceValas = document.getElementById('calc-price-valas')?.value || '0';
     const sellPrice = document.getElementById('calc-out-price')?.innerText || 'Rp 0';
+    const rawBizPhone = (typeof appSettings !== 'undefined' && appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+    const bizPhone = (typeof normalizeWaPhone === 'function') ? normalizeWaPhone(rawBizPhone, '628123456789') : rawBizPhone;
+    const bizName = (typeof appSettings !== 'undefined' && appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop';
 
     const text = `*OPEN JASTIP ${rateInfo.name.toUpperCase()}*\n` +
                  `-----------------------------------------\n` +
@@ -8885,7 +8932,7 @@ function copyJastipBroadcastTemplate() {
                  `• No. WhatsApp:\n` +
                  `• Alamat Lengkap:\n` +
                  `• Pesanan & Jumlah:\n\n` +
-                 `Kirimkan format pemesanan via WhatsApp SnackLoop: https://wa.me/628123456789`;
+                 `Kirimkan format pemesanan via WhatsApp ${bizName}: https://wa.me/${bizPhone}`;
 
     navigator.clipboard.writeText(text).then(() => {
         showNotification("Disalin!", "Format broadcast promosi berhasil disalin ke clipboard.", "success");
@@ -9198,27 +9245,33 @@ function bookJastipToFinance(id) {
         if (!transactionData[monthKey]) transactionData[monthKey] = [];
 
         const trxId = 'trx_jst_' + item.id;
-        // Hindari duplikasi jika trxId sudah ada
-        const existingIdx = transactionData[monthKey].findIndex(t => t.id === trxId);
+        const dateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10);
+        const itemNameLabel = `${item.item_name} [${item.id}]`;
+        const totalModalComputed = item.total_selling_price - item.total_net_profit;
+        const profitPerItemComputed = Math.round(item.total_net_profit / (item.item_qty || 1));
+        const notesStr = `Jastip ${item.currency} - ${item.item_variant || '-'} (Kurs: ${item.catalog_rate})`;
+
+        // Hindari duplikasi jika trxId atau itemNameLabel sudah ada
+        const existingIdx = transactionData[monthKey].findIndex(t => t.id === trxId || (t.source === 'Jastip' && t.itemName === itemNameLabel));
         const trxEntry = {
-            id: trxId,
+            id: existingIdx >= 0 ? transactionData[monthKey][existingIdx].id : trxId,
             monthKey: monthKey,
-            date: typeof getLocalDateStr === 'function' ? getLocalDateStr(now) : now.toISOString().slice(0, 10),
+            date: dateStr,
             customer: `${item.customer_name} (Jastip)`,
-            itemName: `${item.item_name} [${item.id}]`,
-            item: `${item.item_name} [${item.id}]`,
+            itemName: itemNameLabel,
+            item: itemNameLabel,
             source: 'Jastip',
             qty: item.item_qty,
-            batch: '',
+            batch: '-',
             buy: item.landed_cost_per_item,
             extraCost: 0,
             extraCostNote: '',
-            totalModal: item.total_selling_price - item.total_net_profit,
+            totalModal: totalModalComputed,
             sell: item.selling_price_per_item,
             totalSell: item.total_selling_price,
             status: 'Lunas',
-            profitPerItem: Math.round(item.total_net_profit / item.item_qty),
-            notes: `Jastip ${item.currency} - ${item.item_variant || '-'} (Kurs: ${item.catalog_rate})`
+            profitPerItem: profitPerItemComputed,
+            notes: notesStr
         };
 
         if (existingIdx >= 0) {
@@ -9229,6 +9282,41 @@ function bookJastipToFinance(id) {
 
         item.is_booked_to_finance = true;
         saveJastipToLocal();
+        dispatchJastipMutation('UPSERT_JASTIP', item);
+
+        const dbTrxPayload = {
+            month_key: monthKey,
+            date: dateStr,
+            customer: `${item.customer_name} (Jastip)`,
+            item_name: itemNameLabel,
+            source: 'Jastip',
+            qty: item.item_qty,
+            batch: '-',
+            buy: item.landed_cost_per_item,
+            extra_cost: 0,
+            extra_cost_note: '',
+            total_modal: totalModalComputed,
+            sell: item.selling_price_per_item,
+            total_sell: item.total_selling_price,
+            status: 'Lunas',
+            profit_per_item: profitPerItemComputed,
+            notes: notesStr
+        };
+
+        if (typeof dispatchMutation === 'function') {
+            dispatchMutation({
+                type: 'INSERT_TRANSACTION',
+                payload: { transaction: dbTrxPayload, source: 'Jastip', batchId: '-' }
+            }, async () => {
+                const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
+                if (trxErr) throw trxErr;
+                if (insertedTrx && insertedTrx.length > 0) {
+                    trxEntry.id = insertedTrx[0].id;
+                    if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
+                }
+            });
+        }
+
         if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
         if (typeof updateDashboard === 'function') updateDashboard();
         if (typeof renderFinancialChart === 'function') renderFinancialChart();
@@ -9245,13 +9333,37 @@ function unbookJastipFromFinance(id, silent = false) {
     if (!item || !item.is_booked_to_finance) return;
 
     const trxId = 'trx_jst_' + item.id;
+    const itemTag = `[${item.id}]`;
+    const removedCloudIds = [];
+
     if (typeof transactionData !== 'undefined') {
         Object.keys(transactionData).forEach(mKey => {
-            transactionData[mKey] = transactionData[mKey].filter(t => t.id !== trxId);
+            transactionData[mKey] = (transactionData[mKey] || []).filter(t => {
+                const isMatch = t.id === trxId || (t.source === 'Jastip' && String(t.itemName || '').includes(itemTag));
+                if (isMatch && t.id && !String(t.id).startsWith('trx_')) {
+                    removedCloudIds.push(t.id);
+                }
+                return !isMatch;
+            });
         });
 
         item.is_booked_to_finance = false;
         saveJastipToLocal();
+        dispatchJastipMutation('UPSERT_JASTIP', item);
+
+        if (typeof dispatchMutation === 'function') {
+            dispatchMutation({
+                type: 'DELETE_JASTIP_FINANCE_TRX',
+                payload: { jastipId: item.id, cloudIds: removedCloudIds }
+            }, async () => {
+                if (removedCloudIds.length > 0) {
+                    await supabaseClient.from('transactions').delete().in('id', removedCloudIds);
+                } else {
+                    await supabaseClient.from('transactions').delete().eq('source', 'Jastip').ilike('item_name', `%${itemTag}%`);
+                }
+            });
+        }
+
         if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
         if (typeof updateDashboard === 'function') updateDashboard();
         if (typeof renderFinancialChart === 'function') renderFinancialChart();
@@ -9332,6 +9444,7 @@ function shareJastipRefundWA(id) {
 
     item.status = 'refunded';
     saveJastipToLocal();
+    dispatchJastipMutation('UPSERT_JASTIP', item);
     renderJastip();
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
 }
@@ -9640,9 +9753,10 @@ function generateJastipCustomsPDF() {
     if (!printArea) return;
 
     if (typeof html2pdf !== 'undefined') {
+        const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
         const opt = {
             margin: [10, 10, 10, 10],
-            filename: `Packing_List_Customs_ECD_${new Date().toISOString().slice(0, 10)}.pdf`,
+            filename: `Packing_List_Customs_ECD_${todayLocal}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -9726,7 +9840,8 @@ function exportJastipExcel() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Jastip SnackLoop");
-    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Rekap_Jastip_SnackLoop_${todayLocal}.xlsx`);
     showNotification("Sukses", "Berkas Excel rekap Jastip berhasil diunduh!", "success");
 }
 
@@ -9734,7 +9849,8 @@ function exportJastipJSON() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jastipData, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `snackloop_jastip_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    const todayLocal = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    dlAnchorElem.setAttribute("download", `snackloop_jastip_backup_${todayLocal}.json`);
     dlAnchorElem.click();
     showNotification("Dicadangkan", "File backup JSON Jastip berhasil disimpan.", "success");
 }
@@ -9750,6 +9866,9 @@ function importJastipJSON(event) {
             if (Array.isArray(parsed)) {
                 jastipData = parsed;
                 saveJastipToLocal();
+                parsed.forEach(item => {
+                    if (item && item.id) dispatchJastipMutation('UPSERT_JASTIP', item);
+                });
                 renderJastip();
                 showNotification("Berhasil Dipulihkan", `${parsed.length} pesanan Jastip berhasil diimpor!`, "success");
             } else {
@@ -9757,6 +9876,8 @@ function importJastipJSON(event) {
             }
         } catch (err) {
             showNotification("Gagal", "File JSON rusak atau tidak dapat dibaca.", "error");
+        } finally {
+            event.target.value = '';
         }
     };
     reader.readAsText(file);
