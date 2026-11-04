@@ -1345,6 +1345,117 @@ async function markInvoiceAsPaid(invId, custName) {
     });
 }
 
+function updateInvoicePDFStatus(status) {
+    const badgeEl = document.getElementById('pdf-status-badge');
+    const metaStatusEl = document.getElementById('inv-meta-status');
+    const metaStatusWrap = document.getElementById('pdf-meta-status-wrap');
+
+    if (!status) {
+        if (badgeEl) badgeEl.innerHTML = '';
+        if (metaStatusWrap) metaStatusWrap.style.display = 'none';
+        return;
+    }
+
+    if (metaStatusWrap) metaStatusWrap.style.display = 'block';
+
+    const isPaid = status === 'Lunas';
+    const statusText = isPaid ? 'Lunas' : 'Belum Lunas';
+    const badgeClass = isPaid
+        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+        : 'bg-rose-100 text-rose-800 border border-rose-300';
+    const textClass = isPaid ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold';
+
+    if (badgeEl) {
+        badgeEl.innerHTML = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${badgeClass}">${statusText}</span>`;
+    }
+    if (metaStatusEl) {
+        metaStatusEl.className = textClass;
+        metaStatusEl.innerText = statusText;
+    }
+}
+
+async function renderSinglePagePDF(printAreaEl, fileName) {
+    if (!printAreaEl) return;
+
+    // Simpan style inline sebelumnya
+    const prevBg = printAreaEl.style.backgroundColor;
+    const prevColor = printAreaEl.style.color;
+    const prevMaxWidth = printAreaEl.style.maxWidth;
+    const prevWidth = printAreaEl.style.width;
+
+    // Tetapkan geometri container cetak A4 yang presisi
+    printAreaEl.style.backgroundColor = '#ffffff';
+    printAreaEl.style.color = '#0f172a';
+    printAreaEl.style.maxWidth = '780px';
+    printAreaEl.style.width = '100%';
+
+    const opt = {
+        margin: [6, 8, 6, 8], // top, left, bottom, right (mm)
+        filename: fileName,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
+    };
+
+    try {
+        await html2pdf()
+            .set(opt)
+            .from(printAreaEl)
+            .toCanvas()
+            .then(function() {
+                // Jaminan matematis: Canvas di-fit agar TIDAK PERNAH melebihi rasio 1 halaman A4
+                if (this.prop && this.prop.canvas && this.prop.pageSize && this.prop.pageSize.inner) {
+                    const canvas = this.prop.canvas;
+                    const maxCanvasHeight = Math.floor(canvas.width * this.prop.pageSize.inner.ratio);
+                    
+                    if (canvas.height > maxCanvasHeight) {
+                        const scaledCanvas = document.createElement('canvas');
+                        scaledCanvas.width = canvas.width;
+                        scaledCanvas.height = maxCanvasHeight;
+                        const ctx = scaledCanvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+
+                        const scale = maxCanvasHeight / canvas.height;
+                        const targetW = canvas.width * scale;
+                        const offsetX = (scaledCanvas.width - targetW) / 2;
+
+                        ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, offsetX, 0, targetW, maxCanvasHeight);
+                        this.prop.canvas = scaledCanvas;
+                    }
+                }
+            })
+            .toPdf()
+            .then(function() {
+                // Pengaman tambahan: Hapus lembar ke-2 jika ada margin spillover
+                if (this.prop && this.prop.pdf) {
+                    const pdf = this.prop.pdf;
+                    const totalPages = pdf.internal.getNumberOfPages();
+                    if (totalPages > 1) {
+                        for (let p = totalPages; p > 1; p--) {
+                            pdf.deletePage(p);
+                        }
+                    }
+                }
+            })
+            .save();
+    } finally {
+        printAreaEl.style.backgroundColor = prevBg;
+        printAreaEl.style.color = prevColor;
+        printAreaEl.style.maxWidth = prevMaxWidth;
+        printAreaEl.style.width = prevWidth;
+    }
+}
+
 async function downloadInvoicePDF(invNumber, statusInv) {
     const inv = invoiceData.find(i => i.invoice_number === invNumber);
     if(!inv) return showNotification("Gagal", "Invoice tidak ditemukan.", "error");
@@ -1355,7 +1466,8 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     }
 
     const titleEl = document.getElementById('pdf-doc-title');
-    titleEl.innerText = statusInv === 'Lunas' ? "FAKTUR LUNAS (KWITANSI)" : "NOTA TAGIHAN (BELUM LUNAS)";
+    titleEl.innerText = statusInv === 'Lunas' ? "FAKTUR PENJUALAN" : "NOTA TAGIHAN";
+    updateInvoicePDFStatus(statusInv);
 
     document.getElementById('pdf-meta-subtitle').innerText = "Ditagihkan Kepada:";
     document.getElementById('pdf-meta-id-wrap').style.display = "block";
@@ -1378,31 +1490,46 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     }
 
     let tbody = document.getElementById('inv-cart-body');
-    if (matchingTrx.length > 0) {
+    const itemCount = matchingTrx.length;
+
+    // Dynamic density scaling untuk kenyamanan membaca & proporsi 1 lembar
+    let tdPadding = "py-2 px-1.5";
+    let fontSize = "text-xs";
+    if (itemCount > 10 && itemCount <= 18) {
+        tdPadding = "py-1 px-1.5";
+        fontSize = "text-[11px]";
+    } else if (itemCount > 18 && itemCount <= 30) {
+        tdPadding = "py-0.5 px-1";
+        fontSize = "text-[10px]";
+    } else if (itemCount > 30) {
+        tdPadding = "py-0 px-1 leading-tight";
+        fontSize = "text-[9px]";
+    }
+
+    if (itemCount > 0) {
         tbody.innerHTML = matchingTrx.map(t => `
-            <tr class="border-b border-slate-200">
-                <td class="py-2.5 pr-2 font-medium">${escapeHtml(t.itemName)} <span class="text-[10px] opacity-60 block">${escapeHtml(t.source || '')}</span></td>
-                <td class="py-2.5 px-2 text-center font-mono">${t.qty}</td>
-                <td class="py-2.5 px-2 text-right font-mono">Rp ${(t.sell || 0).toLocaleString()}</td>
-                <td class="py-2.5 pl-2 text-right font-bold font-mono">Rp ${(t.totalSell || 0).toLocaleString()}</td>
+            <tr class="border-b border-slate-200 ${fontSize}">
+                <td class="${tdPadding} pr-2 font-medium">${escapeHtml(t.itemName)} ${t.source ? `<span class="text-[9px] opacity-60 ml-1">(${escapeHtml(t.source)})</span>` : ''}</td>
+                <td class="${tdPadding} text-center font-mono">${t.qty}</td>
+                <td class="${tdPadding} text-right font-mono">Rp ${(t.sell || 0).toLocaleString()}</td>
+                <td class="${tdPadding} pl-2 text-right font-bold font-mono">Rp ${(t.totalSell || 0).toLocaleString()}</td>
             </tr>
         `).join('');
     } else {
         tbody.innerHTML = `
-            <tr class="border-b border-slate-200">
-                <td class="py-3 pr-2 font-medium">Pembelian / Titipan Produk SnackLoop</td>
-                <td class="py-3 px-2 text-center">1</td>
-                <td class="py-3 px-2 text-right">Rp ${inv.total_amount.toLocaleString()}</td>
-                <td class="py-3 pl-2 text-right font-bold">Rp ${inv.total_amount.toLocaleString()}</td>
+            <tr class="border-b border-slate-200 text-xs">
+                <td class="py-2.5 pr-2 font-medium">Pembelian / Titipan Produk SnackLoop</td>
+                <td class="py-2.5 px-2 text-center font-mono">1</td>
+                <td class="py-2.5 px-2 text-right font-mono">Rp ${inv.total_amount.toLocaleString()}</td>
+                <td class="py-2.5 pl-2 text-right font-bold font-mono">Rp ${inv.total_amount.toLocaleString()}</td>
             </tr>`;
     }
 
-    html2pdf().from(document.querySelector('.print-area')).set({
-        margin: 10, filename: `${inv.invoice_number}_${inv.customer_name}.pdf`, image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).save();
+    const printArea = document.querySelector('.print-area');
+    const fileName = `${inv.invoice_number}_${inv.customer_name}.pdf`;
+    await renderSinglePagePDF(printArea, fileName);
 
-    showNotification("Sukses", "PDF Invoice berhasil diunduh.", "success");
+    showNotification("Sukses", "PDF Invoice (1 Lembar) berhasil diunduh.", "success");
 }
 
 function sendInvoiceWA(invNumber, custName, amount, statusInv) {
@@ -1868,7 +1995,8 @@ async function downloadPDF(trxId) {
         return printThermalReceiptFromTrx(targetTrx, appSettings.printFormat);
     }
     
-    document.getElementById('pdf-doc-title').innerText = targetTrx.status === 'Lunas' ? "FAKTUR LUNAS (KWITANSI)" : "NOTA TAGIHAN (BELUM LUNAS)";
+    document.getElementById('pdf-doc-title').innerText = targetTrx.status === 'Lunas' ? "FAKTUR PENJUALAN" : "NOTA TAGIHAN";
+    updateInvoicePDFStatus(targetTrx.status);
     document.getElementById('pdf-meta-subtitle').innerText = "Ditagihkan Kepada:";
     document.getElementById('pdf-meta-id-wrap').style.display = "block";
     document.getElementById('pdf-total-label').innerText = targetTrx.status === 'Lunas' ? "Total Dibayar" : "Total Tagihan";
@@ -1879,11 +2007,9 @@ async function downloadPDF(trxId) {
     const parts = targetTrx.date.split('-');
     const fileName = `${parts[2]}-${parts[1]}-${parts[0]}_${targetTrx.customer}_Receipt.pdf`;
 
-    html2pdf().from(document.querySelector('.print-area')).set({
-        margin: 10, filename: fileName, image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).save();
-    showNotification("Sukses", "Nota PDF berhasil diunduh.", "success");
+    const printArea = document.querySelector('.print-area');
+    await renderSinglePagePDF(printArea, fileName);
+    showNotification("Sukses", "Nota PDF (1 Lembar) berhasil diunduh.", "success");
 }
 
 async function prepareInvoiceCartFromRow(targetTrx) {
@@ -1892,16 +2018,30 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     let tbody = document.getElementById('inv-cart-body');
     if(!tbody) return;
 
+    const itemCount = matchingTransactions.length;
+    let tdPadding = "py-2 px-1.5";
+    let fontSize = "text-xs";
+    if (itemCount > 10 && itemCount <= 18) {
+        tdPadding = "py-1 px-1.5";
+        fontSize = "text-[11px]";
+    } else if (itemCount > 18 && itemCount <= 30) {
+        tdPadding = "py-0.5 px-1";
+        fontSize = "text-[10px]";
+    } else if (itemCount > 30) {
+        tdPadding = "py-0 px-1 leading-tight";
+        fontSize = "text-[9px]";
+    }
+
     const rows = matchingTransactions.map(t => {
         grandTotal += t.totalSell;
         const safeItemName = escapeHtml(t.itemName || '');
         const safeSource = escapeHtml(t.source || '');
         return `
-            <tr class="border-b border-slate-200">
-                <td class="py-3 pr-2 font-medium">${safeItemName} <span class="text-xs opacity-60">(${safeSource})</span></td>
-                <td class="py-3 px-2 text-center">${t.qty}</td>
-                <td class="py-3 px-2 text-right">Rp ${(t.totalSell / t.qty).toLocaleString()}</td>
-                <td class="py-3 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
+            <tr class="border-b border-slate-200 ${fontSize}">
+                <td class="${tdPadding} pr-2 font-medium">${safeItemName} ${safeSource ? `<span class="text-[9px] opacity-60 ml-1">(${safeSource})</span>` : ''}</td>
+                <td class="${tdPadding} text-center font-mono">${t.qty}</td>
+                <td class="${tdPadding} text-right font-mono">Rp ${(t.totalSell / (t.qty || 1)).toLocaleString()}</td>
+                <td class="${tdPadding} pl-2 text-right font-bold font-mono">Rp ${t.totalSell.toLocaleString()}</td>
             </tr>`;
     }).join('');
     tbody.innerHTML = rows;
@@ -1942,6 +2082,7 @@ async function printMonthlyRecapPDF() {
     if(tbody) tbody.innerHTML = rows;
 
     document.getElementById('pdf-doc-title').innerText = "REKAP LAPORAN KEUANGAN";
+    updateInvoicePDFStatus('');
     document.getElementById('pdf-meta-subtitle').innerText = "Periode Bulan:";
     document.getElementById('inv-meta-customer').innerText = activeMonthSheet;
     document.getElementById('inv-meta-date').innerText = new Date().toISOString().slice(0, 10);
