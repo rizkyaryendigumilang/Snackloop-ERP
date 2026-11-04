@@ -180,6 +180,9 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
   const localSample = new Date(2026, 10, 5, 0, 30, 0); // 5 Nov 2026 00:30 local time
   assert.strictEqual(sandbox.getLocalDateStr(localSample), '2026-11-05');
 
+  // Test toggleNavbarCollapse exists on sandbox
+  assert.strictEqual(typeof sandbox.toggleNavbarCollapse, 'function');
+
   // Verify outbox handles bulk transactions and invoice payload sanitization
   const outboxCode = fs.readFileSync(path.join(modulesDir, '04-outbox.js'), 'utf8');
   if (!outboxCode.includes("item.type === 'INSERT_BULK_TRANSACTIONS'") || !outboxCode.includes('syncInvoicePayloadToCloud')) {

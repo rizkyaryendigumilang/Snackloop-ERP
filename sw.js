@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v21 (Modular Architecture & Local Vendor Bundle)
-const CACHE_NAME = 'snackloop-cache-v21';
+// SnackLoop ERP Service Worker v22 (Modular Architecture & Local Vendor Bundle)
+const CACHE_NAME = 'snackloop-cache-v22';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

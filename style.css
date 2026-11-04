@@ -141,7 +141,57 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   height: calc(100vh - (var(--spacer) * 2));
   width: 5.5rem;
   z-index: 100;
-  transition: background 0.3s ease;
+  transition: transform 220ms var(--ease-out), background-color 0.3s ease;
+}
+
+.navbar__toggle-btn {
+  position: absolute;
+  top: 1.35rem;
+  right: -0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border-radius: 9999px;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 102;
+  transition: transform 180ms var(--ease-out), color 180ms var(--ease-out), border-color 180ms var(--ease-out), background-color 180ms var(--ease-out);
+}
+
+.navbar__toggle-btn:hover {
+  color: var(--primary);
+  border-color: rgba(79, 70, 229, 0.45);
+}
+
+.navbar__toggle-icon {
+  font-size: 0.625rem;
+  line-height: 1;
+  transition: transform 220ms var(--ease-out);
+}
+
+body.navbar-collapsed .navbar {
+  transform: translateX(calc(-100% - var(--spacer)));
+}
+
+body.navbar-collapsed .navbar__toggle-btn {
+  right: -2.15rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+body.navbar-collapsed .navbar__toggle-icon {
+  transform: rotate(180deg);
+}
+
+body.navbar-collapsed .navbar__link span {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .navbar__link {
@@ -172,7 +222,7 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 10px;
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.12);
   white-space: nowrap;
-  z-index: 101;
+  z-index: 105;
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -202,6 +252,12 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 
 #main-content {
   margin-left: 100px;
+  transition: margin-left 220ms var(--ease-out), padding-left 220ms var(--ease-out);
+}
+
+body.navbar-collapsed #main-content {
+  margin-left: 0;
+  padding-left: 2.5rem;
 }
 
 @media print {
@@ -327,6 +383,10 @@ header {
     width: 100% !important;
   }
 
+  body.navbar-collapsed #main-content {
+    padding: 0.75rem 0.75rem calc(1.25rem + env(safe-area-inset-bottom, 0px)) 0.75rem !important;
+  }
+
   .navbar {
     position: fixed !important;
     top: auto !important;
@@ -347,13 +407,34 @@ header {
     display: flex !important;
     flex-direction: row !important;
     justify-content: flex-start !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-x: contain !important;
-    scrollbar-width: none !important;
+    overflow: visible !important;
+    transform: translateY(0);
   }
 
-  .navbar::-webkit-scrollbar {
+  body.navbar-collapsed .navbar {
+    transform: translateY(100%) !important;
+  }
+
+  .navbar__toggle-btn {
+    top: -0.8rem !important;
+    right: 0.85rem !important;
+    left: auto !important;
+  }
+
+  body.navbar-collapsed .navbar__toggle-btn {
+    top: -2.15rem !important;
+    right: 0.85rem !important;
+  }
+
+  .navbar__toggle-icon {
+    transform: rotate(-90deg);
+  }
+
+  body.navbar-collapsed .navbar__toggle-icon {
+    transform: rotate(90deg) !important;
+  }
+
+  .navbar__menu::-webkit-scrollbar {
     display: none;
   }
 
@@ -362,8 +443,12 @@ header {
     flex-direction: row !important;
     align-items: center !important;
     gap: 0.35rem !important;
-    width: max-content !important;
+    width: 100% !important;
     padding: 0 0.25rem !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
   }
 
   .navbar__link {

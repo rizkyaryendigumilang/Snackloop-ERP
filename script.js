@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T16:38:34.960Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T16:44:45.581Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -485,6 +485,24 @@ function normalizeWaPhone(rawPhone, fallback = '') {
     return clean;
 }
 
+function toggleNavbarCollapse(forceCollapsed) {
+    if (typeof document === 'undefined' || !document.body) return false;
+    const isCurrentlyCollapsed = document.body.classList.contains('navbar-collapsed');
+    const nextCollapsed = typeof forceCollapsed === 'boolean' ? forceCollapsed : !isCurrentlyCollapsed;
+    document.body.classList.toggle('navbar-collapsed', nextCollapsed);
+    const btn = typeof document.getElementById === 'function' ? document.getElementById('navbar-collapse-btn') : null;
+    if (btn) {
+        btn.setAttribute('aria-expanded', String(!nextCollapsed));
+        btn.title = nextCollapsed ? 'Buka Navigasi' : 'Lipat Navigasi';
+    }
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('snackloop_navbar_collapsed', nextCollapsed ? 'true' : 'false');
+        }
+    } catch (e) {}
+    return nextCollapsed;
+}
+
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
 document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');
@@ -507,6 +525,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 
     const savedCompact = localStorage.getItem('snackloop_compact') === 'true';
     if (savedCompact) toggleCompactView(true);
+
+    const savedNavCollapsed = localStorage.getItem('snackloop_navbar_collapsed') === 'true';
+    if (savedNavCollapsed) toggleNavbarCollapse(true);
 
     const savedTheme = localStorage.getItem('snackloop_theme');
     if (savedTheme === 'dark') {
