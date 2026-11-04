@@ -15,9 +15,7 @@ let repackData = [];
 let transactionData = {}; 
 let expenseData = [];
 let userData = [
-    { id: 1, username: 'admin', role: 'super_admin' },
-    { id: 2, username: 'staff1', role: 'staff_rekap' },
-    { id: 3, username: 'admin_kiky', role: 'super_admin' }
+    { id: 1, username: 'admin', role: 'super_admin' }
 ];
 let invoiceData = [];
 let priceHistoryData = []; 

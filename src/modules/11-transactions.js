@@ -220,7 +220,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const dbTrxPayload = {
             month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
             buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
-            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes
+            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: newTrxData.notes
         };
         const dbInvPayload = {
             id: targetInv ? targetInv.id : undefined,
@@ -2504,7 +2504,7 @@ function updateDashboard() {
                 } else if (diffDays <= 14) {
                     agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 font-bold">${diffDays}h (Perhatian)</span>`;
                 } else {
-                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold animate-pulse">${diffDays}h (Jatuh Tempo)</span>`;
+                    agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>${diffDays}h (Jatuh Tempo)</span>`;
                 }
 
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;

@@ -193,13 +193,15 @@ function setAppLanguage(lang) {
         const tabKey = activeTabLink.id.replace('btn-', '');
         const titlesId = { 
             'dashboard': 'Dashboard Keuangan', 'transactions': 'Buku Transaksi', 'invoices': 'Manajemen Invoice',
-            'returns': 'Retur & Klaim Agen', 'reports': 'Laporan Bisnis & Analitik', 'calculator': 'Kalkulator & Gudang Repack', 
-            'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan', 'agents': 'Kelola Agent Pool', 'users': 'Kelola Akun User' 
+            'returns': 'Retur & Klaim Agen', 'jastip': 'Jastip & Personal Shopper', 'reports': 'Laporan Bisnis & Analitik',
+            'calculator': 'Kalkulator & Gudang Repack', 'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan',
+            'agents': 'Kelola Agen & Supplier', 'users': 'Kelola Akses User' 
         };
         const titlesEn = {
             'dashboard': 'Financial Dashboard', 'transactions': 'Transaction Ledger', 'invoices': 'Invoice Management',
-            'returns': 'Returns & Agent Claims', 'reports': 'Business Reports & Analytics', 'calculator': 'Repack Calculator & Warehouse',
-            'master': 'Product Master Data', 'customers': 'Customer Management', 'agents': 'Agent Pool Management', 'users': 'User Account Management'
+            'returns': 'Returns & Agent Claims', 'jastip': 'Personal Shopper (Jastip)', 'reports': 'Business Reports & Analytics',
+            'calculator': 'Repack Calculator & Warehouse', 'master': 'Product Master Data', 'customers': 'Customer Management',
+            'agents': 'Agent & Supplier Management', 'users': 'User Access Management'
         };
         const titles = currentLanguage === 'en' ? titlesEn : titlesId;
         const pageTitleEl = document.getElementById('page-title');

@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T15:58:10.022Z from 17 source modules in src/modules/
+// Generated on 2026-11-04T16:08:07.833Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -21,9 +21,7 @@ let repackData = [];
 let transactionData = {}; 
 let expenseData = [];
 let userData = [
-    { id: 1, username: 'admin', role: 'super_admin' },
-    { id: 2, username: 'staff1', role: 'staff_rekap' },
-    { id: 3, username: 'admin_kiky', role: 'super_admin' }
+    { id: 1, username: 'admin', role: 'super_admin' }
 ];
 let invoiceData = [];
 let priceHistoryData = []; 
@@ -296,13 +294,15 @@ function setAppLanguage(lang) {
         const tabKey = activeTabLink.id.replace('btn-', '');
         const titlesId = { 
             'dashboard': 'Dashboard Keuangan', 'transactions': 'Buku Transaksi', 'invoices': 'Manajemen Invoice',
-            'returns': 'Retur & Klaim Agen', 'reports': 'Laporan Bisnis & Analitik', 'calculator': 'Kalkulator & Gudang Repack', 
-            'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan', 'agents': 'Kelola Agent Pool', 'users': 'Kelola Akun User' 
+            'returns': 'Retur & Klaim Agen', 'jastip': 'Jastip & Personal Shopper', 'reports': 'Laporan Bisnis & Analitik',
+            'calculator': 'Kalkulator & Gudang Repack', 'master': 'Data Master Produk', 'customers': 'Manajemen Pelanggan',
+            'agents': 'Kelola Agen & Supplier', 'users': 'Kelola Akses User' 
         };
         const titlesEn = {
             'dashboard': 'Financial Dashboard', 'transactions': 'Transaction Ledger', 'invoices': 'Invoice Management',
-            'returns': 'Returns & Agent Claims', 'reports': 'Business Reports & Analytics', 'calculator': 'Repack Calculator & Warehouse',
-            'master': 'Product Master Data', 'customers': 'Customer Management', 'agents': 'Agent Pool Management', 'users': 'User Account Management'
+            'returns': 'Returns & Agent Claims', 'jastip': 'Personal Shopper (Jastip)', 'reports': 'Business Reports & Analytics',
+            'calculator': 'Repack Calculator & Warehouse', 'master': 'Product Master Data', 'customers': 'Customer Management',
+            'agents': 'Agent & Supplier Management', 'users': 'User Access Management'
         };
         const titles = currentLanguage === 'en' ? titlesEn : titlesId;
         const pageTitleEl = document.getElementById('page-title');
@@ -1038,18 +1038,11 @@ async function loadCacheFromLocal() {
         priceHistoryData = data.priceHistoryData || [];
         returnData = data.returnData || [];
         userData = data.userData && data.userData.length > 0 ? data.userData : [
-            { id: 1, username: 'admin', role: 'super_admin' },
-            { id: 2, username: 'staff1', role: 'staff_rekap' },
-            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+            { id: 1, username: 'admin', role: 'super_admin' }
         ];
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
-            userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-        }
     } else {
         userData = [
-            { id: 1, username: 'admin', role: 'super_admin' },
-            { id: 2, username: 'staff1', role: 'staff_rekap' },
-            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+            { id: 1, username: 'admin', role: 'super_admin' }
         ];
     }
 
@@ -3778,7 +3771,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const dbTrxPayload = {
             month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
             buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
-            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes
+            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: newTrxData.notes
         };
         const dbInvPayload = {
             id: targetInv ? targetInv.id : undefined,
@@ -6062,7 +6055,7 @@ function updateDashboard() {
                 } else if (diffDays <= 14) {
                     agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 font-bold">${diffDays}h (Perhatian)</span>`;
                 } else {
-                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold animate-pulse">${diffDays}h (Jatuh Tempo)</span>`;
+                    agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>${diffDays}h (Jatuh Tempo)</span>`;
                 }
 
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
@@ -7561,6 +7554,10 @@ function exportToPdf(reportType) {
         `;
     }
 
+    const bizName = escapeHtml((typeof appSettings !== 'undefined' && appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP');
+    const bizTagline = escapeHtml((typeof appSettings !== 'undefined' && appSettings && appSettings.businessTagline) ? appSettings.businessTagline : 'Sistem Manajemen & Pembukuan Distribusi Snack');
+    const safeOperator = escapeHtml(currentUser || 'admin');
+
     // Assemble complete HTML
     renderArea.innerHTML = `
         <div style="font-family: 'Poppins', sans-serif; color: #1e293b; line-height: 1.4;">
@@ -7569,14 +7566,14 @@ function exportToPdf(reportType) {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <img src="Snackloop-logo.png" style="height: 42px; width: auto; object-fit: contain;">
                     <div>
-                        <h1 style="font-size: 18px; font-weight: 800; margin: 0; color: #1e1b4b; letter-spacing: -0.5px;">SnackLoop ERP</h1>
-                        <p style="font-size: 10px; color: #64748b; margin: 1px 0 0 0;">Sistem Manajemen & Pembukuan Distribusi Snack</p>
+                        <h1 style="font-size: 18px; font-weight: 800; margin: 0; color: #1e1b4b; letter-spacing: -0.5px;">${bizName}</h1>
+                        <p style="font-size: 10px; color: #64748b; margin: 1px 0 0 0;">${bizTagline}</p>
                     </div>
                 </div>
                 <div style="text-align: right; font-size: 10px; color: #64748b;">
                     <p style="margin: 0; font-weight: 700; color: #1e1b4b; font-size: 11px;">${docTitle}</p>
                     <p style="margin: 2px 0 0 0;">Periode: <strong>${data.periodLabel}</strong></p>
-                    <p style="margin: 2px 0 0 0;">Dicetak: ${todayFormatted} | Operator: ${currentUser || 'admin'}</p>
+                    <p style="margin: 2px 0 0 0;">Dicetak: ${todayFormatted} | Operator: ${safeOperator}</p>
                 </div>
             </div>
 
@@ -10081,7 +10078,10 @@ function saveAppSettings(e) {
 
     const name = document.getElementById('set-biz-name')?.value.trim() || DEFAULT_APP_SETTINGS.businessName;
     const tagline = document.getElementById('set-biz-tagline')?.value.trim() || DEFAULT_APP_SETTINGS.businessTagline;
-    const phone = document.getElementById('set-biz-phone')?.value.trim() || DEFAULT_APP_SETTINGS.whatsappPhone;
+    const rawPhone = document.getElementById('set-biz-phone')?.value.trim() || DEFAULT_APP_SETTINGS.whatsappPhone;
+    const phone = (typeof normalizeWaPhone === 'function')
+        ? normalizeWaPhone(rawPhone, DEFAULT_APP_SETTINGS.whatsappPhone)
+        : rawPhone;
     const city = document.getElementById('set-biz-city')?.value.trim() || DEFAULT_APP_SETTINGS.businessCity;
     const bank = document.getElementById('set-biz-bank')?.value.trim() || DEFAULT_APP_SETTINGS.bankAccount;
     const address = document.getElementById('set-biz-address')?.value.trim() || DEFAULT_APP_SETTINGS.businessAddress;

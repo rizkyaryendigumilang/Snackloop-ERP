@@ -794,6 +794,10 @@ function exportToPdf(reportType) {
         `;
     }
 
+    const bizName = escapeHtml((typeof appSettings !== 'undefined' && appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP');
+    const bizTagline = escapeHtml((typeof appSettings !== 'undefined' && appSettings && appSettings.businessTagline) ? appSettings.businessTagline : 'Sistem Manajemen & Pembukuan Distribusi Snack');
+    const safeOperator = escapeHtml(currentUser || 'admin');
+
     // Assemble complete HTML
     renderArea.innerHTML = `
         <div style="font-family: 'Poppins', sans-serif; color: #1e293b; line-height: 1.4;">
@@ -802,14 +806,14 @@ function exportToPdf(reportType) {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <img src="Snackloop-logo.png" style="height: 42px; width: auto; object-fit: contain;">
                     <div>
-                        <h1 style="font-size: 18px; font-weight: 800; margin: 0; color: #1e1b4b; letter-spacing: -0.5px;">SnackLoop ERP</h1>
-                        <p style="font-size: 10px; color: #64748b; margin: 1px 0 0 0;">Sistem Manajemen & Pembukuan Distribusi Snack</p>
+                        <h1 style="font-size: 18px; font-weight: 800; margin: 0; color: #1e1b4b; letter-spacing: -0.5px;">${bizName}</h1>
+                        <p style="font-size: 10px; color: #64748b; margin: 1px 0 0 0;">${bizTagline}</p>
                     </div>
                 </div>
                 <div style="text-align: right; font-size: 10px; color: #64748b;">
                     <p style="margin: 0; font-weight: 700; color: #1e1b4b; font-size: 11px;">${docTitle}</p>
                     <p style="margin: 2px 0 0 0;">Periode: <strong>${data.periodLabel}</strong></p>
-                    <p style="margin: 2px 0 0 0;">Dicetak: ${todayFormatted} | Operator: ${currentUser || 'admin'}</p>
+                    <p style="margin: 2px 0 0 0;">Dicetak: ${todayFormatted} | Operator: ${safeOperator}</p>
                 </div>
             </div>
 

@@ -458,18 +458,11 @@ async function loadCacheFromLocal() {
         priceHistoryData = data.priceHistoryData || [];
         returnData = data.returnData || [];
         userData = data.userData && data.userData.length > 0 ? data.userData : [
-            { id: 1, username: 'admin', role: 'super_admin' },
-            { id: 2, username: 'staff1', role: 'staff_rekap' },
-            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+            { id: 1, username: 'admin', role: 'super_admin' }
         ];
-        if (!userData.some(u => u.username && u.username.toLowerCase() === 'admin_kiky')) {
-            userData.push({ id: 3, username: 'admin_kiky', role: 'super_admin' });
-        }
     } else {
         userData = [
-            { id: 1, username: 'admin', role: 'super_admin' },
-            { id: 2, username: 'staff1', role: 'staff_rekap' },
-            { id: 3, username: 'admin_kiky', role: 'super_admin' }
+            { id: 1, username: 'admin', role: 'super_admin' }
         ];
     }
 
