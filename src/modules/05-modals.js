@@ -71,11 +71,14 @@ function createNewMonthSheet() {
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
             const formattedMonthKey = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
             activeTransactionYear = y;
+            isTransactionMonthsExpanded = true;
+            shouldAnimateTransactionMonths = true;
             if (typeof lastActiveMonthByYear === 'object') lastActiveMonthByYear[y] = formattedMonthKey; 
 
             if(!transactionData[formattedMonthKey]) { 
                 transactionData[formattedMonthKey] = []; 
                 activeMonthSheet = formattedMonthKey; 
+                if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
                 renderMonthTabs(); 
                 showNotification("Sukses", `Sheet arsip ${formattedMonthKey} berhasil dibuat!`, "success");
             } else { 
@@ -103,7 +106,9 @@ function confirmDeleteMonthSheet(monthKey) {
     }
 
     showConfirmModal("Konfirmasi Hapus Sheet", `Apakah Anda yakin ingin menghapus seluruh arsip sheet bulan "${monthKey}" beserta data transaksinya secara permanen?`, async () => {
+        const deletedCount = (transactionData[monthKey] || []).length;
         delete transactionData[monthKey];
+        if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
 
         const remainingKeys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
         activeMonthSheet = remainingKeys[remainingKeys.length - 1];
@@ -112,7 +117,18 @@ function confirmDeleteMonthSheet(monthKey) {
         updateDashboard();
         renderFinancialChart();
 
+        if (typeof logAuditActivity === 'function') {
+            logAuditActivity('TRANSACTION_DELETE', monthKey, `Menghapus sheet arsip bulan ${monthKey} (${deletedCount} transaksi)`);
+        }
         showNotification("Sukses", `Sheet arsip ${monthKey} berhasil dihapus dari sistem.`, "success");
+
+        if (typeof supabaseClient !== 'undefined' && supabaseClient && navigator.onLine) {
+            try {
+                await supabaseClient.from('transactions').delete().eq('month_key', monthKey);
+            } catch(e) {
+                console.warn('Gagal menghapus sheet di cloud:', e);
+            }
+        }
     });
 }
 
@@ -207,7 +223,7 @@ function closeTopmostModal() {
         { id: 'history-master-modal', closeFn: () => typeof closeHistoryModal === 'function' && closeHistoryModal() },
         { id: 'modal-forgot-password', closeFn: () => typeof closeForgotPasswordModal === 'function' && closeForgotPasswordModal() },
         { id: 'modal-reset-password', closeFn: () => typeof closeResetPasswordModal === 'function' && closeResetPasswordModal() },
-        { id: 'modal-expense', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() },
+        { id: 'expense-modal', closeFn: () => typeof closeExpenseModal === 'function' && closeExpenseModal() },
         { id: 'modal-bulk-order', closeFn: () => typeof closeBulkOrderModal === 'function' && closeBulkOrderModal() }
     ];
 
@@ -241,7 +257,7 @@ function focusActiveSearchInput() {
             return;
         }
     }
-    const fallbackSearch = document.getElementById('t-search') || document.querySelector('input[id*="search"]');
+    const fallbackSearch = document.getElementById('quick-search') || document.querySelector('input[id*="search"]');
     if (fallbackSearch) {
         fallbackSearch.focus();
         if (fallbackSearch.select) fallbackSearch.select();

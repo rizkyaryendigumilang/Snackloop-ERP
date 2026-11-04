@@ -114,6 +114,26 @@ runTest('Verify deployment & rollback failure scenarios (7 scenarios)', () => {
   execSync('node scripts/test-deploy-simulation.js', { cwd: rootDir, stdio: 'pipe' });
 });
 
+// 9. Codebase Hygiene & CSS Restraint Verification (Ponytail / Superpowers)
+runTest('Verify zero duplicate top-level functions in script.js and no transition:all in style.css', () => {
+  const scriptCode = fs.readFileSync(path.join(rootDir, 'script.js'), 'utf8');
+  const fnRegex = /^(?:async\s+)?function\s+([a-zA-Z0-9_]+)\s*\(/gm;
+  const counts = {};
+  let m;
+  while ((m = fnRegex.exec(scriptCode)) !== null) {
+    counts[m[1]] = (counts[m[1]] || 0) + 1;
+  }
+  const dupes = Object.entries(counts).filter(([, c]) => c > 1).map(([name, c]) => `${name} (${c}x)`);
+  if (dupes.length > 0) {
+    throw new Error(`Duplicate top-level functions found: ${dupes.join(', ')}`);
+  }
+
+  const cssCode = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+  if (/transition\s*:[^;]*\ball\b/i.test(cssCode)) {
+    throw new Error('Found forbidden transition: ... all in style.css');
+  }
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

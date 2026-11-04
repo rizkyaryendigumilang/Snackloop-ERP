@@ -1594,16 +1594,6 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     showNotification("Sukses", "PDF Invoice (1 Lembar) berhasil diunduh.", "success");
 }
 
-function sendInvoiceWA(invNumber, custName, amount, statusInv) {
-    const custObj = customerData.find(c => c.name === custName);
-    const phone = custObj ? custObj.phone : '628123456789';
-
-    const headerText = statusInv === 'Lunas' ? "*FAKTUR LUNAS / KWITANSI*" : "*NOTA TAGIHAN SEMENTARA*";
-    let msg = `${headerText}\nNo. Invoice: *${invNumber}*\nKepada: *${custName}*\nTotal: *Rp ${amount.toLocaleString()}*\nStatus: *${statusInv}*\n\nTerima kasih telah berbisnis dengan SnackLoop!`;
-
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-}
-
 // ======================= RENDER MONTH TABS ======================= //
 function selectTransactionMonth(mk) {
     activeMonthSheet = mk;
@@ -1842,10 +1832,6 @@ function updateTrxSortIcons() {
             icon.className = 'fa-solid fa-sort text-[10px] opacity-40';
         }
     });
-}
-
-function toggleDateSorting() {
-    toggleTrxSort('date');
 }
 
 // ======================= OPTIMIZED RENDER TRANSACTIONS WITH PAGINATION & IN-MEMORY SEARCH ======================= //
