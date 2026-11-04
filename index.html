@@ -37,7 +37,7 @@
     <div id="toast-container" class="fixed top-5 right-5 z-[9999] space-y-3 pointer-events-none w-80 max-w-full"></div>
 
     <!-- LAYAR LOGIN -->
-    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[999] flex items-center justify-center p-4">
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[999] flex items-center justify-center p-4 overflow-y-auto overscroll-contain">
         <div class="theme-card rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-6 border">
             <div class="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-2 bg-white/95 dark:bg-slate-800 shadow-xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
                 <img src="icon-192.png" alt="SnackLoop Logo" class="w-full h-full object-contain rounded-xl">
@@ -273,8 +273,8 @@
                         <span id="current-user-label">-</span>
                     </span>
 
-                    <!-- Panduan Pintasan Keyboard Kasir (F1 / ?) -->
-                    <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Pintasan Keyboard (? / F1)" aria-label="Panduan Pintasan Keyboard">
+                    <!-- Panduan Pintasan Keyboard Kasir (F1 / ?) - Khusus Desktop/Laptop -->
+                    <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border hidden sm:flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Pintasan Keyboard (? / F1)" aria-label="Panduan Pintasan Keyboard">
                         <i class="fa-solid fa-keyboard text-xs text-indigo-500"></i>
                     </button>
 
@@ -529,7 +529,7 @@
                                 <button onclick="filterTrxStatus('Belum Lunas')" id="filter-btn-belum" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition" data-i18n="opt_unpaid">Belum Lunas</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto max-h-[500px]">
+                        <div class="overflow-x-auto">
                             <table id="main-table" class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
@@ -731,7 +731,7 @@
                         </div>
 
                         <!-- DATA TABLE -->
-                        <div class="overflow-x-auto max-h-[550px] border border-inherit rounded-xl">
+                        <div class="overflow-x-auto border border-inherit rounded-xl">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900">
                                     <tr>
@@ -2847,16 +2847,16 @@
             </div>
 
             <!-- Footer Actions: Clip-to-Copy & Open WhatsApp -->
-            <div class="pt-3 border-t border-inherit flex items-center justify-between gap-2 shrink-0">
+            <div class="pt-3 border-t border-inherit flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
                 <button type="button" onclick="closeWaInvoiceTemplatesModal()" class="px-3.5 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                     Batal
                 </button>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="btn-wa-clip-copy" onclick="copyWaMessageToClipboard()" class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition flex items-center gap-1.5 shadow-sm">
+                <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                    <button type="button" id="btn-wa-clip-copy" onclick="copyWaMessageToClipboard()" class="flex-1 sm:flex-none px-3.5 py-2 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition flex items-center justify-center gap-1.5 shadow-sm">
                         <i class="fa-regular fa-copy text-xs"></i>
-                        <span id="btn-wa-clip-copy-label">Salin Teks (Clip to Copy)</span>
+                        <span id="btn-wa-clip-copy-label">Salin Teks</span>
                     </button>
-                    <button type="button" onclick="openWaWithCurrentMessage()" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm">
+                    <button type="button" onclick="openWaWithCurrentMessage()" class="flex-1 sm:flex-none btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
                         <i class="fa-brands fa-whatsapp text-sm"></i>
                         <span>Buka WhatsApp</span>
                     </button>
