@@ -95,8 +95,9 @@ function getFilteredReportData() {
         periodLabel = "Semua Data";
     }
 
-    const fStr = fromDate ? fromDate.toISOString().split('T')[0] : '2020-01-01';
-    const tStr = toDate ? toDate.toISOString().split('T')[0] : '2099-12-31';
+    const toLocalStr = (d, fb) => !d ? fb : (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : d.toISOString().split('T')[0]);
+    const fStr = (currentReportRange === 'custom' && customReportFrom) ? customReportFrom : toLocalStr(fromDate, '2020-01-01');
+    const tStr = (currentReportRange === 'custom' && customReportTo) ? customReportTo : toLocalStr(toDate, '2099-12-31');
 
     let allTrx = [];
     for (let mk in transactionData) {
@@ -217,7 +218,7 @@ function renderReportPnL(data) {
             const ratio = totalRev > 0 ? ((e.amount / totalRev) * 100).toFixed(1) : '0';
             rows += `
                 <tr>
-                    <td class="p-2.5 pl-6">${e.description} <span class="text-[10px] opacity-50">(${e.date})</span></td>
+                    <td class="p-2.5 pl-6">${escapeHtml(e.description || '')} <span class="text-[10px] opacity-50">(${escapeHtml(e.date || '')})</span></td>
                     <td class="p-2.5 text-right font-mono opacity-80">Rp ${(e.amount || 0).toLocaleString('id-ID')}</td>
                     <td class="p-2.5 text-right opacity-60">${ratio}%</td>
                 </tr>
@@ -717,11 +718,13 @@ function exportToPdf(reportType) {
     // SECTION 3: Receivables
     if (reportType === 'all' || reportType === 'receivables') {
         const custReceivables = {};
+        const custLookupMap = new Map();
+        (customerData || []).forEach(c => { if (c && c.name) custLookupMap.set(c.name.toLowerCase(), c); });
         data.allTransactions.forEach(t => {
             if (t.status !== 'Lunas') {
                 const k = t.customer || 'Umum';
                 if (!custReceivables[k]) {
-                    const fc = customerData.find(c => c.name.toLowerCase() === k.toLowerCase());
+                    const fc = custLookupMap.get(k.toLowerCase());
                     custReceivables[k] = { name: k, phone: fc ? fc.phone : '-', total: 0, count: 0 };
                 }
                 custReceivables[k].total += (t.totalSell || 0);
@@ -830,7 +833,8 @@ function exportToPdf(reportType) {
     `;
 
     const typeLabel = reportType === 'all' ? 'Eksekutif_Lengkap' : reportType.toUpperCase();
-    const fileName = `SnackLoop_${typeLabel}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+    const fileName = `SnackLoop_${typeLabel}_${todayDateStr}.pdf`;
 
     const opt = {
         margin: [10, 10, 10, 10],

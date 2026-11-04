@@ -260,8 +260,9 @@ function testThermalPrintFromSettings() {
         return showNotification("Format A4", "Format yang dipilih saat ini adalah Dokumen A4. Pilih 58mm atau 80mm untuk tes cetak printer thermal bluetooth.", "info");
     }
 
+    const todayDateStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0,10);
     printThermalReceipt({
-        noNota: `TES-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-001`,
+        noNota: `TES-${todayDateStr.replace(/-/g, '')}-001`,
         date: new Date().toLocaleDateString('id-ID'),
         customer: "Toko Contoh (Tes Struk)",
         operator: currentUser || 'Admin',

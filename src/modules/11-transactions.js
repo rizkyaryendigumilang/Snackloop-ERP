@@ -2,7 +2,8 @@
 // GENERATOR NOMOR INVOICE ANTI-TABRAKAN (HIGH-ENTROPY COLLISION-FREE)
 // =========================================================================
 function generateInvoiceNumber(dateStr) {
-    const cleanDate = (dateStr || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const fallbackDate = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const cleanDate = (dateStr || fallbackDate).replace(/-/g, '');
     const timestampPart = Date.now().toString().slice(-4);
     const entropyHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `INV-${cleanDate}-${timestampPart}${entropyHex}`;
@@ -145,7 +146,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const totalSellComputed = sell * qty;
         const netProfitItem = (totalSellComputed - totalModalComputed) / qty;
 
-        const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
+        const parsedDateObj = date ? new Date(date + 'T00:00:00') : new Date();
+        const monthKey = (!isNaN(parsedDateObj.getTime())) ? getCurrentMonthKey(parsedDateObj) : (activeMonthSheet || getCurrentMonthKey(new Date()));
         const tempTrxId = 'trx_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         // Cek atau buat 1 invoice per pelanggan per tanggal
         let existingInv = invoiceData.find(i => i.customer_name === customer && i.date === date);
@@ -268,20 +270,32 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
                 if(trxRes && trxRes.length > 0) newTrxData.id = trxRes[0].id;
                 
                 if (isNewInvoice) {
-                    await supabaseClient.from('invoices').insert([{
+                    const { data: invRes } = await supabaseClient.from('invoices').insert([{
                         invoice_number: invNumber,
                         date: date,
                         customer_name: customer,
                         total_amount: dbInvPayload.total_amount,
                         status: dbInvPayload.status,
                         notes: notes
-                    }]);
-                } else if (targetInv && targetInv.id) {
-                    await supabaseClient.from('invoices').update({
+                    }]).select();
+                    if (invRes && invRes.length > 0 && targetInv) {
+                        targetInv.id = invRes[0].id;
+                    }
+                } else if (targetInv) {
+                    let q = supabaseClient.from('invoices').update({
                         total_amount: targetInv.total_amount,
                         status: targetInv.status
-                    }).eq('id', targetInv.id);
+                    });
+                    if (targetInv.id && !String(targetInv.id).startsWith('inv_')) {
+                        q = q.eq('id', targetInv.id);
+                    } else {
+                        q = q.eq('invoice_number', targetInv.invoice_number);
+                    }
+                    await q;
                 }
+                saveCacheToLocal();
+                renderTransactionsForActiveSheet();
+                renderInvoicesTable();
             }
         });
 
@@ -1315,10 +1329,9 @@ function renderCustomerLeaderboard() {
 
 function sendCustomerRewardWA(cName, totalSpent, orderCount) {
     const custObj = customerData.find(c => c.name && c.name.toLowerCase() === cName.toLowerCase());
-    let phone = (custObj && custObj.phone) ? custObj.phone : '';
-    phone = phone.replace(/\D/g, '');
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1);
-    if (!phone) phone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+    const phone = (typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(custObj?.phone, appSettings?.whatsappPhone)
+        : String(custObj?.phone || appSettings?.whatsappPhone || '').replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
 
     const biz = (appSettings && appSettings.businessName) ? appSettings.businessName : 'SnackLoop ERP';
     const msg = `Halo Kak ${cName}, terima kasih atas kemitraannya dengan ${biz}.\n\n` +
@@ -1525,7 +1538,14 @@ async function downloadInvoicePDF(invNumber, statusInv) {
     document.getElementById('inv-meta-customer').innerText = inv.customer_name;
     document.getElementById('inv-meta-date').innerText = inv.date;
     document.getElementById('inv-meta-no').innerText = inv.invoice_number;
-    document.getElementById('inv-subtotal').innerText = 'Rp ' + inv.total_amount.toLocaleString();
+    const subRowEl = document.getElementById('pdf-subtotal-row');
+    if (subRowEl && !document.getElementById('inv-subtotal')) {
+        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
+    } else if (subRowEl && subRowEl.firstElementChild) {
+        subRowEl.firstElementChild.innerText = 'Subtotal';
+    }
+    const subEl = document.getElementById('inv-subtotal');
+    if (subEl) subEl.innerText = 'Rp ' + inv.total_amount.toLocaleString();
     document.getElementById('inv-grand-total').innerText = 'Rp ' + inv.total_amount.toLocaleString();
 
     let matchingTrx = [];
@@ -1985,13 +2005,48 @@ function changeTrxPage(targetPage) {
     renderTransactionsForActiveSheet();
 }
 
+function syncDailyInvoiceForCustomerDate(customerName, dateStr) {
+    if (!customerName || !dateStr || !Array.isArray(invoiceData)) return null;
+    const invIdx = invoiceData.findIndex(i => i.customer_name === customerName && i.date === dateStr);
+    if (invIdx === -1) return null;
+
+    let remainingTrx = [];
+    for (let mk in transactionData) {
+        (transactionData[mk] || []).forEach(t => {
+            if (t.customer === customerName && t.date === dateStr) {
+                remainingTrx.push(t);
+            }
+        });
+    }
+
+    const inv = invoiceData[invIdx];
+    if (remainingTrx.length === 0) {
+        invoiceData.splice(invIdx, 1);
+        return { action: 'delete', inv };
+    } else {
+        inv.total_amount = remainingTrx.reduce((sum, t) => sum + (Number(t.totalSell) || 0), 0);
+        inv.status = remainingTrx.some(t => t.status !== 'Lunas') ? 'Belum Lunas' : 'Lunas';
+        return { action: 'update', inv };
+    }
+}
+
 function confirmDeleteTrx(id) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
     showConfirmModal("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus transaksi ini?", async () => {
-        const list = transactionData[activeMonthSheet] || [];
-        const trxIdx = list.findIndex(t => String(t.id) === String(id));
+        let targetList = transactionData[activeMonthSheet] || [];
+        let trxIdx = targetList.findIndex(t => String(t.id) === String(id));
+        if (trxIdx === -1) {
+            for (let mk in transactionData) {
+                const idx = (transactionData[mk] || []).findIndex(t => String(t.id) === String(id));
+                if (idx !== -1) {
+                    targetList = transactionData[mk];
+                    trxIdx = idx;
+                    break;
+                }
+            }
+        }
         if(trxIdx === -1) return;
-        const trx = list[trxIdx];
+        const trx = targetList[trxIdx];
 
         // Optimistic pengembalian stok repack
         if(trx.source === 'Repack' && trx.batch) {
@@ -1999,18 +2054,20 @@ function confirmDeleteTrx(id) {
             if(rItem) rItem.remaining_qty += trx.qty;
         }
 
-        // Hapus dari memori lokal
-        list.splice(trxIdx, 1);
+        // Hapus dari memori lokal & sinkronkan invoice harian
+        targetList.splice(trxIdx, 1);
+        const invSync = syncDailyInvoiceForCustomerDate(trx.customer, trx.date);
         saveCacheToLocal();
 
         // Render UI instan
         renderTransactionsForActiveSheet(); 
+        renderInvoicesTable();
         updateDashboard(); 
         renderFinancialChart();
         renderRepackWarehouse();
 
         logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
-        showNotification("Sukses", "Data berhasil dihapus", "success");
+        showNotification("Sukses", "Transaksi berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_TRANSACTION',
@@ -2022,20 +2079,44 @@ function confirmDeleteTrx(id) {
             }
             const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
             if(error) throw error;
+            if (invSync && invSync.inv) {
+                const invObj = invSync.inv;
+                const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+                const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+                if (invSync.action === 'delete') {
+                    await supabaseClient.from('invoices').delete().eq(matchCol, matchVal);
+                } else {
+                    await supabaseClient.from('invoices').update({
+                        total_amount: invObj.total_amount,
+                        status: invObj.status
+                    }).eq(matchCol, matchVal);
+                }
+            }
         });
     });
 }
 
 async function updateTrxStatus(id, newStatus) {
     if(currentRole === 'view') return showNotification("Akses Ditolak", "Akun view tidak diizinkan.", "error");
-    const list = transactionData[activeMonthSheet] || [];
-    const trx = list.find(t => String(t.id) === String(id));
+    let trx = (transactionData[activeMonthSheet] || []).find(t => String(t.id) === String(id));
+    if (!trx) {
+        for (let mk in transactionData) {
+            const found = (transactionData[mk] || []).find(t => String(t.id) === String(id));
+            if (found) {
+                trx = found;
+                break;
+            }
+        }
+    }
     let oldStatus = 'Belum Lunas';
+    let invSync = null;
     if(trx) {
         oldStatus = trx.status;
         trx.status = newStatus;
+        invSync = syncDailyInvoiceForCustomerDate(trx.customer, trx.date);
         saveCacheToLocal();
         renderTransactionsForActiveSheet();
+        renderInvoicesTable();
         updateDashboard();
         renderFinancialChart();
 
@@ -2049,6 +2130,12 @@ async function updateTrxStatus(id, newStatus) {
     }, async () => {
         const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
         if(error) throw error;
+        if (invSync && invSync.action === 'update' && invSync.inv) {
+            const invObj = invSync.inv;
+            const matchCol = (invObj.id && !String(invObj.id).startsWith('inv_')) ? 'id' : 'invoice_number';
+            const matchVal = matchCol === 'id' ? invObj.id : invObj.invoice_number;
+            await supabaseClient.from('invoices').update({ status: invObj.status }).eq(matchCol, matchVal);
+        }
     });
 }
 
@@ -2118,7 +2205,14 @@ async function prepareInvoiceCartFromRow(targetTrx) {
     document.getElementById('inv-meta-customer').innerText = targetTrx.customer;
     document.getElementById('inv-meta-date').innerText = targetTrx.date;
     document.getElementById('inv-meta-no').innerText = `INV-${targetTrx.date.replace(/-/g,'')}-${targetTrx.id}`;
-    document.getElementById('inv-subtotal').innerText = 'Rp ' + grandTotal.toLocaleString();
+    const subRowEl = document.getElementById('pdf-subtotal-row');
+    if (subRowEl && !document.getElementById('inv-subtotal')) {
+        subRowEl.innerHTML = `<span>Subtotal</span><span id="inv-subtotal" class="font-medium">Rp 0</span>`;
+    } else if (subRowEl && subRowEl.firstElementChild) {
+        subRowEl.firstElementChild.innerText = 'Subtotal';
+    }
+    const subEl = document.getElementById('inv-subtotal');
+    if (subEl) subEl.innerText = 'Rp ' + grandTotal.toLocaleString();
     document.getElementById('inv-grand-total').innerText = 'Rp ' + grandTotal.toLocaleString();
 }
 
@@ -2154,9 +2248,9 @@ async function printMonthlyRecapPDF() {
     updateInvoicePDFStatus('');
     document.getElementById('pdf-meta-subtitle').innerText = "Periode Bulan:";
     document.getElementById('inv-meta-customer').innerText = activeMonthSheet;
-    document.getElementById('inv-meta-date').innerText = new Date().toISOString().slice(0, 10);
+    document.getElementById('inv-meta-date').innerText = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
     document.getElementById('pdf-meta-id-wrap').style.display = "none";
-    document.getElementById('pdf-subtotal-row').innerHTML = `<span>Total Modal (HPP)</span><span class="font-medium">Rp ${totalModal.toLocaleString()}</span>`;
+    document.getElementById('pdf-subtotal-row').innerHTML = `<span>Total Modal (HPP)</span><span id="inv-subtotal" class="font-medium">Rp ${totalModal.toLocaleString()}</span>`;
     document.getElementById('pdf-total-label').innerText = "Keuntungan Bersih (Lunas)";
     document.getElementById('inv-grand-total').innerText = 'Rp ' + totalKeuntungan.toLocaleString();
     document.getElementById('pdf-footer-note').innerText = `Total Pendapatan Periode Ini: Rp ${totalPendapatan.toLocaleString()}`;
@@ -2182,20 +2276,22 @@ async function sendWhatsAppOnly(trxId) {
 
     let total = 0; let itemsText = "";
     matchingTransactions.forEach((t) => {
-        itemsText += `- ${t.itemName} (${t.qty}x) - Rp ${t.totalSell.toLocaleString()}%0A`;
+        itemsText += `- ${t.itemName} (${t.qty}x) - Rp ${t.totalSell.toLocaleString()}\n`;
         total += t.totalSell;
     });
 
     const custObj = customerData.find(c => c.name === targetTrx.customer);
-    const phone = custObj && custObj.phone ? custObj.phone : (appSettings?.whatsappPhone || '628123456789');
+    const phone = (typeof normalizeWaPhone === 'function'
+        ? normalizeWaPhone(custObj?.phone, appSettings?.whatsappPhone)
+        : String(custObj?.phone || appSettings?.whatsappPhone || '').replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
 
     const bizTitle = (appSettings?.businessName || 'SNACKLOOP').toUpperCase();
-    let msg = `*NOTA ${bizTitle} (${targetTrx.monthKey})*%0A`;
-    msg += `Kepada: *${targetTrx.customer}*%0ATanggal: ${targetTrx.date}%0A`;
-    msg += `-----------------------------------%0A` + itemsText + `-----------------------------------%0A`;
-    msg += `*TOTAL: Rp ${total.toLocaleString('id-ID')}*%0AStatus: *${targetTrx.status}*%0A`;
+    let msg = `*NOTA ${bizTitle} (${targetTrx.monthKey})*\n`;
+    msg += `Kepada: *${targetTrx.customer}*\nTanggal: ${targetTrx.date}\n`;
+    msg += `-----------------------------------\n` + itemsText + `-----------------------------------\n`;
+    msg += `*TOTAL: Rp ${total.toLocaleString('id-ID')}*\nStatus: *${targetTrx.status}*\n`;
     if (appSettings?.bankAccount) {
-        msg += `-----------------------------------%0A*Info Pembayaran Bank:*%0A${appSettings.bankAccount}%0A`;
+        msg += `-----------------------------------\n*Info Pembayaran Bank:*\n${appSettings.bankAccount}\n`;
     }
     msg += `Terima kasih atas pesanan Anda!`;
 
@@ -2311,17 +2407,17 @@ function updateDashboard() {
     const todayObj = new Date();
     todayObj.setHours(0,0,0,0);
     const todayTime = todayObj.getTime();
-    const todayStr = todayObj.toISOString().split('T')[0];
+    const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr(todayObj) : todayObj.toISOString().split('T')[0];
 
     // Zero-Allocation Cutoff Strings untuk eliminasi ribuan instance new Date()
     let cutoff7Str = '';
     let cutoff30Str = '';
     if (currentDashboardTimeFilter === '7days') {
         const d7 = new Date(todayTime - 7 * 86400000);
-        cutoff7Str = d7.toISOString().split('T')[0];
+        cutoff7Str = typeof getLocalDateStr === 'function' ? getLocalDateStr(d7) : d7.toISOString().split('T')[0];
     } else if (currentDashboardTimeFilter === '30days') {
         const d30 = new Date(todayTime - 30 * 86400000);
-        cutoff30Str = d30.toISOString().split('T')[0];
+        cutoff30Str = typeof getLocalDateStr === 'function' ? getLocalDateStr(d30) : d30.toISOString().split('T')[0];
     }
 
     for(let mk in transactionData) {
@@ -2393,13 +2489,14 @@ function updateDashboard() {
 
             const uRows = unpaidList.map(t => {
                 const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2.5 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
-                let rawPhone = custMap.get(t.customer) || defaultPhone;
-                let phone = rawPhone.replace(/\D/g, '');
-                if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+                const phone = (typeof normalizeWaPhone === 'function'
+                    ? normalizeWaPhone(custMap.get(t.customer), defaultPhone)
+                    : String(custMap.get(t.customer) || defaultPhone).replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
 
                 // Hitung umur piutang via timestamp math tanpa overhead alokasi Date
-                const tTime = Date.parse(t.date) || todayTime;
-                const diffDays = Math.max(0, Math.floor((todayTime - tTime) / 86400000));
+                const todayUtcMs = _getTodayMidnightMs();
+                const tUtcMs = _parseIsoDateUtcMs(t.date) || todayUtcMs;
+                const diffDays = Math.max(0, Math.floor((todayUtcMs - tUtcMs) / 86400000));
                 
                 let agingBadge = '';
                 if (diffDays <= 7) {
@@ -2628,7 +2725,8 @@ function openBulkOrderModal() {
     const tDateInput = document.getElementById('t-date');
     const bulkDate = document.getElementById('bulk-date');
     if (bulkDate) {
-        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : new Date().toISOString().split('T')[0];
+        const localToday = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().split('T')[0];
+        bulkDate.value = (tDateInput && tDateInput.value) ? tDateInput.value : localToday;
     }
 
     // Populate Customers
@@ -2877,7 +2975,8 @@ async function saveBulkTransactions() {
         return showNotification("Validasi Gagal", "Mohon lengkapi tanggal, pelanggan, dan sumber agen.", "error");
     }
 
-    const monthKey = activeMonthSheet || getCurrentMonthKey(new Date(date));
+    const parsedBulkDate = date ? new Date(date + 'T00:00:00') : new Date();
+    const monthKey = (!isNaN(parsedBulkDate.getTime())) ? getCurrentMonthKey(parsedBulkDate) : (activeMonthSheet || getCurrentMonthKey(new Date()));
     if (!transactionData[monthKey]) transactionData[monthKey] = [];
 
     // 1. Cek atau Buat 1 Master Invoice Terpadu
@@ -2972,24 +3071,39 @@ async function saveBulkTransactions() {
         }
     }, async () => {
         if (dbTrxRows.length > 0) {
-            const { error: trxErr } = await supabaseClient.from('transactions').insert(dbTrxRows);
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(dbTrxRows).select();
             if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0 && typeof reconcileOfflineTransactionIds === 'function') {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
         }
         if (isNewInvoice) {
-            await supabaseClient.from('invoices').insert([{
+            const { data: invRes } = await supabaseClient.from('invoices').insert([{
                 invoice_number: invNumber,
                 date: date,
                 customer_name: customer,
                 total_amount: existingInv.total_amount,
                 status: existingInv.status,
                 notes: existingInv.notes
-            }]);
+            }]).select();
+            if (invRes && invRes.length > 0) {
+                existingInv.id = invRes[0].id;
+            }
         } else {
-            await supabaseClient.from('invoices').update({
+            let q = supabaseClient.from('invoices').update({
                 total_amount: existingInv.total_amount,
                 status: existingInv.status
-            }).eq('id', existingInv.id);
+            });
+            if (existingInv.id && !String(existingInv.id).startsWith('inv_')) {
+                q = q.eq('id', existingInv.id);
+            } else {
+                q = q.eq('invoice_number', existingInv.invoice_number);
+            }
+            await q;
         }
+        saveCacheToLocal();
+        renderTransactionsForActiveSheet();
+        renderInvoicesTable();
     });
 
     logAuditActivity('TRANSACTION_BULK_CREATE', invNumber, `Input kilat ${checkedItems.length} produk untuk ${customer} (${source}) total Rp ${grandTotalSell.toLocaleString('id-ID')}`);

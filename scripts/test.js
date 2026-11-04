@@ -179,6 +179,20 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
   // Test getLocalDateStr
   const localSample = new Date(2026, 10, 5, 0, 30, 0); // 5 Nov 2026 00:30 local time
   assert.strictEqual(sandbox.getLocalDateStr(localSample), '2026-11-05');
+
+  // Verify outbox handles bulk transactions and invoice payload sanitization
+  const outboxCode = fs.readFileSync(path.join(modulesDir, '04-outbox.js'), 'utf8');
+  if (!outboxCode.includes("item.type === 'INSERT_BULK_TRANSACTIONS'") || !outboxCode.includes('syncInvoicePayloadToCloud')) {
+    throw new Error('04-outbox.js is missing INSERT_BULK_TRANSACTIONS or syncInvoicePayloadToCloud handler');
+  }
+
+  // Verify sendWhatsAppOnly does not double-encode %0A with encodeURIComponent
+  const trxCode = fs.readFileSync(path.join(modulesDir, '11-transactions.js'), 'utf8');
+  const waIdx = trxCode.indexOf('async function sendWhatsAppOnly');
+  const waBody = waIdx !== -1 ? trxCode.slice(waIdx, waIdx + 1400) : '';
+  if (waBody.includes('%0A')) {
+    throw new Error('sendWhatsAppOnly still contains literal %0A that would be double-encoded by encodeURIComponent');
+  }
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);

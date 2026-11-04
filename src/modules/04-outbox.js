@@ -582,6 +582,41 @@ function handleSyncBadgeClick() {
 }
 
 // ----------------- EKSEKUTOR ATOMIK SATUAN (FALLBACK TAHAN BANTING) ----------------- //
+async function syncInvoicePayloadToCloud(inv) {
+    if (!inv) return;
+    const cleanRow = {
+        invoice_number: inv.invoice_number,
+        date: inv.date,
+        customer_name: inv.customer_name,
+        total_amount: inv.total_amount,
+        status: inv.status,
+        notes: inv.notes || '-'
+    };
+    if (inv.isNew === false) {
+        let q = supabaseClient.from('invoices').update({
+            total_amount: inv.total_amount,
+            status: inv.status
+        });
+        if (inv.id && !String(inv.id).startsWith('inv_')) {
+            q = q.eq('id', inv.id);
+        } else {
+            q = q.eq('invoice_number', inv.invoice_number);
+        }
+        const { error } = await q;
+        if (error) throw error;
+    } else {
+        const { data, error } = await supabaseClient.from('invoices').insert([cleanRow]).select();
+        if (error) throw error;
+        if (data && data.length > 0 && Array.isArray(invoiceData)) {
+            const localInv = invoiceData.find(i => i.invoice_number === inv.invoice_number);
+            if (localInv) {
+                localInv.id = data[0].id;
+                saveCacheToLocal();
+            }
+        }
+    }
+}
+
 async function syncSingleOutboxItem(item) {
     if (item.type === 'INSERT_TRANSACTION') {
         if (item.payload.repackUpdate) {
@@ -589,11 +624,42 @@ async function syncSingleOutboxItem(item) {
                 .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
                 .eq('id', item.payload.repackUpdate.batchId);
         }
-        const { error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]);
+        const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([item.payload.transaction]).select();
         if (trxErr) throw trxErr;
+        if (insertedTrx && insertedTrx.length > 0) {
+            reconcileOfflineTransactionIds(insertedTrx);
+        }
 
         if (item.payload.invoice) {
-            await supabaseClient.from('invoices').insert([item.payload.invoice]);
+            await syncInvoicePayloadToCloud(item.payload.invoice);
+        }
+    } else if (item.type === 'INSERT_BULK_TRANSACTIONS') {
+        const rows = item.payload && Array.isArray(item.payload.transactions) ? item.payload.transactions : [];
+        if (rows.length > 0) {
+            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert(rows).select();
+            if (trxErr) throw trxErr;
+            if (insertedTrx && insertedTrx.length > 0) {
+                reconcileOfflineTransactionIds(insertedTrx);
+            }
+        }
+        if (item.payload && item.payload.invoice) {
+            await syncInvoicePayloadToCloud(item.payload.invoice);
+        }
+    } else if (item.type === 'CONSOLIDATE_DAILY_INVOICES') {
+        const idsToDelete = (item.payload && Array.isArray(item.payload.idsToDelete))
+            ? item.payload.idsToDelete.filter(id => !String(id).startsWith('inv_'))
+            : [];
+        if (idsToDelete.length > 0) {
+            await supabaseClient.from('invoices').delete().in('id', idsToDelete);
+        }
+        const updates = (item.payload && Array.isArray(item.payload.masterInvUpdates)) ? item.payload.masterInvUpdates : [];
+        for (const up of updates) {
+            if (up.id && !String(up.id).startsWith('inv_')) {
+                await supabaseClient.from('invoices').update({
+                    total_amount: up.total_amount,
+                    status: up.status
+                }).eq('id', up.id);
+            }
         }
     } else if (item.type === 'DELETE_TRANSACTION') {
         if (item.payload.source === 'Repack' && item.payload.batch) {
@@ -648,9 +714,15 @@ async function syncSingleOutboxItem(item) {
         const { error } = await supabaseClient.from('invoices').delete().eq('id', item.payload.id);
         if (error) throw error;
     } else if (item.type === 'UPDATE_INVOICE_PAID') {
-        await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
+        if (item.payload.invId && !String(item.payload.invId).startsWith('inv_')) {
+            await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('id', item.payload.invId);
+        } else if (item.payload.customerName && item.payload.date) {
+            await supabaseClient.from('invoices').update({ status: 'Lunas' }).eq('customer_name', item.payload.customerName).eq('date', item.payload.date);
+        }
         if (item.payload.customerName) {
-            await supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', item.payload.customerName);
+            let trxQuery = supabaseClient.from('transactions').update({ status: 'Lunas' }).eq('customer', item.payload.customerName);
+            if (item.payload.date) trxQuery = trxQuery.eq('date', item.payload.date);
+            await trxQuery;
         }
     } else if (item.type === 'UPSERT_JASTIP') {
         try {
@@ -756,11 +828,10 @@ async function syncBatchedItems(type, batchItems) {
             }
         }
 
-        // 3. Bulk Insert Invoices (1 HTTP POST)
-        const invRows = batchItems.map(it => it.payload && it.payload.invoice).filter(Boolean);
-        if (invRows.length > 0) {
-            const { error: invErr } = await supabaseClient.from('invoices').insert(invRows);
-            if (invErr) throw invErr;
+        // 3. Sinkronisasi Invoices (pisah insert baru vs update existing)
+        const invPayloads = batchItems.map(it => it.payload && it.payload.invoice).filter(Boolean);
+        for (const inv of invPayloads) {
+            await syncInvoicePayloadToCloud(inv);
         }
     } else if (type === 'INSERT_RETURN') {
         const rows = batchItems.map(it => (it.payload && it.payload.data) ? it.payload.data : it.payload).filter(Boolean);
