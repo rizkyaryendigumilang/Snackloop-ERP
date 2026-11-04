@@ -328,12 +328,14 @@ function renderReportReceivables(data) {
     const custReceivables = {};
     let totalUnpaidAmount = 0;
     let totalUnpaidTrx = 0;
+    const custLookupMap = new Map();
+    customerData.forEach(c => { if (c && c.name) custLookupMap.set(c.name.toLowerCase(), c); });
 
     data.allTransactions.forEach(t => {
         if (t.status !== 'Lunas') {
             const key = t.customer || 'Umum';
             if (!custReceivables[key]) {
-                const foundCust = customerData.find(c => c.name.toLowerCase() === key.toLowerCase());
+                const foundCust = custLookupMap.get(key.toLowerCase());
                 custReceivables[key] = {
                     name: key,
                     phone: foundCust ? foundCust.phone : '-',
@@ -562,11 +564,13 @@ function exportToExcel(reportType) {
 
     if (reportType === 'all' || reportType === 'receivables') {
         const custReceivables = {};
+        const custLookupMap = new Map();
+        customerData.forEach(c => { if (c && c.name) custLookupMap.set(c.name.toLowerCase(), c); });
         data.allTransactions.forEach(t => {
             if (t.status !== 'Lunas') {
                 const key = t.customer || 'Umum';
                 if (!custReceivables[key]) {
-                    const foundCust = customerData.find(c => c.name.toLowerCase() === key.toLowerCase());
+                    const foundCust = custLookupMap.get(key.toLowerCase());
                     custReceivables[key] = {
                         "Nama Pelanggan": key,
                         "Kontak Telepon": foundCust ? foundCust.phone : '-',

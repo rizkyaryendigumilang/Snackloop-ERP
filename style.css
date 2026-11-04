@@ -24,6 +24,8 @@
   --text: #6a778e;
   --linkHeight: 3.5rem;
   --timing: 250ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 body.dark-theme {
@@ -76,8 +78,10 @@ body.dark-theme {
   border-color: var(--border-color);
   color: var(--text-main);
 }
-body.dark-theme tr:hover td {
-  background-color: #161b22 !important;
+@media (hover: hover) and (pointer: fine) {
+  body.dark-theme tr:hover td {
+    background-color: #161b22 !important;
+  }
 }
 
 table.compact-mode th,
@@ -92,9 +96,6 @@ table.compact-mode td {
   color: var(--btn-filter-text);
   border: 1px solid var(--border-color);
 }
-.theme-btn-filter:hover {
-  opacity: 0.9;
-}
 
 /* Flex Icon Alignment & Clean Micro-Interactions */
 .btn-magnetic {
@@ -106,17 +107,14 @@ table.compact-mode td {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 150ms ease, opacity 150ms ease, transform 100ms ease;
+  transition: background-color 150ms ease, opacity 150ms ease, transform 120ms var(--ease-out);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
 }
-.btn-magnetic:hover {
-  opacity: 0.92;
-}
 .btn-magnetic:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .tabular-nums {
@@ -227,7 +225,7 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
     .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; display: block !important; }
 }
 
-/* Penyesuaian Tombol Hapus pada Tab Bulan */
+/* Penyesuaian Tombol Hapus & Animasi Interaktif Tahun > Bulan */
 #month-tabs-container button {
   display: inline-flex;
   align-items: center;
@@ -235,11 +233,74 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 #month-tabs-container button span i {
-  transition: transform 0.2s ease;
+  transition: transform 180ms var(--ease-out);
 }
 
-#month-tabs-container button span:hover i {
-  transform: scale(1.2);
+.year-selector-btn,
+.month-pill-btn,
+.year-chevron-btn {
+  transition: transform 140ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.year-selector-btn:active,
+.month-pill-btn:active,
+.year-chevron-btn:active {
+  transform: scale(0.96) !important;
+}
+
+.year-chevron-icon {
+  display: inline-block;
+  transition: transform 220ms var(--ease-out), opacity 180ms var(--ease-out);
+}
+
+.year-chevron-icon.is-expanded {
+  transform: rotate(0deg);
+  opacity: 1;
+}
+
+.year-chevron-icon.is-collapsed {
+  transform: rotate(-90deg);
+  opacity: 0.6;
+}
+
+@keyframes monthPillEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.month-pill-enter {
+  animation: monthPillEnter 200ms var(--ease-out) backwards;
+  animation-delay: calc(var(--pill-idx, 0) * 24ms);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #month-tabs-container button span:hover i {
+    transform: scale(1.2);
+  }
+  .year-selector-btn:hover {
+    border-color: rgba(79, 70, 229, 0.45);
+    transform: translateY(-1px);
+  }
+  .month-pill-btn:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .month-pill-enter {
+    animation: none !important;
+  }
+  .year-chevron-icon,
+  .year-selector-btn,
+  .month-pill-btn {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ==================== 8. MOBILE PERFORMANCE & TOUCH OPTIMIZATION ==================== */
@@ -514,6 +575,19 @@ textarea:focus-visible,
     padding: 1.15rem !important;
     margin: 0.5rem auto !important;
     width: 100% !important;
+  }
+
+  /* Pelepasan Jebakan Scroll Ganda Tabel pada Layar Mobile */
+  .tab-content .overflow-x-auto {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+
+  /* Layar Login Ramah Keyboard Virtual */
+  #login-screen {
+    align-items: flex-start !important;
+    padding-top: max(2.25rem, calc(1.5rem + env(safe-area-inset-top, 0px))) !important;
+    padding-bottom: max(2.5rem, env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 

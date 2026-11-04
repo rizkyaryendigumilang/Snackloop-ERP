@@ -111,13 +111,24 @@ function initJastipData() {
     }
 }
 
+let _jastipSaveTimer = null;
 function saveJastipToLocal() {
-    try {
-        localStorage.setItem(JASTIP_STORAGE_KEY, JSON.stringify(jastipData));
-        if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
-    } catch (e) {
-        console.warn('Gagal menyimpan cache Jastip:', e);
+    if (_jastipSaveTimer) clearTimeout(_jastipSaveTimer);
+    const persistJastip = () => {
+        try {
+            localStorage.setItem(JASTIP_STORAGE_KEY, JSON.stringify(jastipData));
+        } catch (e) {
+            console.warn('Gagal menyimpan cache Jastip:', e);
+        }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        _jastipSaveTimer = setTimeout(() => {
+            window.requestIdleCallback(persistJastip, { timeout: 1000 });
+        }, 80);
+    } else {
+        _jastipSaveTimer = setTimeout(persistJastip, 80);
     }
+    if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
 }
 
 // 1b. Sinkronisasi Cloud Supabase (Otomatis & Offline-Tolerant)

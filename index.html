@@ -37,8 +37,8 @@
     <div id="toast-container" class="fixed top-5 right-5 z-[9999] space-y-3 pointer-events-none w-80 max-w-full"></div>
 
     <!-- LAYAR LOGIN -->
-    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-[999] flex items-center justify-center p-4 overflow-y-auto overscroll-contain">
-        <div class="theme-card rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center space-y-6 border">
+    <div id="login-screen" class="fixed inset-0 min-h-[100dvh] bg-slate-900 z-[999] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 pb-8 overflow-y-auto overscroll-contain">
+        <div class="theme-card rounded-2xl p-6 sm:p-8 w-full max-w-sm shadow-2xl text-center space-y-5 sm:space-y-6 border my-auto">
             <div class="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-2 bg-white/95 dark:bg-slate-800 shadow-xl border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
                 <img src="icon-192.png" alt="SnackLoop Logo" class="w-full h-full object-contain rounded-xl">
             </div>
@@ -98,11 +98,11 @@
 
                 <div id="forgot-password-feedback" class="hidden p-3 rounded-xl border text-xs"></div>
 
-                <div class="flex items-center justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeForgotPasswordModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeForgotPasswordModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
                         Batal
                     </button>
-                    <button type="submit" id="btn-submit-forgot" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                    <button type="submit" id="btn-submit-forgot" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2.5 sm:!py-2 !px-4 !text-xs flex items-center justify-center gap-1.5 font-semibold">
                         <i class="fa-solid fa-paper-plane"></i>
                         <span>Kirim Instruksi Reset</span>
                     </button>
@@ -146,11 +146,11 @@
                     <input type="password" id="confirm-new-password" placeholder="Ulangi password baru" class="w-full text-sm theme-input border rounded-xl p-3 outline-none" required minlength="6">
                 </div>
 
-                <div class="flex items-center justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeResetPasswordModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeResetPasswordModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
                         Batal
                     </button>
-                    <button type="submit" id="btn-submit-reset" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                    <button type="submit" id="btn-submit-reset" class="w-full sm:w-auto btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2.5 sm:!py-2 !px-4 !text-xs flex items-center justify-center gap-1.5 font-semibold">
                         <i class="fa-solid fa-check"></i>
                         <span>Simpan Password Baru</span>
                     </button>
@@ -242,18 +242,18 @@
         <!-- MAIN CONTENT -->
         <main id="main-content" class="flex-grow flex flex-col min-h-screen transition-all duration-400 w-full overflow-hidden p-6">
             
-            <header class="theme-header border px-3.5 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shadow-sm no-print rounded-2xl mb-4 sm:mb-6">
-                <div class="flex items-center space-x-2 sm:space-x-3">
-                <div id="brand-logo-container" class="flex items-center justify-center cursor-pointer">
-    <img src="Snackloop-logo.png" alt="Logo" class="h-8 sm:h-10 w-auto object-contain">
-</div>
-                    <div>
-                        <h2 id="page-title" class="text-lg sm:text-xl font-bold leading-tight">Dashboard</h2>
-                        <span class="text-[10px] opacity-60">SnackLoop ERP</span>
+            <header class="theme-header border px-3 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center gap-2 shadow-sm no-print rounded-2xl mb-4 sm:mb-6">
+                <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                    <div id="brand-logo-container" class="flex items-center justify-center cursor-pointer shrink-0">
+                        <img src="Snackloop-logo.png" alt="Logo" class="h-8 sm:h-10 w-auto object-contain">
+                    </div>
+                    <div class="min-w-0">
+                        <h2 id="page-title" class="text-base sm:text-xl font-bold leading-tight truncate">Dashboard</h2>
+                        <span class="text-[10px] opacity-60 block truncate">SnackLoop ERP</span>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-2 sm:space-x-2.5 text-sm">
+                <div class="flex items-center space-x-1.5 sm:space-x-2.5 text-sm shrink-0">
                     <!-- Indikator Status Online/Offline & Sync Outbox (Kompak & Minimal) -->
                     <div id="sync-status-container" class="cursor-pointer" onclick="handleSyncBadgeClick()" title="Status: Online - Terhubung (Klik untuk info)">
                         <span id="sync-status-badge" class="w-8 h-8 md:w-9 md:h-9 rounded-lg border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 transition-colors">
@@ -1276,7 +1276,7 @@
 
                     <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
                         <h3 class="font-bold text-base"><i class="fa-solid fa-boxes-packing text-emerald-500 mr-2"></i>Gudang Repack</h3>
-                        <div class="overflow-x-auto max-h-[400px]">
+                        <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0"><tr><th class="p-3 border border-inherit">ID Batch</th><th class="p-3 border border-inherit">Nama Barang Repack</th><th class="p-3 border border-inherit">Modal HPP /Pcs</th><th class="p-3 border border-inherit">Harga Jual /Pcs</th><th class="p-3 border border-inherit text-center">Stok Awal</th><th class="p-3 border border-inherit text-center">Sisa Stok</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr></thead>
                                 <tbody id="repack-table-body"></tbody>
@@ -1305,7 +1305,7 @@
                     
                     <div class="theme-card rounded-2xl border shadow-sm p-6">
                         <h3 class="text-base font-bold mb-4">Daftar Master Produk</h3>
-                        <div class="overflow-x-auto max-h-[400px]">
+                        <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
@@ -1329,7 +1329,7 @@
                     
                     <div class="theme-card rounded-2xl border shadow-sm p-6">
                         <h3 class="text-base font-bold mb-4">Daftar Pelanggan</h3>
-                        <div class="overflow-x-auto max-h-[400px]">
+                        <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
@@ -1352,7 +1352,7 @@
                     
                     <div class="theme-card rounded-2xl border shadow-sm p-6">
                         <h3 class="text-base font-bold mb-4">Daftar Agen</h3>
-                        <div class="overflow-x-auto max-h-[400px]">
+                        <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr><th class="p-3 border border-inherit">ID Agen</th><th class="p-3 border border-inherit">Nama Agen</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
@@ -1564,9 +1564,9 @@
                 <div><label class="block font-semibold mb-1">Sumber Agen <span class="text-rose-500">*</span></label><select id="edit-m-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></select></div>
                 <div><label class="block font-semibold mb-1">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeEditMasterModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
-                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2 !px-4 !text-xs">Simpan Perubahan</button>
+                <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeEditMasterModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                    <button type="submit" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2.5 sm:!py-2 !px-4 !text-xs">Simpan Perubahan</button>
                 </div>
             </form>
         </div>
@@ -1615,9 +1615,9 @@
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-3 pt-6 mt-2">
-                <button id="confirm-btn-cancel" class="px-5 py-2.5 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Batal</button>
-                <button id="confirm-btn-yes" class="px-5 py-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition shadow-sm active:scale-95">Ya, Lanjutkan</button>
+            <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-6 mt-2">
+                <button id="confirm-btn-cancel" class="w-full sm:w-auto px-5 py-2.5 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Batal</button>
+                <button id="confirm-btn-yes" class="w-full sm:w-auto px-5 py-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition shadow-sm active:scale-95">Ya, Lanjutkan</button>
             </div>
         </div>
     </div> 
@@ -1640,9 +1640,9 @@
             <div>
                 <input type="month" id="calendar-month-input" class="w-full text-xs theme-input border-2 rounded-xl p-3 outline-none focus:border-indigo-500">
             </div>
-            <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="closeCustomPromptModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Batal</button>
-                <button id="custom-prompt-btn-ok" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2 !px-4 !text-xs">Buat Sheet</button>
+            <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                <button onclick="closeCustomPromptModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold transition hover:opacity-80">Batal</button>
+                <button id="custom-prompt-btn-ok" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2.5 sm:!py-2 !px-4 !text-xs">Buat Sheet</button>
             </div>
         </div>
     </div>
@@ -1656,9 +1656,9 @@
                 <div><label class="block font-semibold mb-1">Keterangan / Keperluan <span class="text-rose-500">*</span></label><input type="text" id="exp-desc" placeholder="Contoh: Beli plastik kemasan tambahan" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
                 <div><label class="block font-semibold mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="exp-amount" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none"></div>
             </div>
-            <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="closeExpenseModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
-                <button onclick="saveExpense()" class="btn-magnetic bg-amber-600 hover:bg-amber-700 !py-2 !px-4 !text-xs">Simpan Biaya</button>
+            <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                <button onclick="closeExpenseModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                <button onclick="saveExpense()" class="w-full sm:w-auto btn-magnetic bg-amber-600 hover:bg-amber-700 !py-2.5 sm:!py-2 !px-4 !text-xs">Simpan Biaya</button>
             </div>
         </div>
     </div>
@@ -1769,9 +1769,9 @@
                     <input type="text" id="ret-notes" placeholder="Opsional, misal: nota TRX-202610-001" class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
                 </div>
 
-                <div class="flex justify-end space-x-2 pt-3 border-t border-inherit">
-                    <button type="button" onclick="closeReturnModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
-                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-inherit">
+                    <button type="button" onclick="closeReturnModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                    <button type="submit" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2.5 sm:!py-2 !px-4 !text-xs flex items-center justify-center gap-1.5 font-semibold">
                         <i class="fa-solid fa-check"></i>
                         <span>Simpan & Proses Retur</span>
                     </button>
@@ -1816,9 +1816,9 @@
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-2 pt-2 border-t border-inherit">
-                <button type="button" onclick="closePrintAgentClaimModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
-                <button type="button" onclick="generateAgentClaimPDF()" class="btn-magnetic bg-amber-600 hover:bg-amber-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+            <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-inherit">
+                <button type="button" onclick="closePrintAgentClaimModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
+                <button type="button" onclick="generateAgentClaimPDF()" class="w-full sm:w-auto btn-magnetic bg-amber-600 hover:bg-amber-700 text-white !py-2.5 sm:!py-2 !px-4 !text-xs flex items-center justify-center gap-1.5 font-semibold">
                     <i class="fa-solid fa-print"></i>
                     <span>Cetak Surat Jalan</span>
                 </button>
@@ -2159,11 +2159,11 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end gap-2 pt-2 border-t border-inherit">
-                    <button type="button" onclick="closeJastipOrderModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-inherit">
+                    <button type="button" onclick="closeJastipOrderModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition">
                         Batal
                     </button>
-                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 !text-xs flex items-center gap-1.5 font-semibold">
+                    <button type="submit" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2.5 sm:!py-2 !px-4 !text-xs flex items-center justify-center gap-1.5 font-semibold">
                         <i class="fa-solid fa-floppy-disk"></i>
                         <span>Simpan Pesanan Jastip</span>
                     </button>

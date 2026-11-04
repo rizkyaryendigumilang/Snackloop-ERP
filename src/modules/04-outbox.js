@@ -420,20 +420,39 @@ async function loadCacheFromLocal() {
 // ======================= OFFLINE OUTBOX & BATCHED SYNC ENGINE ======================= //
 const OUTBOX_KEY = 'snackloop_outbox';
 const BATCH_CHUNK_SIZE = 50; // Kapasitas optimal bulk request PostgREST / Supabase
+let _outboxMemoryQueue = null;
+let _outboxSaveTimer = null;
 
 function getOutbox() {
+    if (Array.isArray(_outboxMemoryQueue)) {
+        return _outboxMemoryQueue;
+    }
     try {
-        return JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]');
+        _outboxMemoryQueue = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]');
+        if (!Array.isArray(_outboxMemoryQueue)) _outboxMemoryQueue = [];
+        return _outboxMemoryQueue;
     } catch(e) {
-        return [];
+        _outboxMemoryQueue = [];
+        return _outboxMemoryQueue;
     }
 }
 
 function saveOutbox(queue) {
-    try {
-        localStorage.setItem(OUTBOX_KEY, JSON.stringify(queue));
-    } catch(e) {
-        console.warn("Gagal menyimpan outbox ke localStorage:", e);
+    _outboxMemoryQueue = Array.isArray(queue) ? queue : [];
+    if (_outboxSaveTimer) clearTimeout(_outboxSaveTimer);
+    const persistFn = () => {
+        try {
+            localStorage.setItem(OUTBOX_KEY, JSON.stringify(_outboxMemoryQueue));
+        } catch(e) {
+            console.warn("Gagal menyimpan outbox ke localStorage:", e);
+        }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        _outboxSaveTimer = setTimeout(() => {
+            window.requestIdleCallback(persistFn, { timeout: 800 });
+        }, 50);
+    } else {
+        _outboxSaveTimer = setTimeout(persistFn, 50);
     }
     updateNetworkStatus();
 }
