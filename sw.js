@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v28 (Master Product Markup & Profit Percentage)
-const CACHE_NAME = 'snackloop-cache-v28';
+// SnackLoop ERP Service Worker v29 (Master Product Keuntungan Column Label)
+const CACHE_NAME = 'snackloop-cache-v29';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
