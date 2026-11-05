@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v27 (P1 Column Security & P3 Supabase Realtime Sync)
-const CACHE_NAME = 'snackloop-cache-v27';
+// SnackLoop ERP Service Worker v28 (Master Product Markup & Profit Percentage)
+const CACHE_NAME = 'snackloop-cache-v28';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

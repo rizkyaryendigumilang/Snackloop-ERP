@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-05T07:46:45.452Z from 17 source modules in src/modules/
+// Generated on 2026-11-05T08:13:48.115Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -3578,7 +3578,47 @@ function restoreDataJSON(event) {
 
 
 // --- [MODULE: 09-master.js] ---
-// ======================= 6. MASTER & CUSTOMER (DENGAN PRICE HISTORY) ======================= //
+// ======================= 6. MASTER & CUSTOMER (DENGAN PRICE HISTORY & MARKUP) ======================= //
+function updateLiveMarkup(buyId, sellId, previewId, textId) {
+    const buy = getCleanNumber(buyId);
+    const sell = getCleanNumber(sellId);
+    const previewEl = document.getElementById(previewId);
+    const textEl = document.getElementById(textId);
+    if (!previewEl || !textEl) return;
+
+    if (buy > 0 && sell > 0) {
+        const diff = sell - buy;
+        const pct = ((diff / buy) * 100).toFixed(1);
+        previewEl.classList.remove('hidden');
+        if (diff >= 0) {
+            textEl.className = "font-bold text-emerald-600 dark:text-emerald-400 font-mono";
+            textEl.innerHTML = `+Rp ${diff.toLocaleString('id-ID')} <span class="badge-soft-good text-[10px] ml-1.5 font-mono">+${pct}%</span>`;
+        } else {
+            textEl.className = "font-bold text-rose-600 dark:text-rose-400 font-mono";
+            textEl.innerHTML = `-Rp ${Math.abs(diff).toLocaleString('id-ID')} <span class="badge-soft-bad text-[10px] ml-1.5 font-mono">${pct}%</span>`;
+        }
+    } else {
+        previewEl.classList.add('hidden');
+    }
+}
+
+// Live listener untuk perhitungan markup otomatis saat mengetik harga
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        ['m-buy', 'm-sell'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => {
+                updateLiveMarkup('m-buy', 'm-sell', 'm-markup-preview', 'm-markup-text');
+            });
+        });
+
+        ['edit-m-buy', 'edit-m-sell'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', () => {
+                updateLiveMarkup('edit-m-buy', 'edit-m-sell', 'edit-m-markup-preview', 'edit-m-markup-text');
+            });
+        });
+    });
+}
+
 async function renderMaster() {
     const tbody = document.getElementById('master-table-body');
     if(!tbody) return;
@@ -3592,7 +3632,32 @@ async function renderMaster() {
             <button onclick="openHistoryModal(${m.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat</button>
         `;
 
-        const buyPriceDisplay = canEdit ? `Rp ${m.buy.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+        const buyPrice = Number(m.buy) || 0;
+        const sellPrice = Number(m.sell) || 0;
+        const buyPriceDisplay = canEdit ? `Rp ${buyPrice.toLocaleString('id-ID')}` : `<span class="opacity-40 italic">-</span>`;
+
+        let markupDisplay = `<span class="opacity-40 italic">-</span>`;
+        if (canEdit) {
+            const diffProfit = sellPrice - buyPrice;
+            const markupPct = buyPrice > 0 ? ((diffProfit / buyPrice) * 100) : 0;
+            if (diffProfit > 0) {
+                markupDisplay = `
+                    <div class="leading-tight">
+                        <span class="font-bold text-emerald-600 dark:text-emerald-400 font-mono block text-xs">+Rp ${diffProfit.toLocaleString('id-ID')}</span>
+                        <span class="badge-soft-good text-[10px] inline-block font-mono mt-0.5">+${markupPct.toFixed(1)}%</span>
+                    </div>
+                `;
+            } else if (diffProfit === 0) {
+                markupDisplay = `<span class="text-slate-500 font-mono font-medium text-xs">Rp 0 (0%)</span>`;
+            } else {
+                markupDisplay = `
+                    <div class="leading-tight">
+                        <span class="font-bold text-rose-600 dark:text-rose-400 font-mono block text-xs">-Rp ${Math.abs(diffProfit).toLocaleString('id-ID')}</span>
+                        <span class="badge-soft-bad text-[10px] inline-block font-mono mt-0.5">${markupPct.toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+        }
 
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
@@ -3600,8 +3665,9 @@ async function renderMaster() {
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
-                <td class="p-3 border border-inherit">${buyPriceDisplay}</td>
-                <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${m.sell.toLocaleString()}</td>
+                <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
+                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">Rp ${sellPrice.toLocaleString('id-ID')}</td>
+                <td class="p-3 border border-inherit">${markupDisplay}</td>
                 <td class="p-3 border border-inherit text-center">${actionBtns}</td>
             </tr>`;
     }).join('');
@@ -3619,6 +3685,7 @@ function openEditMasterModal(id) {
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
+    updateLiveMarkup('edit-m-buy', 'edit-m-sell', 'edit-m-markup-preview', 'edit-m-markup-text');
     openModalById('edit-master-modal');
 }
 
@@ -3760,6 +3827,7 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     renderMaster();
     renderDropdowns();
     this.reset();
+    document.getElementById('m-markup-preview')?.classList.add('hidden');
     showNotification("Sukses", "Master produk tersimpan", "success");
 
     dispatchMutation({

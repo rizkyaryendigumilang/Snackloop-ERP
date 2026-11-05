@@ -1313,6 +1313,10 @@
                             </div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Beli /Modal <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-buy" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div id="m-markup-preview" class="md:col-span-4 p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
+                                <span class="opacity-75 font-medium">Estimasi Keuntungan (Markup):</span>
+                                <span id="m-markup-text" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">-</span>
+                            </div>
                             <div class="md:col-span-4 flex justify-end"><button type="submit" class="btn-magnetic">Simpan Master</button></div>
                         </form>
                     </div>
@@ -1322,7 +1326,7 @@
                         <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit">Markup / Untung</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="master-table-body"></tbody>
                             </table>
@@ -1578,6 +1582,10 @@
                 <div><label class="block font-semibold mb-1">Sumber Agen <span class="text-rose-500">*</span></label><select id="edit-m-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></select></div>
                 <div><label class="block font-semibold mb-1">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
+                <div id="edit-m-markup-preview" class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
+                    <span class="opacity-75 font-medium">Estimasi Keuntungan (Markup):</span>
+                    <span id="edit-m-markup-text" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">-</span>
+                </div>
                 <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
                     <button type="button" onclick="closeEditMasterModal()" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs theme-input border rounded-xl font-semibold">Batal</button>
                     <button type="submit" class="w-full sm:w-auto btn-magnetic bg-indigo-600 hover:bg-indigo-700 !py-2.5 sm:!py-2 !px-4 !text-xs">Simpan Perubahan</button>
