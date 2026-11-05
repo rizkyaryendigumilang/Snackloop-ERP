@@ -26,6 +26,7 @@
   --timing: 250ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body.dark-theme {
@@ -141,7 +142,7 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   height: calc(100dvh - 1.7rem);
   width: 4.5rem;
   z-index: 100;
-  transition: transform 220ms var(--ease-out), background-color 0.3s ease;
+  transition: transform 260ms var(--ease-fluid), background-color 0.3s ease;
 }
 
 .navbar__toggle-btn {
@@ -162,7 +163,7 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
   justify-content: center;
   cursor: pointer;
   z-index: 104;
-  transition: transform 180ms var(--ease-out), color 180ms var(--ease-out), border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), top 220ms var(--ease-out), right 220ms var(--ease-out);
+  transition: transform 200ms var(--ease-fluid), color 180ms ease, border-color 180ms ease, background-color 180ms ease, top 240ms var(--ease-fluid), right 240ms var(--ease-fluid);
 }
 
 .navbar__toggle-btn:hover {
@@ -173,7 +174,7 @@ body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
 .navbar__toggle-icon {
   font-size: 0.6rem;
   line-height: 1;
-  transition: transform 220ms var(--ease-out);
+  transition: transform 240ms var(--ease-fluid);
 }
 
 body.navbar-collapsed .navbar {
@@ -250,8 +251,8 @@ body.navbar-collapsed .navbar__link span {
 .navbar__active-pill {
   z-index: 1;
   background: var(--primary);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.32);
-  transition: transform 240ms var(--ease-out), width 180ms var(--ease-out), height 180ms var(--ease-out), opacity 160ms ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(79, 70, 229, 0.32);
+  transition: transform 240ms var(--ease-fluid), width 180ms var(--ease-fluid), height 180ms var(--ease-fluid), opacity 160ms ease;
 }
 
 .navbar__hover-pill {
@@ -335,7 +336,7 @@ body.dark-theme .navbar__hover-pill {
 
 #main-content {
   margin-left: 5.6rem;
-  transition: margin-left 220ms var(--ease-out), padding-left 220ms var(--ease-out);
+  transition: margin-left 260ms var(--ease-fluid), padding-left 260ms var(--ease-fluid);
 }
 
 body.navbar-collapsed #main-content {

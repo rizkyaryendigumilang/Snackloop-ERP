@@ -233,6 +233,12 @@ function initNavbarPillInteractions() {
 
     if (typeof window !== 'undefined') {
         window.addEventListener('resize', () => syncNavbarActivePill(true));
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '[' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) && !e.target?.isContentEditable) {
+                e.preventDefault();
+                toggleNavbarCollapse();
+            }
+        });
     }
 }
 
@@ -244,7 +250,7 @@ function toggleNavbarCollapse(forceCollapsed) {
     const btn = typeof document.getElementById === 'function' ? document.getElementById('navbar-collapse-btn') : null;
     if (btn) {
         btn.setAttribute('aria-expanded', String(!nextCollapsed));
-        btn.title = nextCollapsed ? 'Buka Navigasi' : 'Lipat Navigasi';
+        btn.title = nextCollapsed ? 'Buka Navigasi [' : 'Lipat Navigasi [';
     }
     try {
         if (typeof localStorage !== 'undefined') {

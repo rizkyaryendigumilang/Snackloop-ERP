@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-04T17:44:00.118Z from 17 source modules in src/modules/
+// Generated on 2026-11-05T05:39:23.533Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -608,6 +608,12 @@ function initNavbarPillInteractions() {
 
     if (typeof window !== 'undefined') {
         window.addEventListener('resize', () => syncNavbarActivePill(true));
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '[' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) && !e.target?.isContentEditable) {
+                e.preventDefault();
+                toggleNavbarCollapse();
+            }
+        });
     }
 }
 
@@ -619,7 +625,7 @@ function toggleNavbarCollapse(forceCollapsed) {
     const btn = typeof document.getElementById === 'function' ? document.getElementById('navbar-collapse-btn') : null;
     if (btn) {
         btn.setAttribute('aria-expanded', String(!nextCollapsed));
-        btn.title = nextCollapsed ? 'Buka Navigasi' : 'Lipat Navigasi';
+        btn.title = nextCollapsed ? 'Buka Navigasi [' : 'Lipat Navigasi [';
     }
     try {
         if (typeof localStorage !== 'undefined') {
