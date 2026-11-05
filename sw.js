@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v26 (Sorvo Aesthetic Polish & Modular Architecture)
-const CACHE_NAME = 'snackloop-cache-v26';
+// SnackLoop ERP Service Worker v27 (P1 Column Security & P3 Supabase Realtime Sync)
+const CACHE_NAME = 'snackloop-cache-v27';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

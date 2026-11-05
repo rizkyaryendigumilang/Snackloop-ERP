@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-05T06:03:19.554Z from 17 source modules in src/modules/
+// Generated on 2026-11-05T07:46:45.452Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1114,8 +1114,43 @@ function saveCacheToLocal(immediate = false) {
 }
 
 function _executeSaveCache() {
+    const isSuperAdmin = currentRole === 'super_admin';
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
-    const cacheObj = { agentData, masterData, customerData, repackData, transactionData, expenseData, invoiceData, priceHistoryData, returnData, userData, jastipData: jData };
+
+    // P1: Proteksi Keamanan Cache Lokal untuk Role Non-Admin
+    // Mencegah harga modal, laba bersih, dan biaya operasional tersimpan di storage klien non-admin
+    const safeExpData = isSuperAdmin ? expenseData : [];
+    let safeTrxData = transactionData;
+    let safeMasterData = masterData;
+    let safeRepackData = repackData;
+
+    if (!isSuperAdmin) {
+        safeTrxData = {};
+        for (const k in transactionData) {
+            safeTrxData[k] = (transactionData[k] || []).map(t => ({
+                ...t,
+                buy: 0,
+                totalModal: 0,
+                profitPerItem: 0
+            }));
+        }
+        safeMasterData = (masterData || []).map(m => ({ ...m, buy: 0 }));
+        safeRepackData = (repackData || []).map(r => ({ ...r, modal_per_pcs: 0 }));
+    }
+
+    const cacheObj = { 
+        agentData, 
+        masterData: safeMasterData, 
+        customerData, 
+        repackData: safeRepackData, 
+        transactionData: safeTrxData, 
+        expenseData: safeExpData, 
+        invoiceData, 
+        priceHistoryData: isSuperAdmin ? priceHistoryData : [], 
+        returnData, 
+        userData: isSuperAdmin ? userData : (currentUser ? [{ username: currentUser, role: currentRole }] : []), 
+        jastipData: jData 
+    };
 
     // 1. Asinkron ke IndexedDB (Kapasitas Besar & Non-Blocking)
     const p = idbSet('snackloop_cache_v2', cacheObj).catch(err => {
@@ -1178,21 +1213,33 @@ async function loadCacheFromLocal() {
     }
 
     if (data) {
+        const isSuperAdmin = currentRole === 'super_admin';
         if (typeof jastipData !== 'undefined' && data.jastipData) {
             jastipData = data.jastipData;
         }
         agentData = data.agentData || [];
-        masterData = data.masterData || [];
+        masterData = (data.masterData || []).map(m => isSuperAdmin ? m : { ...m, buy: 0 });
         customerData = data.customerData || [];
-        repackData = data.repackData || [];
+        repackData = (data.repackData || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
+        
         transactionData = data.transactionData || {};
-        expenseData = data.expenseData || [];
+        if (!isSuperAdmin) {
+            for (const k in transactionData) {
+                transactionData[k] = (transactionData[k] || []).map(t => ({
+                    ...t,
+                    buy: 0,
+                    totalModal: 0,
+                    profitPerItem: 0
+                }));
+            }
+        }
+        expenseData = isSuperAdmin ? (data.expenseData || []) : [];
         invoiceData = data.invoiceData || [];
-        priceHistoryData = data.priceHistoryData || [];
+        priceHistoryData = isSuperAdmin ? (data.priceHistoryData || []) : [];
         returnData = data.returnData || [];
-        userData = data.userData && data.userData.length > 0 ? data.userData : [
+        userData = isSuperAdmin ? (data.userData && data.userData.length > 0 ? data.userData : [
             { id: 1, username: 'admin', role: 'super_admin' }
-        ];
+        ]) : (currentUser ? [{ username: currentUser, role: currentRole }] : []);
     } else {
         userData = [
             { id: 1, username: 'admin', role: 'super_admin' }
@@ -1287,9 +1334,15 @@ function updateNetworkStatus() {
         badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="absolute -top-1 -right-1 bg-amber-600 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">${count}</span><span id="sync-status-text" class="hidden">Pending</span>`;
         if (container) container.setAttribute('title', `Ada ${count} data tertunda sinkronisasi. Klik untuk kirim.`);
     } else {
-        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-slate-50 text-emerald-700 border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800 shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
-        badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-600"></span><span id="sync-status-text" class="hidden">Online</span>`;
-        if (container) container.setAttribute('title', "Status: Online - Terhubung dengan Database");
+        if (typeof _isRealtimeSubscribed !== 'undefined' && _isRealtimeSubscribed) {
+            badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors";
+            badgeEl.innerHTML = `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span id="sync-status-text" class="hidden">Live</span>`;
+            if (container) container.setAttribute('title', "Status: Online (Realtime Sync Multi-Device Aktif)");
+        } else {
+            badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-slate-50 text-emerald-700 border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800 shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
+            badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-600"></span><span id="sync-status-text" class="hidden">Online</span>`;
+            if (container) container.setAttribute('title', "Status: Online - Terhubung dengan Database");
+        }
     }
 }
 
@@ -1303,7 +1356,8 @@ function handleSyncBadgeClick() {
         showNotification("Sinkronisasi", `Memproses ${count} data yang tertunda ke cloud (Batching Mode)...`, "info");
         syncOutboxQueue();
     } else {
-        showNotification("Status Cloud", "Semua data sudah tersinkronisasi penuh dengan database.", "success");
+        const isLive = typeof _isRealtimeSubscribed !== 'undefined' && _isRealtimeSubscribed;
+        showNotification("Status Cloud", isLive ? "Semua data tersinkronisasi. Realtime Live Sync aktif antar-perangkat." : "Semua data sudah tersinkronisasi penuh dengan database.", "success");
     }
 }
 
@@ -2058,6 +2112,332 @@ async function triggerManualSnapshot() {
     showNotification("Sukses", `Snapshot tanggal ${today} berhasil disimpan!`, "success");
 }
 
+// =========================================================================
+// P3: SUPABASE REALTIME MULTI-DEVICE SYNC ENGINE
+// =========================================================================
+let _realtimeChannel = null;
+let _realtimeUIRefreshTimer = null;
+let _isRealtimeSubscribed = false;
+
+function scheduleRealtimeUIRefresh(options = {}) {
+    if (_realtimeUIRefreshTimer) clearTimeout(_realtimeUIRefreshTimer);
+    _realtimeUIRefreshTimer = setTimeout(() => {
+        _realtimeUIRefreshTimer = null;
+        if (options.transactions && typeof renderTransactionsForActiveSheet === 'function') {
+            renderTransactionsForActiveSheet();
+        }
+        if (options.dashboard && typeof updateDashboard === 'function') {
+            updateDashboard();
+        }
+        if (options.months && typeof renderMonthTabs === 'function') {
+            renderMonthTabs();
+        }
+        if (options.invoices && typeof renderInvoicesTable === 'function') {
+            renderInvoicesTable();
+        }
+        if (options.master && typeof renderMaster === 'function') {
+            renderMaster();
+        }
+        if (options.dropdowns && typeof renderDropdowns === 'function') {
+            renderDropdowns();
+        }
+        if (options.repack && typeof renderRepackWarehouse === 'function') {
+            renderRepackWarehouse();
+        }
+        if (options.customers && typeof renderCustomer === 'function') {
+            renderCustomer();
+        }
+        if (options.returns && typeof renderReturnList === 'function') {
+            renderReturnList();
+        }
+    }, 160);
+}
+
+function initSupabaseRealtimeSync() {
+    if (typeof supabaseClient === 'undefined' || !supabaseClient || typeof supabaseClient.channel !== 'function') {
+        return;
+    }
+
+    if (_realtimeChannel) {
+        try { supabaseClient.removeChannel(_realtimeChannel); } catch(e) {}
+        _realtimeChannel = null;
+    }
+
+    try {
+        _realtimeChannel = supabaseClient.channel('snackloop-realtime-sync')
+            // 1. Perubahan Produk Master (Harga Jual / Stok / Nama)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'master' }, (payload) => {
+                _handleRealtimeMaster(payload);
+            })
+            // 2. Transaksi Penjualan Baru / Update Status Lunas
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, (payload) => {
+                _handleRealtimeTransactions(payload);
+            })
+            // 3. Faktur / Invoice Pelunasan Tempo
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, (payload) => {
+                _handleRealtimeInvoices(payload);
+            })
+            // 4. Stok Repack Kemasan
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'repack' }, (payload) => {
+                _handleRealtimeRepack(payload);
+            })
+            // 5. Data Pelanggan / Toko Mitra
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload) => {
+                _handleRealtimeCustomers(payload);
+            })
+            // 6. Retur Barang
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'returns' }, (payload) => {
+                _handleRealtimeReturns(payload);
+            })
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    _isRealtimeSubscribed = true;
+                    console.info("[Realtime] Multi-device Live Sync berhasil terhubung.");
+                    _updateRealtimeStatusBadge(true);
+                } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                    _isRealtimeSubscribed = false;
+                    _updateRealtimeStatusBadge(false);
+                }
+            });
+    } catch(err) {
+        console.warn("[Realtime] Gagal inisialisasi Realtime channel:", err);
+    }
+}
+
+function stopSupabaseRealtimeSync() {
+    if (_realtimeChannel && typeof supabaseClient !== 'undefined' && supabaseClient) {
+        try {
+            supabaseClient.removeChannel(_realtimeChannel);
+        } catch(e) {}
+    }
+    _realtimeChannel = null;
+    _isRealtimeSubscribed = false;
+    _updateRealtimeStatusBadge(false);
+}
+
+function _updateRealtimeStatusBadge(isActive) {
+    const badgeEl = document.getElementById('sync-status-badge');
+    const container = document.getElementById('sync-status-container');
+    const count = typeof getOutbox === 'function' ? getOutbox().length : 0;
+    
+    if (count > 0 || !navigator.onLine) {
+        return;
+    }
+
+    if (isActive && badgeEl) {
+        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors";
+        badgeEl.innerHTML = `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span id="sync-status-text" class="hidden">Live</span>`;
+        if (container) container.setAttribute('title', "Status: Online (Realtime Sync Multi-Device Aktif)");
+    }
+}
+
+function _handleRealtimeMaster(payload) {
+    const isSuperAdmin = currentRole === 'super_admin';
+    if (payload.eventType === 'INSERT') {
+        const item = payload.new;
+        if (!masterData.some(m => String(m.id) === String(item.id))) {
+            masterData.push(isSuperAdmin ? item : { ...item, buy: 0 });
+            masterData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ master: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const item = payload.new;
+        const idx = masterData.findIndex(m => String(m.id) === String(item.id));
+        if (idx !== -1) {
+            const oldBuy = masterData[idx].buy || 0;
+            masterData[idx] = isSuperAdmin ? item : { ...item, buy: oldBuy };
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ master: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        masterData = masterData.filter(m => String(m.id) !== String(payload.old.id));
+        saveCacheToLocal();
+        scheduleRealtimeUIRefresh({ master: true, dropdowns: true });
+    }
+}
+
+function _handleRealtimeTransactions(payload) {
+    const isSuperAdmin = currentRole === 'super_admin';
+    if (payload.eventType === 'INSERT') {
+        const t = payload.new;
+        const formatted = {
+            id: t.id,
+            monthKey: t.month_key,
+            date: t.date,
+            customer: t.customer,
+            itemName: t.item_name,
+            source: t.source,
+            qty: Number(t.qty) || 0,
+            batch: t.batch,
+            buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+            extraCost: Number(t.extra_cost) || 0,
+            extraCostNote: t.extra_cost_note || '-',
+            totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+            sell: Number(t.sell) || 0,
+            totalSell: Number(t.total_sell) || 0,
+            status: t.status,
+            profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+            notes: t.notes || '-'
+        };
+
+        if (!transactionData[formatted.monthKey]) {
+            transactionData[formatted.monthKey] = [];
+        }
+
+        const exists = transactionData[formatted.monthKey].some(item => String(item.id) === String(formatted.id));
+        if (!exists) {
+            transactionData[formatted.monthKey].unshift(formatted);
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ transactions: true, dashboard: true, months: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const t = payload.new;
+        let found = false;
+        for (const mKey in transactionData) {
+            const list = transactionData[mKey] || [];
+            const idx = list.findIndex(item => String(item.id) === String(t.id));
+            if (idx !== -1) {
+                const oldBuy = list[idx].buy || 0;
+                const oldModal = list[idx].totalModal || 0;
+                const oldProfit = list[idx].profitPerItem || 0;
+
+                list[idx] = {
+                    ...list[idx],
+                    date: t.date,
+                    customer: t.customer,
+                    itemName: t.item_name,
+                    source: t.source,
+                    qty: Number(t.qty) || 0,
+                    batch: t.batch,
+                    buy: isSuperAdmin ? (Number(t.buy) || 0) : oldBuy,
+                    extraCost: Number(t.extra_cost) || 0,
+                    extraCostNote: t.extra_cost_note || '-',
+                    totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : oldModal,
+                    sell: Number(t.sell) || 0,
+                    totalSell: Number(t.total_sell) || 0,
+                    status: t.status,
+                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : oldProfit,
+                    notes: t.notes || '-'
+                };
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ transactions: true, dashboard: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        const delId = String(payload.old.id);
+        let changed = false;
+        for (const mKey in transactionData) {
+            const prevLen = transactionData[mKey].length;
+            transactionData[mKey] = transactionData[mKey].filter(item => String(item.id) !== delId);
+            if (transactionData[mKey].length !== prevLen) changed = true;
+        }
+        if (changed) {
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ transactions: true, dashboard: true });
+        }
+    }
+}
+
+function _handleRealtimeInvoices(payload) {
+    if (payload.eventType === 'INSERT') {
+        const inv = payload.new;
+        if (!invoiceData.some(i => String(i.id) === String(inv.id) || i.invoice_number === inv.invoice_number)) {
+            invoiceData.unshift(inv);
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ invoices: true, dashboard: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const inv = payload.new;
+        const idx = invoiceData.findIndex(i => String(i.id) === String(inv.id) || i.invoice_number === inv.invoice_number);
+        if (idx !== -1) {
+            invoiceData[idx] = { ...invoiceData[idx], ...inv };
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ invoices: true, dashboard: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        invoiceData = invoiceData.filter(i => String(i.id) !== String(payload.old.id));
+        saveCacheToLocal();
+        scheduleRealtimeUIRefresh({ invoices: true, dashboard: true });
+    }
+}
+
+function _handleRealtimeRepack(payload) {
+    const isSuperAdmin = currentRole === 'super_admin';
+    if (payload.eventType === 'INSERT') {
+        const r = payload.new;
+        if (!repackData.some(item => String(item.id) === String(r.id))) {
+            repackData.unshift(isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ repack: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const r = payload.new;
+        const idx = repackData.findIndex(item => String(item.id) === String(r.id));
+        if (idx !== -1) {
+            const oldModal = repackData[idx].modal_per_pcs || 0;
+            repackData[idx] = isSuperAdmin ? r : { ...r, modal_per_pcs: oldModal };
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ repack: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        repackData = repackData.filter(item => String(item.id) !== String(payload.old.id));
+        saveCacheToLocal();
+        scheduleRealtimeUIRefresh({ repack: true, dropdowns: true });
+    }
+}
+
+function _handleRealtimeCustomers(payload) {
+    if (payload.eventType === 'INSERT') {
+        const c = payload.new;
+        if (!customerData.some(item => String(item.id) === String(c.id))) {
+            customerData.push(c);
+            customerData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ customers: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const c = payload.new;
+        const idx = customerData.findIndex(item => String(item.id) === String(c.id));
+        if (idx !== -1) {
+            customerData[idx] = c;
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ customers: true, dropdowns: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        customerData = customerData.filter(item => String(item.id) !== String(payload.old.id));
+        saveCacheToLocal();
+        scheduleRealtimeUIRefresh({ customers: true, dropdowns: true });
+    }
+}
+
+function _handleRealtimeReturns(payload) {
+    if (payload.eventType === 'INSERT') {
+        const r = payload.new;
+        if (!returnData.some(item => String(item.id) === String(r.id))) {
+            returnData.unshift(r);
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ returns: true });
+        }
+    } else if (payload.eventType === 'UPDATE') {
+        const r = payload.new;
+        const idx = returnData.findIndex(item => String(item.id) === String(r.id));
+        if (idx !== -1) {
+            returnData[idx] = r;
+            saveCacheToLocal();
+            scheduleRealtimeUIRefresh({ returns: true });
+        }
+    } else if (payload.eventType === 'DELETE') {
+        returnData = returnData.filter(item => String(item.id) !== String(payload.old.id));
+        saveCacheToLocal();
+        scheduleRealtimeUIRefresh({ returns: true });
+    }
+}
+
 
 // --- [MODULE: 05-modals.js] ---
 // ======================= MODAL KONFIRMASI KUSTOM & HELPER MODAL ======================= //
@@ -2422,6 +2802,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
 });
 
 function logoutApp() {
+    if (typeof stopSupabaseRealtimeSync === 'function') {
+        stopSupabaseRealtimeSync();
+    }
     currentUser = null;
     currentRole = null;
     localStorage.removeItem('snackloop_session'); // Hapus sesi saat logout
@@ -2687,6 +3070,10 @@ async function initApp() {
     if(navigator.onLine) {
         syncOutboxQueue();
     }
+    // P3: Inisialisasi Realtime Multi-Device Sync
+    if (typeof initSupabaseRealtimeSync === 'function') {
+        initSupabaseRealtimeSync();
+    }
 }
 
 async function loadDataFromCloud() {
@@ -2699,25 +3086,49 @@ async function loadDataFromCloud() {
                 return;
             }
         }
+
+        const isSuperAdmin = currentRole === 'super_admin';
+
+        // P1: Keamanan Database & Kolom Sensitif (Role-Based Column Isolation)
+        // Staf Kasir & Viewer TIDAK PERNAH dikirim data pengeluaran operasional (expenses)
+        // dan kolom harga modal rahasia supplier (buy, total_modal, profit_per_item)
+        const expQuery = isSuperAdmin 
+            ? supabaseClient.from('expenses').select('*').order('date', { ascending: false })
+            : Promise.resolve({ data: [] });
+
+        const trxQuery = isSuperAdmin
+            ? supabaseClient.from('transactions').select('*').order('date', { ascending: false })
+            : supabaseClient.from('transactions')
+                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note, created_at')
+                .order('date', { ascending: false });
+
+        const masterQuery = isSuperAdmin
+            ? supabaseClient.from('master').select('*').order('name', { ascending: true })
+            : supabaseClient.from('master').select('id, name, source, sell, agent_id, created_at').order('name', { ascending: true });
+
+        const repackQuery = isSuperAdmin
+            ? supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'))
+            : supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty, created_at').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty'));
+
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),
-            supabaseClient.from('master').select('*').order('name', { ascending: true }),
+            masterQuery,
             supabaseClient.from('customers').select('*').order('name', { ascending: true }),
-            supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*')),
-            supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
-            supabaseClient.from('expenses').select('*').order('date', { ascending: false }),
-            supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }),
+            repackQuery,
+            trxQuery,
+            expQuery,
+            isSuperAdmin ? supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }) : Promise.resolve({ data: (currentUser ? [{ username: currentUser, role: currentRole }] : []) }),
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
-            supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
+            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
             supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
-        masterData = resMaster.data || [];
+        masterData = (resMaster.data || []).map(m => isSuperAdmin ? m : { ...m, buy: 0 });
         customerData = resCust.data || [];
-        repackData = resRepack.data || [];
-        expenseData = resExp.data || [];
+        repackData = (resRepack.data || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
+        expenseData = isSuperAdmin ? (resExp.data || []) : [];
         userData = resUsers.data || [];
 
         if (resReturns && !resReturns.error && Array.isArray(resReturns.data)) {
@@ -2727,16 +3138,22 @@ async function loadDataFromCloud() {
             jastipData = resJastip.data;
         }
         invoiceData = resInv.data || [];
-        priceHistoryData = resHistory.data || [];
+        priceHistoryData = isSuperAdmin ? (resHistory.data || []) : [];
 
         transactionData = {};
         (resTrx.data || []).forEach(t => {
             const formatted = {
                 id: t.id, monthKey: t.month_key, date: t.date, customer: t.customer,
-                itemName: t.item_name, source: t.source, qty: t.qty, batch: t.batch,
-                buy: t.buy, extraCost: t.extra_cost || 0, extraCostNote: t.extra_cost_note || '-',
-                totalModal: t.total_modal, sell: t.sell, totalSell: t.total_sell,
-                status: t.status, profitPerItem: t.profit_per_item, notes: t.notes || '-'
+                itemName: t.item_name, source: t.source, qty: Number(t.qty) || 0, batch: t.batch,
+                buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+                extraCost: Number(t.extra_cost) || 0,
+                extraCostNote: t.extra_cost_note || '-',
+                totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+                sell: Number(t.sell) || 0,
+                totalSell: Number(t.total_sell) || 0,
+                status: t.status,
+                profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+                notes: t.notes || '-'
             };
             if(!transactionData[formatted.monthKey]) transactionData[formatted.monthKey] = [];
             transactionData[formatted.monthKey].push(formatted);

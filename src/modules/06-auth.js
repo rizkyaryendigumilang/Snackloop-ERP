@@ -94,6 +94,9 @@ document.getElementById('login-form').addEventListener('submit', async function(
 });
 
 function logoutApp() {
+    if (typeof stopSupabaseRealtimeSync === 'function') {
+        stopSupabaseRealtimeSync();
+    }
     currentUser = null;
     currentRole = null;
     localStorage.removeItem('snackloop_session'); // Hapus sesi saat logout
@@ -359,6 +362,10 @@ async function initApp() {
     if(navigator.onLine) {
         syncOutboxQueue();
     }
+    // P3: Inisialisasi Realtime Multi-Device Sync
+    if (typeof initSupabaseRealtimeSync === 'function') {
+        initSupabaseRealtimeSync();
+    }
 }
 
 async function loadDataFromCloud() {
@@ -371,25 +378,49 @@ async function loadDataFromCloud() {
                 return;
             }
         }
+
+        const isSuperAdmin = currentRole === 'super_admin';
+
+        // P1: Keamanan Database & Kolom Sensitif (Role-Based Column Isolation)
+        // Staf Kasir & Viewer TIDAK PERNAH dikirim data pengeluaran operasional (expenses)
+        // dan kolom harga modal rahasia supplier (buy, total_modal, profit_per_item)
+        const expQuery = isSuperAdmin 
+            ? supabaseClient.from('expenses').select('*').order('date', { ascending: false })
+            : Promise.resolve({ data: [] });
+
+        const trxQuery = isSuperAdmin
+            ? supabaseClient.from('transactions').select('*').order('date', { ascending: false })
+            : supabaseClient.from('transactions')
+                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note, created_at')
+                .order('date', { ascending: false });
+
+        const masterQuery = isSuperAdmin
+            ? supabaseClient.from('master').select('*').order('name', { ascending: true })
+            : supabaseClient.from('master').select('id, name, source, sell, agent_id, created_at').order('name', { ascending: true });
+
+        const repackQuery = isSuperAdmin
+            ? supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'))
+            : supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty, created_at').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty'));
+
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),
-            supabaseClient.from('master').select('*').order('name', { ascending: true }),
+            masterQuery,
             supabaseClient.from('customers').select('*').order('name', { ascending: true }),
-            supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*')),
-            supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
-            supabaseClient.from('expenses').select('*').order('date', { ascending: false }),
-            supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }),
+            repackQuery,
+            trxQuery,
+            expQuery,
+            isSuperAdmin ? supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }) : Promise.resolve({ data: (currentUser ? [{ username: currentUser, role: currentRole }] : []) }),
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
-            supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')),
+            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
             supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
         agentData = resAgent.data || [];
-        masterData = resMaster.data || [];
+        masterData = (resMaster.data || []).map(m => isSuperAdmin ? m : { ...m, buy: 0 });
         customerData = resCust.data || [];
-        repackData = resRepack.data || [];
-        expenseData = resExp.data || [];
+        repackData = (resRepack.data || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
+        expenseData = isSuperAdmin ? (resExp.data || []) : [];
         userData = resUsers.data || [];
 
         if (resReturns && !resReturns.error && Array.isArray(resReturns.data)) {
@@ -399,16 +430,22 @@ async function loadDataFromCloud() {
             jastipData = resJastip.data;
         }
         invoiceData = resInv.data || [];
-        priceHistoryData = resHistory.data || [];
+        priceHistoryData = isSuperAdmin ? (resHistory.data || []) : [];
 
         transactionData = {};
         (resTrx.data || []).forEach(t => {
             const formatted = {
                 id: t.id, monthKey: t.month_key, date: t.date, customer: t.customer,
-                itemName: t.item_name, source: t.source, qty: t.qty, batch: t.batch,
-                buy: t.buy, extraCost: t.extra_cost || 0, extraCostNote: t.extra_cost_note || '-',
-                totalModal: t.total_modal, sell: t.sell, totalSell: t.total_sell,
-                status: t.status, profitPerItem: t.profit_per_item, notes: t.notes || '-'
+                itemName: t.item_name, source: t.source, qty: Number(t.qty) || 0, batch: t.batch,
+                buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+                extraCost: Number(t.extra_cost) || 0,
+                extraCostNote: t.extra_cost_note || '-',
+                totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+                sell: Number(t.sell) || 0,
+                totalSell: Number(t.total_sell) || 0,
+                status: t.status,
+                profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+                notes: t.notes || '-'
             };
             if(!transactionData[formatted.monthKey]) transactionData[formatted.monthKey] = [];
             transactionData[formatted.monthKey].push(formatted);
