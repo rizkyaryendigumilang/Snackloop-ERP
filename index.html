@@ -294,11 +294,11 @@
                             <h3 class="font-bold text-sm" data-i18n="dash_overview_title">Ringkasan Performa Usaha</h3>
                             <p class="text-xs opacity-70" data-i18n="dash_overview_subtitle">Pilih rentang waktu untuk melihat analisis penjualan</p>
                         </div>
-                        <div class="flex items-center theme-input p-1 rounded-xl border gap-1 text-xs font-medium">
-                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_today">Hari Ini</button>
-                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_7days">7 Hari</button>
-                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="px-3 py-1.5 rounded-lg transition" data-i18n="filter_30days">30 Hari</button>
-                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="px-3 py-1.5 rounded-lg transition bg-indigo-600 text-white shadow-sm font-semibold" data-i18n="filter_all">Keseluruhan</button>
+                        <div class="seg-control">
+                            <button onclick="setDashboardTimeFilter('today')" id="btn-filter-today" class="seg-btn" data-i18n="filter_today">Hari Ini</button>
+                            <button onclick="setDashboardTimeFilter('7days')" id="btn-filter-7days" class="seg-btn" data-i18n="filter_7days">7 Hari</button>
+                            <button onclick="setDashboardTimeFilter('30days')" id="btn-filter-30days" class="seg-btn" data-i18n="filter_30days">30 Hari</button>
+                            <button onclick="setDashboardTimeFilter('all')" id="btn-filter-all" class="seg-btn is-active" data-i18n="filter_all">Keseluruhan</button>
                         </div>
                     </div>
 
@@ -329,6 +329,23 @@
                                 <div class="p-4 rounded-xl border border-inherit theme-input">
                                     <p class="text-[10px] font-bold uppercase text-rose-500" data-i18n="stat_debt">Total Tagihan Piutang</p>
                                     <h3 id="stat-Hutang" class="text-lg font-bold text-rose-500 mt-1">Rp 0</h3>
+                                </div>
+                            </div>
+
+                            <div class="pt-3 border-t border-inherit space-y-2">
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="font-bold opacity-75">Struktur Rasio Keuangan</span>
+                                    <span id="stat-split-ratio-text" class="tabular-nums font-semibold opacity-70">Modal 0% • Laba 0%</span>
+                                </div>
+                                <div class="w-full h-2 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800 border border-inherit">
+                                    <div id="stat-split-modal-bar" class="h-full bg-slate-400 dark:bg-slate-500 transition-all duration-300" style="width: 0%" title="Modal (HPP)"></div>
+                                    <div id="stat-split-profit-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%" title="Laba Bersih"></div>
+                                    <div id="stat-split-expense-bar" class="h-full bg-amber-500 transition-all duration-300" style="width: 0%" title="Biaya Operasional"></div>
+                                </div>
+                                <div class="flex items-center gap-4 text-[10px] opacity-70 flex-wrap">
+                                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500"></span> Modal (HPP)</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Laba Bersih</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Biaya Operasional</span>
                                 </div>
                             </div>
 
@@ -404,9 +421,9 @@
                                 </h3>
                                 <p class="text-xs opacity-60">Peringkat agen pelanggan berdasarkan volume belanja dan frekuensi pemesanan</p>
                             </div>
-                            <div class="flex items-center theme-input p-1 rounded-lg border text-xs font-semibold">
-                                <button type="button" onclick="setLeaderboardPeriod('month')" id="btn-lb-month" class="px-3 py-1 rounded-md transition opacity-70 hover:opacity-100">Bulan Ini</button>
-                                <button type="button" onclick="setLeaderboardPeriod('all')" id="btn-lb-all" class="px-3 py-1 rounded-md transition bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm">Sepanjang Waktu</button>
+                            <div class="seg-control">
+                                <button type="button" onclick="setLeaderboardPeriod('month')" id="btn-lb-month" class="seg-btn">Bulan Ini</button>
+                                <button type="button" onclick="setLeaderboardPeriod('all')" id="btn-lb-all" class="seg-btn is-active">Sepanjang Waktu</button>
                             </div>
                         </div>
                         <div id="customer-leaderboard-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>

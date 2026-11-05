@@ -27,6 +27,17 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
+  --glass-rim: rgba(255, 255, 255, 0.7);
+  --glass-rim-low: rgba(0, 0, 0, 0.04);
+  --sheen: linear-gradient(140deg, rgba(255, 255, 255, 0.4), transparent 42%);
+  --soft-good: #0c8a6c;
+  --soft-good-bg: rgba(12, 138, 108, 0.12);
+  --soft-warn: #b45309;
+  --soft-warn-bg: rgba(180, 83, 9, 0.12);
+  --soft-bad: #be123c;
+  --soft-bad-bg: rgba(190, 18, 60, 0.12);
+  --soft-info: #4338ca;
+  --soft-info-bg: rgba(67, 56, 202, 0.12);
 }
 
 body.dark-theme {
@@ -40,6 +51,17 @@ body.dark-theme {
   --btn-filter-bg: #161b22;
   --btn-filter-text: #f8fafc;
   --text: #8b949e;
+  --glass-rim: rgba(255, 255, 255, 0.12);
+  --glass-rim-low: rgba(255, 255, 255, 0.03);
+  --sheen: linear-gradient(140deg, rgba(255, 255, 255, 0.08), transparent 40%);
+  --soft-good: #5fe0b8;
+  --soft-good-bg: rgba(95, 224, 184, 0.14);
+  --soft-warn: #f2c26b;
+  --soft-warn-bg: rgba(242, 194, 107, 0.14);
+  --soft-bad: #ff857a;
+  --soft-bad-bg: rgba(255, 133, 122, 0.14);
+  --soft-info: #818cf8;
+  --soft-info-bg: rgba(129, 140, 248, 0.15);
 }
 
 html, body {
@@ -64,6 +86,82 @@ body.dark-theme {
   border-color: var(--border-color);
   color: var(--text-main);
   transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.theme-card {
+  position: relative;
+  box-shadow: inset 0 1px 0 var(--glass-rim), 0 4px 20px -4px rgba(15, 23, 42, 0.05);
+}
+
+.theme-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--sheen);
+  opacity: 0.65;
+}
+
+/* Sorvo Soft Semantic Badges */
+.badge-soft-good {
+  background: var(--soft-good-bg) !important;
+  color: var(--soft-good) !important;
+  border: 1px solid rgba(12, 138, 108, 0.22) !important;
+}
+
+.badge-soft-warn {
+  background: var(--soft-warn-bg) !important;
+  color: var(--soft-warn) !important;
+  border: 1px solid rgba(180, 83, 9, 0.22) !important;
+}
+
+.badge-soft-bad {
+  background: var(--soft-bad-bg) !important;
+  color: var(--soft-bad) !important;
+  border: 1px solid rgba(190, 18, 60, 0.22) !important;
+}
+
+.badge-soft-info {
+  background: var(--soft-info-bg) !important;
+  color: var(--soft-info) !important;
+  border: 1px solid rgba(67, 56, 202, 0.22) !important;
+}
+
+/* Sorvo Segmented Control Capsule */
+.seg-control {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  gap: 2px;
+}
+
+.seg-btn {
+  padding: 5px 12px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.seg-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.seg-btn.is-active,
+.seg-btn.active {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
 }
 .theme-input {
   background: var(--input-bg);
@@ -763,12 +861,46 @@ textarea:focus-visible,
 }
 
 @media screen and (max-width: 640px) {
+  .fixed.flex[id*="modal"],
+  .fixed.flex[id*="custom-"] {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
   .fixed[id*="modal"] > div,
   .fixed[id*="custom-"] > div {
-    max-height: calc(100dvh - 1.5rem);
-    padding: 1.15rem !important;
-    margin: 0.5rem auto !important;
+    border-radius: 26px 26px 0 0 !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
     width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88dvh !important;
+    margin: 0 !important;
+    padding: 1.25rem 1.15rem max(1.5rem, env(safe-area-inset-bottom)) 1.15rem !important;
+    box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.35) !important;
+    transform: translateY(100%);
+    transition: transform 240ms var(--ease-fluid), opacity 200ms ease;
+    position: relative;
+  }
+
+  .fixed.flex[id*="modal"] > div,
+  .fixed.flex[id*="custom-"] > div {
+    transform: translateY(0) !important;
+  }
+
+  /* Bottom Sheet Drag Affordance Pill */
+  .fixed[id*="modal"] > div::before,
+  .fixed[id*="custom-"] > div::before {
+    content: "";
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--text);
+    opacity: 0.3;
+    margin: -0.25rem auto 0.85rem auto;
   }
 
   /* Pelepasan Jebakan Scroll Ganda Tabel pada Layar Mobile */

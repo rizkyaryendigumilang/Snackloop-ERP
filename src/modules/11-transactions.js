@@ -941,9 +941,9 @@ async function renderInvoicesTable() {
         const safeDate = escapeHtml(inv.date);
 
         const badgeStatus = inv.status === 'Lunas' ? 
-            `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-500 rounded-full font-bold text-[11px] inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> LUNAS</span>` : 
+            `<span class="badge-soft-good text-[11px]"><i class="fa-solid fa-check mr-1"></i> LUNAS</span>` : 
             `<div class="space-y-1">
-                <span class="px-2 py-0.5 bg-rose-500/20 text-rose-500 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> BELUM LUNAS</span>
+                <span class="badge-soft-bad text-[10px]"><i class="fa-solid fa-triangle-exclamation mr-1"></i> BELUM LUNAS</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] border font-bold ${info.colorClass} block w-fit"><i class="${info.badgeIcon || 'fa-regular fa-clock'} mr-1"></i>${info.label}</span>
              </div>`;
         
@@ -1190,11 +1190,11 @@ function setLeaderboardPeriod(period) {
     const btnAll = document.getElementById('btn-lb-all');
     if (btnMonth && btnAll) {
         if (period === 'month') {
-            btnMonth.className = "px-3 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm";
-            btnAll.className = "px-3 py-1.5 rounded-full transition opacity-70 hover:opacity-100";
+            btnMonth.className = "seg-btn is-active";
+            btnAll.className = "seg-btn";
         } else {
-            btnAll.className = "px-3 py-1.5 rounded-full transition bg-indigo-600 text-white shadow-sm";
-            btnMonth.className = "px-3 py-1.5 rounded-full transition opacity-70 hover:opacity-100";
+            btnAll.className = "seg-btn is-active";
+            btnMonth.className = "seg-btn";
         }
     }
     renderCustomerLeaderboard();
@@ -1868,10 +1868,10 @@ function renderTransactionsForActiveSheet() {
         const safeDate = escapeHtml(t.date);
 
         const statusDropdown = isSuperAdmin ? 
-            `<select onchange="updateTrxStatus('${t.id}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded border cursor-pointer outline-none ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-rose-500/20 text-rose-500 border-rose-500/30'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
+            `<select onchange="updateTrxStatus('${t.id}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded-lg border cursor-pointer outline-none transition ${t.status === 'Lunas' ? 'badge-soft-good' : 'badge-soft-bad'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
             (canMarkPaid && t.status !== 'Lunas' ?
-                `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="px-2 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-600 hover:bg-emerald-500/20 hover:text-emerald-600 transition" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
-                `<span class="px-2 py-1 rounded text-xs font-bold ${t.status === 'Lunas' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}">${t.status}</span>`);
+                `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="badge-soft-warn hover:opacity-80 transition text-xs font-bold" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
+                `<span class="${t.status === 'Lunas' ? 'badge-soft-good' : 'badge-soft-bad'} text-xs">${t.status}</span>`);
 
         const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${safeSource}</span>`;
         const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${safeNotes}</span>` : '';
@@ -2260,9 +2260,9 @@ function setDashboardTimeFilter(filterType) {
         const btn = document.getElementById(`btn-filter-${f}`);
         if(btn) {
             if(f === filterType) {
-                btn.className = "px-4 py-2 rounded-full transition bg-indigo-600 text-white shadow-md";
+                btn.className = "seg-btn is-active";
             } else {
-                btn.className = "px-4 py-2 rounded-full transition opacity-70 hover:opacity-100";
+                btn.className = "seg-btn";
             }
         }
     });
@@ -2337,6 +2337,25 @@ function updateDashboard() {
     document.getElementById('stat-expense').innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
     document.getElementById('stat-Keuntungan').innerText = isSuperAdmin ? ('Rp ' + NetProfitFinal.toLocaleString()) : '*** (Rahasia)';
     document.getElementById('stat-Hutang').innerText = 'Rp ' + Hutang.toLocaleString();
+
+    // Sorvo Financial Split Bar calculations
+    const totalVolume = modal + Math.max(0, NetProfitFinal) + totalExpense;
+    let mPct = 0, pPct = 0, ePct = 0;
+    if (totalVolume > 0) {
+        mPct = Math.round((modal / totalVolume) * 100);
+        pPct = Math.round((Math.max(0, NetProfitFinal) / totalVolume) * 100);
+        ePct = Math.max(0, 100 - (mPct + pPct));
+    }
+    const splitRatioText = document.getElementById('stat-split-ratio-text');
+    if (splitRatioText) {
+        splitRatioText.textContent = `Modal ${mPct}% • Laba ${pPct}% • Biaya ${ePct}%`;
+    }
+    const mBar = document.getElementById('stat-split-modal-bar');
+    if (mBar) mBar.style.width = `${mPct}%`;
+    const pBar = document.getElementById('stat-split-profit-bar');
+    if (pBar) pBar.style.width = `${pPct}%`;
+    const eBar = document.getElementById('stat-split-expense-bar');
+    if (eBar) eBar.style.width = `${ePct}%`;
     
     const labelsDesc = {
         'id': { 'today': 'Hari Ini', '7days': '7 Hari Terakhir', '30days': '30 Hari Terakhir', 'all': 'Keseluruhan' },
@@ -2375,11 +2394,11 @@ function updateDashboard() {
                 
                 let agingBadge = '';
                 if (diffDays <= 7) {
-                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 font-bold">${diffDays}h (Lancar)</span>`;
+                    agingBadge = `<span class="badge-soft-good text-[10px]">${diffDays}h (Lancar)</span>`;
                 } else if (diffDays <= 14) {
-                    agingBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 font-bold">${diffDays}h (Perhatian)</span>`;
+                    agingBadge = `<span class="badge-soft-warn text-[10px]">${diffDays}h (Perhatian)</span>`;
                 } else {
-                    agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>${diffDays}h (Jatuh Tempo)</span>`;
+                    agingBadge = `<span class="badge-soft-bad text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1 inline-block"></span>${diffDays}h (Jatuh Tempo)</span>`;
                 }
 
                 const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
@@ -2461,7 +2480,7 @@ function renderTopProducts(salesMap) {
         <div class="p-4 theme-input border rounded-2xl flex flex-col justify-between space-y-2 shadow-sm">
             <div class="flex justify-between items-start">
                 <span class="text-xs font-bold opacity-60">#${idx + 1}</span>
-                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 font-bold rounded text-[10px]">${p.qty} Terjual</span>
+                <span class="badge-soft-good text-[10px] font-bold">${p.qty} Terjual</span>
             </div>
             <div>
                 <h4 class="font-bold text-sm line-clamp-1">${escapeHtml(p.name)}</h4>
@@ -2530,18 +2549,20 @@ function renderFinancialChart() {
                 {
                     label: 'Total Pendapatan',
                     data: pData,
-                    backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.82)',
                     borderColor: 'rgb(99, 102, 241)',
                     borderWidth: 1,
-                    borderRadius: 8
+                    borderRadius: 8,
+                    borderSkipped: false
                 },
                 {
                     label: 'Keuntungan Bersih',
                     data: kData,
-                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.82)',
                     borderColor: 'rgb(16, 185, 129)',
                     borderWidth: 1,
-                    borderRadius: 8
+                    borderRadius: 8,
+                    borderSkipped: false
                 }
             ]
         },
