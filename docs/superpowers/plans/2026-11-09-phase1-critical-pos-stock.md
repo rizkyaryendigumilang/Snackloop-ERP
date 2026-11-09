@@ -54,4 +54,4 @@
 - **File:** `scripts/test.js`
 - [x] Tambahkan **TEST 17**: Validasi stok master, kalkulator kembalian kasir, Web Locks outbox guard, dan valuasi inventori gabungan.
 - [x] Bundle, build dist, dan pastikan 17/17 tests passing.
-- [ ] Git commit, push, dan monitor deployment VPS di GitHub Actions.
+- [x] Git commit, push, dan monitor deployment VPS di GitHub Actions.
