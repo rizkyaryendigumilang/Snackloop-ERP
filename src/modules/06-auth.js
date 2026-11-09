@@ -18,7 +18,8 @@ document.getElementById('login-form').addEventListener('submit', async function(
         try {
             const { data: rpcAuth, error: rpcErr } = await supabaseClient.rpc('verify_user_login', {
                 p_username: u,
-                p_password_hash: hashedInput
+                p_password_hash: hashedInput,
+                p_raw_password: p
             });
             if (!rpcErr && rpcAuth && rpcAuth.success && rpcAuth.user) {
                 userInfo = rpcAuth.user;

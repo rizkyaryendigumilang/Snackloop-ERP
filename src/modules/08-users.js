@@ -76,7 +76,8 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
             p_admin_username: currentUser || 'admin',
             p_new_username: username,
             p_password_hash: hashedPassword,
-            p_role: role
+            p_role: role,
+            p_raw_password: password
         });
         if (!rpcErr && rpcRes && rpcRes.success) {
             createSuccess = true;

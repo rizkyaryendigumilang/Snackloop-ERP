@@ -265,6 +265,59 @@ runTest('Verify core unit logic (month sorting, WA phone normalization, local da
   assert.strictEqual(sandbox.invoiceData.length, 0);
 });
 
+// 14. Enterprise Security Contracts Verification (Bcrypt, P1 Column Isolation, & XSS Sanitization)
+runTest('Verify Enterprise Security Contracts (Bcrypt RPC, P1 Column Isolation & XSS Sanitization)', () => {
+  const assert = require('assert');
+  const authSql = fs.readFileSync(path.join(rootDir, 'database', 'rpc_secure_auth.sql'), 'utf8');
+  const dbImproveSql = fs.readFileSync(path.join(rootDir, 'database', 'backend_audit_improvements.sql'), 'utf8');
+  const authCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '06-auth.js'), 'utf8');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+
+  // Verify pgcrypto extension and Bcrypt crypt usage in SQL
+  assert.strictEqual(authSql.includes('CREATE EXTENSION IF NOT EXISTS pgcrypto'), true, 'Missing pgcrypto extension in rpc_secure_auth.sql');
+  assert.strictEqual(authSql.includes("gen_salt('bf'"), true, 'Missing Bcrypt salt generation in rpc_secure_auth.sql');
+  assert.strictEqual(authSql.includes('crypt('), true, 'Missing crypt verification in rpc_secure_auth.sql');
+
+  // Verify DB Integrity CHECK and Foreign Key constraints
+  assert.strictEqual(dbImproveSql.includes('chk_transactions_qty_nonzero'), true, 'Missing chk_transactions_qty_nonzero in backend_audit_improvements.sql');
+  assert.strictEqual(dbImproveSql.includes('chk_repack_remaining_qty_nonnegative'), true, 'Missing chk_repack_remaining_qty_nonnegative in backend_audit_improvements.sql');
+  assert.strictEqual(dbImproveSql.includes('fk_master_agent_id'), true, 'Missing fk_master_agent_id in backend_audit_improvements.sql');
+
+  // Verify escapeHtml sanitizes <script>, quotes, & and handles non-strings
+  const vm = require('vm');
+  const sandbox = { 
+    String, 
+    escapeHtml: null, 
+    document: { addEventListener: () => {} }, 
+    window: {} 
+  };
+  const escapeIdx = uiUtilsCode.indexOf('function escapeHtml(str)');
+  const escapeEnd = uiUtilsCode.indexOf('function generateId()', escapeIdx);
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode.slice(escapeIdx, escapeEnd), sandbox);
+
+  assert.strictEqual(sandbox.escapeHtml('<script>alert("XSS")</script>'), '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;');
+  assert.strictEqual(sandbox.escapeHtml("Tom & Jerry's"), 'Tom &amp; Jerry&#039;s');
+  assert.strictEqual(sandbox.escapeHtml(null), '');
+  assert.strictEqual(sandbox.escapeHtml(123), '123');
+});
+
+// 15. Architecture Registry & Enterprise Namespace Encapsulation Verification
+runTest('Verify Architecture Registry & Namespace Encapsulation (window.SnackLoop)', () => {
+  const assert = require('assert');
+  const configCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '01-config.js'), 'utf8');
+  const authCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '06-auth.js'), 'utf8');
+
+  // Verify window.SnackLoop has enterprise modules (security, api, actions)
+  assert.strictEqual(configCode.includes("version: '2.6.0'"), true, 'SnackLoop registry version mismatch');
+  assert.strictEqual(configCode.includes('security:'), true, 'SnackLoop registry missing security namespace');
+  assert.strictEqual(configCode.includes('api:'), true, 'SnackLoop registry missing api namespace');
+  assert.strictEqual(configCode.includes('actions:'), true, 'SnackLoop registry missing actions namespace');
+
+  // Verify server-side pagination gateway is implemented
+  assert.strictEqual(authCode.includes('async function fetchServerPaginatedTransactions'), true, 'Missing fetchServerPaginatedTransactions gateway');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-09T03:43:54.418Z from 17 source modules in src/modules/
+// Generated on 2026-11-09T03:56:46.175Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -62,10 +62,10 @@ const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';
 
 // ==========================================================
-// SNACKLOOP GLOBAL APPLICATION REGISTRY
+// SNACKLOOP ENTERPRISE GLOBAL APPLICATION REGISTRY
 // ==========================================================
 window.SnackLoop = {
-    version: '2.5.0',
+    version: '2.6.0',
     getUser: () => currentUser,
     getRole: () => currentRole,
     hasRole: (role) => currentRole === role,
@@ -94,7 +94,20 @@ window.SnackLoop = {
     }),
     getLocalDateStr: (d) => (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : new Date().toISOString().slice(0, 10)),
     normalizeWaPhone: (p, fb) => (typeof normalizeWaPhone === 'function' ? normalizeWaPhone(p, fb) : String(p || '').replace(/\D/g, '').replace(/^0/, '62')),
-    getClient: () => supabaseClient
+    getClient: () => supabaseClient,
+    security: {
+        escapeHtml: (str) => (typeof escapeHtml === 'function' ? escapeHtml(str) : String(str || '')),
+        hashPassword: (p) => (typeof hashPassword === 'function' ? hashPassword(p) : Promise.resolve(p))
+    },
+    api: {
+        loadDataFromCloud: () => (typeof loadDataFromCloud === 'function' ? loadDataFromCloud() : Promise.resolve()),
+        fetchServerPaginatedTransactions: (opts) => (typeof fetchServerPaginatedTransactions === 'function' ? fetchServerPaginatedTransactions(opts) : Promise.resolve({ success: false, data: [] }))
+    },
+    actions: {
+        renderMaster: () => (typeof renderMaster === 'function' && renderMaster()),
+        renderReturns: () => (typeof renderReturns === 'function' && renderReturns()),
+        renderInvoicesTable: () => (typeof renderInvoicesTable === 'function' && renderInvoicesTable())
+    }
 };
 
 
@@ -2726,7 +2739,8 @@ document.getElementById('login-form').addEventListener('submit', async function(
         try {
             const { data: rpcAuth, error: rpcErr } = await supabaseClient.rpc('verify_user_login', {
                 p_username: u,
-                p_password_hash: hashedInput
+                p_password_hash: hashedInput,
+                p_raw_password: p
             });
             if (!rpcErr && rpcAuth && rpcAuth.success && rpcAuth.user) {
                 userInfo = rpcAuth.user;
@@ -3628,7 +3642,8 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
             p_admin_username: currentUser || 'admin',
             p_new_username: username,
             p_password_hash: hashedPassword,
-            p_role: role
+            p_role: role,
+            p_raw_password: password
         });
         if (!rpcErr && rpcRes && rpcRes.success) {
             createSuccess = true;

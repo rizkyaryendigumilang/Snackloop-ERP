@@ -56,10 +56,10 @@ const invoiceRowsPerPage = 25;
 let currentInvoiceSearchKeyword = '';
 
 // ==========================================================
-// SNACKLOOP GLOBAL APPLICATION REGISTRY
+// SNACKLOOP ENTERPRISE GLOBAL APPLICATION REGISTRY
 // ==========================================================
 window.SnackLoop = {
-    version: '2.5.0',
+    version: '2.6.0',
     getUser: () => currentUser,
     getRole: () => currentRole,
     hasRole: (role) => currentRole === role,
@@ -88,6 +88,19 @@ window.SnackLoop = {
     }),
     getLocalDateStr: (d) => (typeof getLocalDateStr === 'function' ? getLocalDateStr(d) : new Date().toISOString().slice(0, 10)),
     normalizeWaPhone: (p, fb) => (typeof normalizeWaPhone === 'function' ? normalizeWaPhone(p, fb) : String(p || '').replace(/\D/g, '').replace(/^0/, '62')),
-    getClient: () => supabaseClient
+    getClient: () => supabaseClient,
+    security: {
+        escapeHtml: (str) => (typeof escapeHtml === 'function' ? escapeHtml(str) : String(str || '')),
+        hashPassword: (p) => (typeof hashPassword === 'function' ? hashPassword(p) : Promise.resolve(p))
+    },
+    api: {
+        loadDataFromCloud: () => (typeof loadDataFromCloud === 'function' ? loadDataFromCloud() : Promise.resolve()),
+        fetchServerPaginatedTransactions: (opts) => (typeof fetchServerPaginatedTransactions === 'function' ? fetchServerPaginatedTransactions(opts) : Promise.resolve({ success: false, data: [] }))
+    },
+    actions: {
+        renderMaster: () => (typeof renderMaster === 'function' && renderMaster()),
+        renderReturns: () => (typeof renderReturns === 'function' && renderReturns()),
+        renderInvoicesTable: () => (typeof renderInvoicesTable === 'function' && renderInvoicesTable())
+    }
 };
 

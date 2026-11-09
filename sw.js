@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v31 (Unslopped Visual Craft & Quiet Chrome)
-const CACHE_NAME = 'snackloop-cache-v31';
+// SnackLoop ERP Service Worker v32 (Enterprise Architecture & Bcrypt Upgrade)
+const CACHE_NAME = 'snackloop-cache-v32';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
