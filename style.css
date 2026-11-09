@@ -161,7 +161,7 @@ body.dark-theme {
 .seg-btn.active {
   background: var(--primary) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .theme-input {
   background: var(--input-bg);
@@ -349,7 +349,7 @@ body.navbar-collapsed .navbar__link span {
 .navbar__active-pill {
   z-index: 1;
   background: var(--primary);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(79, 70, 229, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px rgba(15, 23, 42, 0.16);
   transition: transform 240ms var(--ease-fluid), width 180ms var(--ease-fluid), height 180ms var(--ease-fluid), opacity 160ms ease;
 }
 
@@ -414,7 +414,7 @@ body.dark-theme .navbar__hover-pill {
 .navbar__link.active {
   background: var(--primary);
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
 }
 
 .navbar__menu.pill-ready .navbar__link.active {
@@ -699,7 +699,7 @@ header {
   .navbar__menu:not(.pill-ready) .navbar__link.active {
     background: var(--primary) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16) !important;
   }
 }
 

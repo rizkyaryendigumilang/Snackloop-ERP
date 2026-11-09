@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v30 (DB Integrity Constraints & Fault-Tolerant Paginated API)
-const CACHE_NAME = 'snackloop-cache-v30';
+// SnackLoop ERP Service Worker v31 (Unslopped Visual Craft & Quiet Chrome)
+const CACHE_NAME = 'snackloop-cache-v31';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

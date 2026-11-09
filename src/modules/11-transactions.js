@@ -1278,7 +1278,7 @@ function renderCustomerLeaderboard() {
                         ${rankBadge}
                         <div>
                             <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${safeCustName}</h4>
-                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
+                            <span class="text-[11px] font-medium text-slate-500">${tierTitle}</span>
                         </div>
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">

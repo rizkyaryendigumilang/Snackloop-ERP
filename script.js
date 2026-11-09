@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-09T03:36:04.183Z from 17 source modules in src/modules/
+// Generated on 2026-11-09T03:43:54.418Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1335,8 +1335,8 @@ function updateNetworkStatus() {
         if (container) container.setAttribute('title', `Ada ${count} data tertunda sinkronisasi. Klik untuk kirim.`);
     } else {
         if (typeof _isRealtimeSubscribed !== 'undefined' && _isRealtimeSubscribed) {
-            badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors";
-            badgeEl.innerHTML = `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span id="sync-status-text" class="hidden">Live</span>`;
+            badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900/60 text-emerald-600 dark:text-emerald-400 shadow-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
+            badgeEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"></span><span id="sync-status-text" class="hidden">Live</span>`;
             if (container) container.setAttribute('title', "Status: Online (Realtime Sync Multi-Device Aktif)");
         } else {
             badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-slate-50 text-emerald-700 border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800 shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
@@ -2225,8 +2225,8 @@ function _updateRealtimeStatusBadge(isActive) {
     }
 
     if (isActive && badgeEl) {
-        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 shadow-sm cursor-pointer hover:bg-emerald-100 transition-colors";
-        badgeEl.innerHTML = `<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><span id="sync-status-text" class="hidden">Live</span>`;
+        badgeEl.className = "w-8 h-8 md:w-9 md:h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900/60 text-emerald-600 dark:text-emerald-400 shadow-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors";
+        badgeEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20"></span><span id="sync-status-text" class="hidden">Live</span>`;
         if (container) container.setAttribute('title', "Status: Online (Realtime Sync Multi-Device Aktif)");
     }
 }
@@ -5455,7 +5455,7 @@ function renderCustomerLeaderboard() {
                         ${rankBadge}
                         <div>
                             <h4 class="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[150px]">${safeCustName}</h4>
-                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">${tierTitle}</span>
+                            <span class="text-[11px] font-medium text-slate-500">${tierTitle}</span>
                         </div>
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">
