@@ -2,6 +2,15 @@
 function openModalById(id) {
     const el = document.getElementById(id);
     if (!el) return null;
+    const card = el.querySelector('.theme-card') || el.firstElementChild;
+    if (card) {
+        card.style.transform = '';
+        card.style.opacity = '';
+        card.style.transition = '';
+    }
+    if (typeof attachModalSwipeDismiss === 'function') {
+        attachModalSwipeDismiss(el);
+    }
     el.classList.remove('hidden');
     el.classList.add('flex');
     if (el.style.display === 'none') el.style.display = 'flex';
@@ -261,3 +270,125 @@ document.addEventListener('click', function(e) {
         closeTopmostModal();
     }
 });
+
+// ======================= APPLE FLUID MODAL SHEET GESTURES ======================= //
+function attachModalSwipeDismiss(modal) {
+    if (!modal || modal._hasAppleGesture) return;
+    modal._hasAppleGesture = true;
+
+    const card = modal.querySelector('.theme-card') || modal.querySelector('[class*="bg-"]') || modal.firstElementChild;
+    if (!card) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let startTime = 0;
+    let isDragging = false;
+
+    // Optional drag handle insertion for mobile viewports if absent
+    if (!card.querySelector('.apple-sheet-handle') && !card.classList.contains('no-sheet-handle')) {
+        const handle = document.createElement('div');
+        handle.className = 'apple-sheet-handle hidden sm:hidden';
+        card.insertBefore(handle, card.firstChild);
+    }
+
+    const onTouchStart = (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        const touchTarget = e.target;
+        if (touchTarget && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(touchTarget.tagName)) return;
+
+        const scrollParent = touchTarget.closest ? touchTarget.closest('.overflow-y-auto, .overflow-auto') : null;
+        if (scrollParent && scrollParent.scrollTop > 0) return;
+
+        startY = e.touches[0].clientY;
+        currentY = startY;
+        startTime = Date.now();
+        isDragging = true;
+        card.style.transition = 'none';
+        card.style.willChange = 'transform, opacity';
+    };
+
+    const onTouchMove = (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+
+        if (deltaY > 0) {
+            const opacity = Math.max(0.2, 1 - (deltaY / (card.clientHeight || 400)) * 0.8);
+            card.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+            card.style.opacity = `${opacity}`;
+            if (e.cancelable) e.preventDefault();
+        } else if (deltaY < 0) {
+            const motion = window.SnackLoop && window.SnackLoop.AppleMotion;
+            const rb = motion && typeof motion.rubberband === 'function' 
+                ? motion.rubberband(deltaY, card.clientHeight || 400, 0.55) 
+                : deltaY * 0.3;
+            card.style.transform = `translate3d(0, ${rb}px, 0)`;
+        }
+    };
+
+    const onTouchEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        card.style.willChange = 'auto';
+
+        const deltaY = currentY - startY;
+        const dt = Math.max(1, Date.now() - startTime);
+        const velocity = (deltaY / dt) * 1000;
+
+        const motion = window.SnackLoop && window.SnackLoop.AppleMotion;
+        const projected = motion && typeof motion.projectMomentum === 'function' 
+            ? motion.projectMomentum(velocity, 0.998) 
+            : velocity * 0.3;
+        const cardHeight = card.clientHeight || 400;
+
+        const shouldDismiss = (deltaY > cardHeight * 0.25) || (velocity > 500) || ((deltaY + projected) > cardHeight * 0.5);
+
+        if (shouldDismiss && deltaY > 20) {
+            card.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out';
+            card.style.transform = 'translate3d(0, 100%, 0)';
+            card.style.opacity = '0';
+
+            if (motion && typeof motion.triggerHaptic === 'function') {
+                motion.triggerHaptic('light');
+            }
+
+            setTimeout(() => {
+                closeModalById(modal.id);
+                card.style.transform = '';
+                card.style.opacity = '';
+                card.style.transition = '';
+            }, 230);
+        } else {
+            card.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out';
+            card.style.transform = 'translate3d(0, 0, 0)';
+            card.style.opacity = '1';
+            setTimeout(() => {
+                card.style.transition = '';
+            }, 360);
+        }
+    };
+
+    card.addEventListener('touchstart', onTouchStart, { passive: false });
+    card.addEventListener('touchmove', onTouchMove, { passive: false });
+    card.addEventListener('touchend', onTouchEnd, { passive: true });
+    card.addEventListener('touchcancel', onTouchEnd, { passive: true });
+}
+
+function initAppleModalGestures() {
+    if (typeof document === 'undefined') return;
+    const modals = document.querySelectorAll('.fixed[id*="modal"], .fixed[id*="custom-"]');
+    modals.forEach(m => attachModalSwipeDismiss(m));
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAppleModalGestures);
+    } else {
+        initAppleModalGestures();
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.SnackLoop = window.SnackLoop || {};
+    window.SnackLoop.attachModalSwipeDismiss = attachModalSwipeDismiss;
+}

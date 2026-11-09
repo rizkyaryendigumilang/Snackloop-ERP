@@ -318,6 +318,66 @@ runTest('Verify Architecture Registry & Namespace Encapsulation (window.SnackLoo
   assert.strictEqual(authCode.includes('async function fetchServerPaginatedTransactions'), true, 'Missing fetchServerPaginatedTransactions gateway');
 });
 
+// 16. Apple Design System & Fluid Motion Verification (WWDC Guidelines)
+runTest('Verify Apple Design System (Spring Physics, Rubberband, Translucent Materials & Optical Typography)', () => {
+  const assert = require('assert');
+  const styleCss = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+
+  // 1. Verify Apple CSS Timing, Materials & Optical Typography
+  assert.strictEqual(styleCss.includes('--ease-apple-spring: cubic-bezier(0.16, 1, 0.3, 1)'), true, 'Missing --ease-apple-spring token in style.css');
+  assert.strictEqual(styleCss.includes('--ease-apple-bounce: cubic-bezier(0.34, 1.56, 0.64, 1)'), true, 'Missing --ease-apple-bounce token in style.css');
+  assert.strictEqual(styleCss.includes('.apple-glass'), true, 'Missing .apple-glass class in style.css');
+  assert.strictEqual(styleCss.includes('backdrop-filter: blur(20px) saturate(180%)'), true, 'Missing Apple standard frosted glass backdrop-filter');
+  assert.strictEqual(styleCss.includes('.apple-display'), true, 'Missing .apple-display class in style.css');
+  assert.strictEqual(styleCss.includes('letter-spacing: -0.02em'), true, 'Missing Apple optical negative tracking in style.css');
+  assert.strictEqual(styleCss.includes('.btn-apple-press:active'), true, 'Missing .btn-apple-press instant touch feedback');
+  assert.strictEqual(styleCss.includes('@media (prefers-reduced-transparency: reduce)'), true, 'Missing prefers-reduced-transparency accessibility block');
+
+  // 2. Verify Apple Motion Math in ui-utils (rubberband, momentum projection, spring step)
+  const vm = require('vm');
+  const sandbox = {
+    Math,
+    navigator: { vibrate: () => true },
+    window: { SnackLoop: {} },
+    console: { log: () => {}, warn: () => {} }
+  };
+  vm.createContext(sandbox);
+
+  // Extract AppleMotion block from uiUtilsCode
+  const motionStart = uiUtilsCode.indexOf('// ======================= APPLE DESIGN MOTION & HAPTICS ENGINE ======================= //');
+  assert.strictEqual(motionStart !== -1, true, 'Missing Apple Design Motion section in 03-ui-utils.js');
+  
+  vm.runInContext(uiUtilsCode.slice(motionStart), sandbox);
+  const motion = sandbox.window.SnackLoop.AppleMotion;
+  assert.strictEqual(typeof motion, 'object', 'AppleMotion namespace not attached to window.SnackLoop');
+
+  // Verify Rubber-banding formula: (overshoot * dim * 0.55) / (dim + 0.55 * |overshoot|)
+  const rbResult = motion.rubberband(100, 500, 0.55);
+  const expectedRb = (100 * 500 * 0.55) / (500 + 0.55 * 100);
+  assert.strictEqual(Math.abs(rbResult - expectedRb) < 0.0001, true, 'Rubberband formula output mismatch');
+  assert.strictEqual(motion.rubberband(0, 500), 0, 'Rubberband with zero overshoot should be 0');
+  assert.strictEqual(motion.rubberband(-100, 500) < 0, true, 'Negative overshoot should maintain negative sign');
+
+  // Verify Momentum Projection formula: (v / 1000) * d / (1 - d)
+  const projResult = motion.projectMomentum(1000, 0.998);
+  const expectedProj = (1000 / 1000) * 0.998 / (1 - 0.998); // 499
+  assert.strictEqual(Math.abs(projResult - expectedProj) < 0.0001, true, 'Momentum projection formula mismatch');
+
+  // Verify Haptic trigger
+  let vibrateCalled = false;
+  sandbox.navigator.vibrate = (pattern) => { vibrateCalled = true; return true; };
+  motion.triggerHaptic('light');
+  assert.strictEqual(vibrateCalled, true, 'triggerHaptic failed to call navigator.vibrate');
+
+  // 3. Verify HTML and Modal Gesture Integration
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  assert.strictEqual(indexHtml.includes('apple-header'), true, 'index.html main header must include apple-header class');
+  assert.strictEqual(styleCss.includes('.apple-sheet-handle'), true, 'style.css must define .apple-sheet-handle');
+  const modalsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '05-modals.js'), 'utf8');
+  assert.strictEqual(modalsCode.includes('attachModalSwipeDismiss'), true, '05-modals.js must implement attachModalSwipeDismiss');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

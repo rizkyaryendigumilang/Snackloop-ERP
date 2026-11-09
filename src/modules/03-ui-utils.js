@@ -378,4 +378,57 @@ function applyRolePermissions() {
         syncNavbarActivePill(true);
     }
 }
+
+// ======================= APPLE DESIGN MOTION & HAPTICS ENGINE ======================= //
+/**
+ * Apple Fluid Interface Mathematics (WWDC 2018 - Designing Fluid Interfaces)
+ */
+const AppleMotion = {
+    // 1. Rubber-banding Formula (Soft Boundaries)
+    // f(x, d, c) = (x * d * c) / (d + c * |x|)
+    rubberband(overshoot, dimension, constant = 0.55) {
+        if (!overshoot || !dimension) return 0;
+        return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+    },
+
+    // 2. Momentum Projection via Exponential Decay
+    // endpoint = (v / 1000) * d / (1 - d)
+    projectMomentum(initialVelocity, decelerationRate = 0.998) {
+        if (!initialVelocity) return 0;
+        return (initialVelocity / 1000) * decelerationRate / (1 - decelerationRate);
+    },
+
+    // 3. Apple Spring Simulation Step (Displacement & Velocity)
+    springStep(current, target, velocity, dampingRatio = 1.0, responseTime = 0.35, dt = 0.016) {
+        const angularFreq = (2 * Math.PI) / Math.max(0.01, responseTime);
+        const dampingCoeff = 2 * dampingRatio * angularFreq;
+        const springForce = -Math.pow(angularFreq, 2) * (current - target);
+        const dampingForce = -dampingCoeff * velocity;
+        const acceleration = springForce + dampingForce;
+
+        const nextVelocity = velocity + acceleration * dt;
+        const nextPosition = current + nextVelocity * dt;
+        return { position: nextPosition, velocity: nextVelocity };
+    },
+
+    // 4. Subtle Multimodal Audio-Haptic Feedback (WWDC Designing Audio-Haptic Experiences)
+    triggerHaptic(type = 'light') {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try {
+                if (type === 'light') navigator.vibrate(10);
+                else if (type === 'medium') navigator.vibrate(25);
+                else if (type === 'success') navigator.vibrate([12, 40, 12]);
+                else if (type === 'warning') navigator.vibrate([20, 50, 30]);
+                else if (type === 'error') navigator.vibrate([40, 60, 40]);
+            } catch (e) {
+                // Ignore silent failure on restricted browsers
+            }
+        }
+    }
+};
+
+if (typeof window !== 'undefined') {
+    window.SnackLoop = window.SnackLoop || {};
+    window.SnackLoop.AppleMotion = AppleMotion;
+}
 
