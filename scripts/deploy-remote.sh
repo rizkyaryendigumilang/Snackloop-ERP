@@ -38,7 +38,7 @@ cleanup_and_rollback() {
           mkdir -p "$STAGE_DIR/restore"
           tar -xzf "$BACKUP_FILE" -C "$STAGE_DIR/restore"
           if command -v rsync >/dev/null 2>&1; then
-            rsync -a --delete "$STAGE_DIR/restore/" "$TARGET_DIR/"
+            rsync -rlptD --no-owner --no-group --delete --chmod=D755,F644 "$STAGE_DIR/restore/" "$TARGET_DIR/" || cp -a "$STAGE_DIR/restore/." "$TARGET_DIR/"
           else
             cp -a "$STAGE_DIR/restore/." "$TARGET_DIR/"
           fi
@@ -127,10 +127,16 @@ DEPLOY_STATUS="SYNCING"
 IS_DIRTY=1
 
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete "$STAGE_DIR/" "$TARGET_DIR/"
+  echo "[deploy] Executing non-root rsync with safe owner/group flags..."
+  rsync -rlptD --no-owner --no-group --delete --chmod=D755,F644 "$STAGE_DIR/" "$TARGET_DIR/" || {
+    echo "[deploy] rsync exited with non-zero; applying cp fallback..."
+    cp -a "$STAGE_DIR/." "$TARGET_DIR/"
+    chmod -R u=rwX,go=rX "$TARGET_DIR"
+  }
 else
-  echo "rsync not found, syncing via cp fallback..."
+  echo "[deploy] rsync not found, syncing via cp fallback..."
   cp -a "$STAGE_DIR/." "$TARGET_DIR/"
+  chmod -R u=rwX,go=rX "$TARGET_DIR"
 fi
 echo "[deploy] Synchronization finished."
 
