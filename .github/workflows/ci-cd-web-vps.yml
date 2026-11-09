@@ -127,12 +127,16 @@ jobs:
           echo "Target Host: 43.156.236.102"
           echo "Target Directory: /srv/www/snackloop"
 
-      - uses: actions/download-artifact@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
         with:
           name: snackloop-web-dist
           path: ./artifact
 
-      - name: Configure verified SSH
+      - name: Configure verified SSH with ControlMaster
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USERNAME }}
@@ -152,15 +156,14 @@ jobs:
           printf '%s\n' "$VPS_KEY" | tr -d '\r' > "$HOME/.ssh/id_deploy"
           chmod 600 "$HOME/.ssh/id_deploy"
 
-          # Deteksi port SSH aktif (coba port konfigurasi, lalu 2222, lalu 22)
+          # Deteksi port SSH aktif (prioritaskan VPS_PORT, fallback ke 22)
           CHOSEN_PORT="$VPS_PORT"
-          for test_port in "$VPS_PORT" 2222 22; do
-            if nc -z -w 3 "$VPS_HOST" "$test_port" 2>/dev/null; then
-              CHOSEN_PORT="$test_port"
-              echo "SSH Port aktif terdeteksi: $CHOSEN_PORT"
-              break
-            fi
-          done
+          if nc -z -w 3 "$VPS_HOST" "$CHOSEN_PORT" 2>/dev/null; then
+            echo "SSH Port aktif terdeteksi: $CHOSEN_PORT"
+          elif [ "$CHOSEN_PORT" != "22" ] && nc -z -w 3 "$VPS_HOST" 22 2>/dev/null; then
+            CHOSEN_PORT="22"
+            echo "Fallback ke SSH Port: 22"
+          fi
           echo "ACTIVE_SSH_PORT=$CHOSEN_PORT" >> "$GITHUB_ENV"
 
           # Terapkan verifikasi host key dengan auto-scan port aktif sebagai fallback
@@ -169,188 +172,36 @@ jobs:
           else
             touch "$HOME/.ssh/known_hosts"
           fi
-          # Pastikan host key untuk port aktif terdaftar
           ssh-keyscan -p "$CHOSEN_PORT" "$VPS_HOST" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
           chmod 600 "$HOME/.ssh/known_hosts"
 
-      - name: Upload validated bundle
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USERNAME }}
-          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '2222' }}
-        run: |
-          TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
-          scp -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -P "$TARGET_PORT" ./artifact/web-dist.tar.gz "$VPS_USER@$VPS_HOST:web-dist-${GITHUB_SHA}.tar.gz"
+          # Konfigurasi SSH Client dengan ControlMaster multiplexing untuk mencegah connection timeout dan rate limiting
+          printf '%s\n' \
+            "Host vps-deploy" \
+            "  HostName $VPS_HOST" \
+            "  User $VPS_USER" \
+            "  Port $CHOSEN_PORT" \
+            "  IdentityFile $HOME/.ssh/id_deploy" \
+            "  IdentitiesOnly yes" \
+            "  StrictHostKeyChecking accept-new" \
+            "  UserKnownHostsFile $HOME/.ssh/known_hosts" \
+            "  ConnectTimeout 20" \
+            "  ServerAliveInterval 10" \
+            "  ServerAliveCountMax 3" \
+            "  ControlMaster auto" \
+            "  ControlPath $HOME/.ssh/cm-%r@%h:%p" \
+            "  ControlPersist 180s" \
+            "  BatchMode yes" > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
 
-      - name: Deploy with atomic backup, sync, and verified rollback
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USERNAME }}
-          VPS_PORT: ${{ secrets.VPS_SSH_PORT || secrets.VPS_PORT || '2222' }}
+      - name: Upload bundle and deployment script
         run: |
           set -euo pipefail
-          TARGET_PORT="${ACTIVE_SSH_PORT:-$VPS_PORT}"
-          ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -i "$HOME/.ssh/id_deploy" -p "$TARGET_PORT" "$VPS_USER@$VPS_HOST" "bash -s -- '/srv/www/snackloop' 'snackloop' '${GITHUB_SHA}'" <<'REMOTE'
-          set -Eeuo pipefail
+          chmod +x scripts/deploy-remote.sh
+          scp ./artifact/web-dist.tar.gz vps-deploy:web-dist-${GITHUB_SHA}.tar.gz
+          scp ./scripts/deploy-remote.sh vps-deploy:deploy-remote.sh
 
-          live="$1"
-          slug="$2"
-          release="$3"
-          [[ "$release" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Invalid release SHA format: $release"; exit 1; }
-
-          parent="$HOME/.deploy-$slug"
-          stage="$parent/stage-$release"
-          timestamp=$(date +%s)
-          backup="$parent/backup-${release}-${timestamp}.tar.gz"
-          mkdir -p "$parent"
-
-          # State tracking untuk handler exit / rollback
-          DEPLOY_STATUS="INIT"
-          IS_LIVE_DIRTY=0
-          BACKUP_FILE=""
-          STAGE_DIR="$stage"
-
-          cleanup_and_rollback() {
-            local exit_code=$?
-            trap - EXIT ERR INT TERM
-
-            if [ "$DEPLOY_STATUS" != "SUCCESS" ]; then
-              echo "::error::Deployment failure detected (state: ${DEPLOY_STATUS}, exit code: $exit_code)."
-              if [ "$IS_LIVE_DIRTY" -eq 1 ]; then
-                if [ -n "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
-                  echo "=========================================================="
-                  echo "⚠️ AUTOMATIC ROLLBACK TRIGGERED"
-                  echo "Restoring previous release from backup: $BACKUP_FILE"
-                  echo "=========================================================="
-                  if tar -tzf "$BACKUP_FILE" >/dev/null 2>&1; then
-                    mkdir -p "$STAGE_DIR/restore"
-                    tar -xzf "$BACKUP_FILE" -C "$STAGE_DIR/restore"
-                    rsync -a --delete "$STAGE_DIR/restore/" "$live/"
-                    echo "✅ Rollback completed successfully to previous live state."
-                  else
-                    echo "::error::CRITICAL: Backup archive is corrupted! Rollback cannot be completed."
-                  fi
-                else
-                  echo "::error::No prior backup available (fresh directory); cleaning corrupted partial install."
-                  rm -rf "${live:?}"/*
-                fi
-              fi
-            fi
-
-            # Pembersihan direktori sementara
-            if [ -d "$STAGE_DIR" ]; then
-              rm -rf "$STAGE_DIR"
-            fi
-            rm -f "$HOME/web-dist-$release.tar.gz"
-
-            if [ "$DEPLOY_STATUS" != "SUCCESS" ] && [ "$exit_code" -eq 0 ]; then
-              exit 1
-            fi
-            exit "$exit_code"
-          }
-          trap cleanup_and_rollback EXIT ERR INT TERM
-
-          # 1. Pastikan direktori target ada dan dapat diakses user ubuntu
-          if [ ! -d "$live" ]; then
-            mkdir -p "$live" 2>/dev/null || sudo mkdir -p "$live"
-            sudo chown -R "$USER:$USER" "$live" 2>/dev/null || true
-          fi
-          test -d "$live" && test ! -L "$live" || { echo "::error::Target must be a real directory: $live"; exit 1; }
-
-          if [ ! -w "$live" ]; then
-            sudo chown -R "$USER:$USER" "$live" 2>/dev/null || true
-          fi
-
-          # Bersihkan staging lama jika ada
-          rm -rf "$stage"
-          mkdir -p "$stage"
-
-          # 2. Unpack bundle rilis baru ke staging area terisolasi
-          DEPLOY_STATUS="UNPACKING"
-          echo "Extracting release bundle to staging area: $stage..."
-          tar -xzf "$HOME/web-dist-$release.tar.gz" -C "$stage"
-          chmod -R u=rwX,go=rX "$stage"
-
-          # 3. Validasi pra-sinkronisasi pada staging sebelum menyentuh direktori live
-          DEPLOY_STATUS="PRE_VALIDATING"
-          test -s "$stage/index.html" || { echo "::error::Staging validation failed: index.html missing or empty"; exit 1; }
-          test -s "$stage/script.js" || { echo "::error::Staging validation failed: script.js missing or empty"; exit 1; }
-          test -s "$stage/style.css" || { echo "::error::Staging validation failed: style.css missing or empty"; exit 1; }
-          test -s "$stage/manifest.json" || { echo "::error::Staging validation failed: manifest.json missing or empty"; exit 1; }
-
-          # 4. Buat backup rilis aktif sebelum menimpa (hanya jika live tidak kosong)
-          DEPLOY_STATUS="BACKING_UP"
-          if [ -n "$(ls -A "$live" 2>/dev/null)" ]; then
-            echo "Backing up current live deployment to $backup..."
-            tar -czf "$backup" -C "$live" .
-            if [ ! -s "$backup" ] || ! tar -tzf "$backup" >/dev/null 2>&1; then
-              echo "::error::Failed to create or verify backup archive. Aborting before touching live directory."
-              exit 1
-            fi
-            BACKUP_FILE="$backup"
-            echo "Backup verified successfully ($(wc -c < "$backup") bytes)."
-          else
-            echo "Target $live is currently empty (initial deployment); skipping backup."
-          fi
-
-          # 5. Sinkronisasi rilis baru ke live secara atomik
-          DEPLOY_STATUS="SYNCING"
-          IS_LIVE_DIRTY=1
-          echo "Synchronizing staging release to $live via rsync..."
-          rsync -a --delete "$stage/" "$live/"
-
-          # 6. Post-Deployment Verification & Asset Audit langsung di direktori live
-          DEPLOY_STATUS="POST_VERIFYING"
-          echo "Running comprehensive post-deployment integrity checks..."
-          test -s "$live/index.html" || { echo "::error::Post-deploy check failed: index.html missing in live"; exit 1; }
-
-          # Verifikasi elemen kunci di dalam index.html
-          grep -q "<title>SnackLoop ERP" "$live/index.html" || { echo "::error::HTML title check failed"; exit 1; }
-          grep -q 'script.js' "$live/index.html" || { echo "::error::HTML script tag check failed"; exit 1; }
-          grep -q 'style.css' "$live/index.html" || { echo "::error::HTML style tag check failed"; exit 1; }
-          grep -q 'manifest.json' "$live/index.html" || { echo "::error::HTML manifest tag check failed"; exit 1; }
-
-          # Verifikasi seluruh aset lokal yang dirujuk oleh aplikasi
-          REQUIRED_ASSETS=(
-            "script.js"
-            "style.css"
-            "manifest.json"
-            "sw.js"
-            "Snackloop-logo.png"
-            "Snackloop-logo.svg"
-            "favicon-32x32.png"
-            "favicon.ico"
-            "apple-touch-icon.png"
-            "icon-192.png"
-            "icon-512.png"
-            "icon-maskable-192.png"
-            "icon-maskable-512.png"
-          )
-
-          for asset in "${REQUIRED_ASSETS[@]}"; do
-            if [ ! -s "$live/$asset" ]; then
-              echo "::error::Required referenced asset missing or empty: $asset in $live"
-              exit 1
-            fi
-            echo "  ✔ Asset verified: $asset ($(wc -c < "$live/$asset") bytes)"
-          done
-
-          # 7. Web Server Response Probe
-          if command -v curl >/dev/null 2>&1; then
-            echo "Probing local HTTP server response on VPS..."
-            LOCAL_CODE=$(curl -s -L --max-time 5 -o /dev/null -w "%{http_code}" http://127.0.0.1/ 2>/dev/null || true)
-            echo "Local HTTP probe status code: ${LOCAL_CODE:-no response}"
-          fi
-
-          # 8. Tandai deployment sukses agar rollback tidak terpicu
-          DEPLOY_STATUS="SUCCESS"
-
-          echo "=========================================================="
-          echo "✅ DEPLOYMENT AND VERIFICATION COMPLETED SUCCESSFULLY"
-          echo "Deployed commit: $release"
-          echo "Target directory: $live"
-          if [ -n "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
-            echo "Retained rollback backup: $BACKUP_FILE"
-          fi
-          echo "=========================================================="
-          REMOTE
+      - name: Deploy with atomic backup, sync, and verified rollback
+        run: |
+          set -euo pipefail
+          ssh vps-deploy "bash ~/deploy-remote.sh '/srv/www/snackloop' 'snackloop' '${GITHUB_SHA}' < /dev/null && rm -f ~/deploy-remote.sh"
