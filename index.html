@@ -516,10 +516,37 @@
                             <div class="md:col-span-2"><label class="block text-[11px] font-bold opacity-70 mb-1">Catatan Pesanan Lainnya</label><input type="text" id="t-notes" placeholder="Contoh: Titip di pos satpam" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div>
                                 <label class="block text-[11px] font-bold opacity-70 mb-1">Status Pembayaran</label>
-                                <select id="t-status" class="theme-input w-full border rounded-xl p-2.5 outline-none">
+                                <select id="t-status" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="toggleCashCalculatorVisibility()">
                                     <option value="Belum Lunas" selected>Belum Lunas</option>
                                     <option value="Lunas">Lunas</option>
                                 </select>
+                            </div>
+                            <div id="t-cash-calculator-box" class="md:col-span-4 p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/40 space-y-2 hidden transition-all">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-cash-register"></i> Pembayaran Kasir Tunai & Kembalian
+                                    </span>
+                                    <div class="text-xs font-mono font-semibold">
+                                        Total Tagihan: <span id="t-cash-total-bill" class="font-bold text-slate-800 dark:text-slate-100">Rp 0</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 items-center">
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Uang Diterima (Rp)</label>
+                                        <input type="text" inputmode="numeric" id="t-cash-tendered" placeholder="0" class="theme-input w-full border rounded-xl p-2 font-mono font-bold text-sm outline-none" oninput="calculateChangeDue()">
+                                    </div>
+                                    <div class="sm:col-span-2 flex flex-wrap items-center gap-1.5 pt-3">
+                                        <button type="button" onclick="setCashTenderedExact()" class="btn-apple-press px-2.5 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold transition">Uang Pas</button>
+                                        <button type="button" onclick="addCashTendered(10000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">+10rb</button>
+                                        <button type="button" onclick="addCashTendered(20000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">+20rb</button>
+                                        <button type="button" onclick="setCashTendered(50000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">50rb</button>
+                                        <button type="button" onclick="setCashTendered(100000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">100rb</button>
+                                    </div>
+                                    <div class="p-2 rounded-xl border bg-white dark:bg-slate-800 flex flex-col justify-center text-right">
+                                        <span class="text-[10px] opacity-65 font-bold uppercase tracking-wider">Uang Kembalian</span>
+                                        <span id="t-cash-change" class="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">Rp 0</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="md:col-span-1 flex justify-end">
                                 <button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5">
@@ -1305,7 +1332,7 @@
                 <div id="tab-master" class="tab-content hidden space-y-6">
                     <div class="theme-card rounded-2xl border shadow-sm p-6" id="form-master-card">
                         <h3 class="text-base font-bold mb-4"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-2"></i>Tambah Master Produk</h3>
-                        <form id="master-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-sm" novalidate>
+                        <form id="master-form" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end text-sm" novalidate>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Nama Barang <span class="text-rose-500">*</span></label><input type="text" id="m-name" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div>
                                 <label class="block text-[11px] font-bold opacity-70 mb-1">Sumber Agen <span class="text-rose-500">*</span></label>
@@ -1313,13 +1340,14 @@
                                     <option value="" disabled selected> Pilih Agen </option>
                                 </select>
                             </div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Stok Awal (Pcs)</label><input type="number" id="m-stock" min="0" placeholder="0" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Beli /Modal <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-buy" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                            <div id="m-markup-preview" class="md:col-span-4 p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
+                            <div id="m-markup-preview" class="md:col-span-5 p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
                                 <span class="opacity-75 font-medium">Estimasi Keuntungan:</span>
                                 <span id="m-markup-text" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">-</span>
                             </div>
-                            <div class="md:col-span-4 flex justify-end"><button type="submit" class="btn-magnetic">Simpan Master</button></div>
+                            <div class="md:col-span-5 flex justify-end"><button type="submit" class="btn-magnetic">Simpan Master</button></div>
                         </form>
                     </div>
                     
@@ -1328,7 +1356,7 @@
                         <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit">Keuntungan</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit text-center">Stok</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit">Keuntungan</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="master-table-body"></tbody>
                             </table>
@@ -1582,6 +1610,7 @@
                 <input type="hidden" id="edit-m-id">
                 <div><label class="block font-semibold mb-1">Nama Barang <span class="text-rose-500">*</span></label><input type="text" id="edit-m-name" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Sumber Agen <span class="text-rose-500">*</span></label><select id="edit-m-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></select></div>
+                <div><label class="block font-semibold mb-1">Stok Tersedia (Pcs)</label><input type="number" id="edit-m-stock" min="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" placeholder="0"></div>
                 <div><label class="block font-semibold mb-1">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div id="edit-m-markup-preview" class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">

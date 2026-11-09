@@ -134,6 +134,15 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
                     <span>Status:</span>
                     <span class="bold">${statusBayar}</span>
                 </div>
+                ${(receiptData.cashTendered > 0) ? `
+                <div class="flex-between" style="margin-top: 2px;">
+                    <span>Tunai/Bayar:</span>
+                    <span>Rp ${Number(receiptData.cashTendered).toLocaleString('id-ID')}</span>
+                </div>
+                <div class="flex-between bold" style="margin-top: 2px;">
+                    <span>Kembalian:</span>
+                    <span>Rp ${Number(receiptData.changeDue || 0).toLocaleString('id-ID')}</span>
+                </div>` : ''}
             </div>
 
             ${bankInfo ? `
@@ -208,6 +217,8 @@ function printThermalReceiptFromTrx(targetTrx, format) {
         customer: targetTrx.customer,
         operator: currentUser || 'Kasir',
         status: targetTrx.status,
+        cashTendered: targetTrx.cashTendered || targetTrx.cash_tendered || 0,
+        changeDue: targetTrx.changeDue || targetTrx.change_due || 0,
         items: items,
         extraCost: extraCost,
         grandTotal: grandTotal

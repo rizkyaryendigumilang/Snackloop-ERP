@@ -81,10 +81,20 @@ async function renderMaster() {
 
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
+        const stockQty = Number(m.stock_qty !== undefined ? m.stock_qty : 0);
+        const minStock = Number(m.min_stock !== undefined ? m.min_stock : 5);
+        let stockBadge = `<span class="font-bold font-mono text-xs">${stockQty.toLocaleString('id-ID')}</span>`;
+        if (stockQty <= 0) {
+            stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Habis (0)</span>`;
+        } else if (stockQty <= minStock) {
+            stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">${stockQty} (Menipis)</span>`;
+        }
+
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
+                <td class="p-3 border border-inherit text-center">${stockBadge}</td>
                 <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">Rp ${sellPrice.toLocaleString('id-ID')}</td>
                 <td class="p-3 border border-inherit">${markupDisplay}</td>
@@ -102,6 +112,8 @@ function openEditMasterModal(id) {
     document.getElementById('edit-m-name').value = item.name;
     document.getElementById('edit-m-buy').value = item.buy.toLocaleString('id-ID');
     document.getElementById('edit-m-sell').value = item.sell.toLocaleString('id-ID');
+    const editStockEl = document.getElementById('edit-m-stock');
+    if (editStockEl) editStockEl.value = (item.stock_qty !== undefined ? item.stock_qty : 0);
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
@@ -122,6 +134,8 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     const newSource = document.getElementById('edit-m-source').value;
     const newBuy = getCleanNumber('edit-m-buy');
     const newSell = getCleanNumber('edit-m-sell');
+    const editStockEl = document.getElementById('edit-m-stock');
+    const newStock = editStockEl ? (parseInt(editStockEl.value, 10) || 0) : 0;
 
     const oldItem = masterData.find(m => m.id === id);
     if(!oldItem) return;
@@ -145,9 +159,10 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.source = newSource;
     oldItem.buy = newBuy;
     oldItem.sell = newSell;
+    oldItem.stock_qty = newStock;
     saveCacheToLocal();
 
-    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
 
     renderMaster();
     renderDropdowns();
@@ -158,12 +173,12 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         type: 'UPDATE_MASTER',
         payload: {
             id,
-            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell },
+            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock },
             history: priceHistoryPayload
         }
     }, async () => {
         const { error } = await supabaseClient.from('master').update({
-            name: newName, source: newSource, buy: newBuy, sell: newSell
+            name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
         }).eq('id', id);
         if(error) throw error;
         if(priceHistoryPayload) {
@@ -240,8 +255,10 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     const source = document.getElementById('m-source').value;
     const buy = getCleanNumber('m-buy');
     const sell = getCleanNumber('m-sell');
+    const stockInput = document.getElementById('m-stock');
+    const stockQty = stockInput ? (parseInt(stockInput.value, 10) || 0) : 0;
 
-    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell };
+    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
     masterData.push(tempMaster);
     saveCacheToLocal();
     renderMaster();
@@ -252,10 +269,10 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
 
     dispatchMutation({
         type: 'INSERT_MASTER',
-        payload: { name: normalizedName, source, buy, sell }
+        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 }
     }, async () => {
         const { data, error } = await supabaseClient.from('master').insert([{
-            name: normalizedName, source, buy, sell
+            name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
         }]).select();
         if(error) throw error;
         if(data && data.length > 0) {

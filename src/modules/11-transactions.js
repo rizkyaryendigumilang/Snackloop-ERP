@@ -43,7 +43,9 @@ function onSourceChange() {
         let opts = `<option value="" disabled selected>Pilih Produk</option>`;
         opts += filtered.map(m => {
             const modalLabel = isSuperAdmin ? ` (Modal: Rp${m.buy.toLocaleString()})` : '';
-            return `<option value="MASTER|${m.id}">${escapeHtml(m.name)}${modalLabel}</option>`;
+            const stockQty = m.stock_qty !== undefined ? m.stock_qty : null;
+            const stockLabel = stockQty !== null ? `[Sisa: ${stockQty}] ` : '';
+            return `<option value="MASTER|${m.id}">${stockLabel}${escapeHtml(m.name)}${modalLabel}</option>`;
         }).join('');
         prodSel.innerHTML = opts;
     }
@@ -70,8 +72,94 @@ function fillProductData() {
         buyInput.value = isSuperAdmin ? item.buy.toLocaleString('id-ID') : '*** (Tersimpan)';
         document.getElementById('t-sell').value = item.sell.toLocaleString('id-ID');
         document.getElementById('t-batch').value = "Reguler";
-        document.getElementById('t-qty').removeAttribute('max');
+        if (item.stock_qty !== undefined && item.stock_qty > 0) {
+            document.getElementById('t-qty').max = item.stock_qty;
+        } else {
+            document.getElementById('t-qty').removeAttribute('max');
+        }
     }
+    if (typeof calculateChangeDue === 'function') calculateChangeDue();
+}
+
+// ======================= POS CASH TENDERED & CHANGE CALCULATOR ======================= //
+function getCashierCurrentTotal() {
+    const qty = parseInt(document.getElementById('t-qty')?.value, 10) || 1;
+    const sell = getCleanNumber('t-sell') || 0;
+    const extra = getCleanNumber('t-extracost') || 0;
+    return (qty * sell) + extra;
+}
+
+function toggleCashCalculatorVisibility() {
+    const status = document.getElementById('t-status')?.value;
+    const box = document.getElementById('t-cash-calculator-box');
+    if (!box) return;
+    if (status === 'Lunas') {
+        box.classList.remove('hidden');
+        updateCashierBillDisplay();
+        calculateChangeDue();
+    } else {
+        box.classList.add('hidden');
+    }
+}
+
+function updateCashierBillDisplay() {
+    const total = getCashierCurrentTotal();
+    const billEl = document.getElementById('t-cash-total-bill');
+    if (billEl) billEl.innerText = "Rp " + total.toLocaleString('id-ID');
+}
+
+function calculateChangeDue() {
+    const total = getCashierCurrentTotal();
+    updateCashierBillDisplay();
+    const tendered = getCleanNumber('t-cash-tendered');
+    const change = tendered - total;
+    const changeEl = document.getElementById('t-cash-change');
+    if (!changeEl) return;
+
+    if (tendered === 0) {
+        changeEl.innerText = "Rp 0";
+        changeEl.className = "text-base font-bold font-mono opacity-70";
+    } else if (change >= 0) {
+        changeEl.innerText = "Rp " + change.toLocaleString('id-ID');
+        changeEl.className = "text-base font-bold font-mono text-emerald-600 dark:text-emerald-400";
+    } else {
+        changeEl.innerText = "-Rp " + Math.abs(change).toLocaleString('id-ID') + " (Kurang)";
+        changeEl.className = "text-base font-bold font-mono text-rose-600 dark:text-rose-400";
+    }
+}
+
+function setCashTenderedExact() {
+    const total = getCashierCurrentTotal();
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = total > 0 ? total.toLocaleString('id-ID') : '';
+        calculateChangeDue();
+    }
+}
+
+function setCashTendered(nominal) {
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = Number(nominal).toLocaleString('id-ID');
+        calculateChangeDue();
+    }
+}
+
+function addCashTendered(delta) {
+    const current = getCleanNumber('t-cash-tendered');
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = (current + delta).toLocaleString('id-ID');
+        calculateChangeDue();
+    }
+}
+
+if (typeof document !== 'undefined') {
+    ['t-qty', 't-sell', 't-extracost'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', () => {
+            if (typeof calculateChangeDue === 'function') calculateChangeDue();
+        });
+    });
 }
 
 let isSubmittingTrx = false;
@@ -103,6 +191,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     
     let itemName = ""; let batchId = document.getElementById('t-batch').value || 'Reguler';
     let repackUpdateInfo = null;
+    let masterUpdateInfo = null;
 
     if(source === 'Repack') {
         const rItem = repackData.find(r => r.id === batchId);
@@ -117,7 +206,15 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const mId = parseInt(pVal.split('|')[1]);
         const mItem = masterData.find(m => m.id === mId);
         if(!mItem) return showNotification("Peringatan", "Produk master tidak ditemukan.", "warning");
+        if(mItem.stock_qty !== undefined && mItem.stock_qty > 0 && qty > mItem.stock_qty) {
+            return showNotification("Peringatan", `Stok ${mItem.name} hanya tersisa ${mItem.stock_qty} pcs.`, "warning");
+        }
         itemName = mItem.name;
+        // Optimistic pengurangan stok master
+        if(mItem.stock_qty !== undefined) {
+            mItem.stock_qty = Math.max(0, mItem.stock_qty - qty);
+            masterUpdateInfo = { id: mItem.id, newStockQty: mItem.stock_qty };
+        }
     }
 
     // Lock submission & tampilkan feedback visual
@@ -174,6 +271,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             invoiceData.unshift(targetInv);
         }
 
+        const cashTendered = status === 'Lunas' ? getCleanNumber('t-cash-tendered') : 0;
+        const changeDue = (cashTendered > 0 && cashTendered >= totalSellComputed) ? (cashTendered - totalSellComputed) : 0;
+
         const newTrxData = {
             id: tempTrxId,
             monthKey: monthKey,
@@ -190,6 +290,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             sell: sell,
             totalSell: totalSellComputed,
             status: status,
+            cashTendered: cashTendered,
+            changeDue: changeDue,
             profitPerItem: netProfitItem,
             notes: notes ? `${notes} (Invoice: ${invNumber})` : `Invoice: ${invNumber}`
         };
@@ -204,6 +306,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         renderMonthTabs(); 
         updateDashboard(); 
         renderRepackWarehouse();
+        if (typeof renderMaster === 'function') renderMaster();
         renderFinancialChart();
         renderInvoicesTable();
         renderTransactionsForActiveSheet();
@@ -212,6 +315,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         this.reset(); 
         const statusEl = document.getElementById('t-status');
         if (statusEl) statusEl.value = 'Belum Lunas';
+        const tenderEl = document.getElementById('t-cash-tendered');
+        if (tenderEl) tenderEl.value = '';
+        if (typeof toggleCashCalculatorVisibility === 'function') toggleCashCalculatorVisibility();
         document.getElementById('t-date').valueAsDate = new Date();
         document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
 
@@ -238,6 +344,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
                 transaction: dbTrxPayload,
                 invoice: dbInvPayload,
                 repackUpdate: repackUpdateInfo,
+                masterUpdate: masterUpdateInfo,
                 tempTrxId: tempTrxId
             }
         }, async () => {
@@ -263,6 +370,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             if (!atomicSuccess) {
                 if(repackUpdateInfo) {
                     await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+                }
+                if(masterUpdateInfo) {
+                    await supabaseClient.from('master').update({ stock_qty: masterUpdateInfo.newStockQty }).eq('id', masterUpdateInfo.id);
                 }
                 const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
                 if(trxErr) throw trxErr;
@@ -1975,10 +2085,17 @@ function confirmDeleteTrx(id) {
         if(trxIdx === -1) return;
         const trx = targetList[trxIdx];
 
-        // Optimistic pengembalian stok repack
+        // Optimistic pengembalian stok repack & master
+        let masterToRestore = null;
         if(trx.source === 'Repack' && trx.batch) {
             const rItem = repackData.find(r => r.id === trx.batch);
             if(rItem) rItem.remaining_qty += trx.qty;
+        } else if (trx.source && trx.itemName) {
+            const mItem = masterData.find(m => m.name === trx.itemName && m.source === trx.source);
+            if(mItem && mItem.stock_qty !== undefined) {
+                mItem.stock_qty += (trx.qty || 1);
+                masterToRestore = { id: mItem.id, stock_qty: mItem.stock_qty };
+            }
         }
 
         // Hapus dari memori lokal & sinkronkan invoice harian
@@ -1992,17 +2109,21 @@ function confirmDeleteTrx(id) {
         updateDashboard(); 
         renderFinancialChart();
         renderRepackWarehouse();
+        if (typeof renderMaster === 'function') renderMaster();
 
         logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Transaksi berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_TRANSACTION',
-            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync }
+            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync, masterRestore: masterToRestore }
         }, async () => {
             if(trx.source === 'Repack' && trx.batch) {
                 const rItem = repackData.find(r => r.id === trx.batch);
                 if(rItem) await supabaseClient.from('repack').update({ remaining_qty: rItem.remaining_qty }).eq('id', trx.batch);
+            }
+            if(masterToRestore) {
+                await supabaseClient.from('master').update({ stock_qty: masterToRestore.stock_qty }).eq('id', masterToRestore.id);
             }
             if (!String(id).startsWith('trx_')) {
                 const { error } = await supabaseClient.from('transactions').delete().eq('id', id);

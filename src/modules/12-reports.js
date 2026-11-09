@@ -404,10 +404,11 @@ function renderReportInventory() {
     let potentialRev = 0;
     let lowCount = 0;
 
+    // 1. Valuasi Repack
     repackData.forEach(r => {
-        const rem = r.remaining_qty || 0;
-        const modal = r.modal_per_pcs || 0;
-        const sell = r.sell_target || 0;
+        const rem = Number(r.remaining_qty || 0);
+        const modal = Number(r.modal_per_pcs || 0);
+        const sell = Number(r.sell_target || 0);
 
         totalValuation += (rem * modal);
         totalQty += rem;
@@ -415,24 +416,42 @@ function renderReportInventory() {
         if (rem > 0 && rem < 10) lowCount++;
     });
 
-    document.getElementById('rep-inv-valuation').innerText = "Rp " + totalValuation.toLocaleString('id-ID');
-    document.getElementById('rep-inv-total-qty').innerText = totalQty.toLocaleString('id-ID') + " pcs";
-    document.getElementById('rep-inv-potential-rev').innerText = "Rp " + potentialRev.toLocaleString('id-ID');
-    document.getElementById('rep-inv-low-count').innerText = lowCount + " Batch";
-    document.getElementById('rep-inv-batch-count').innerText = repackData.length + " batch terdaftar";
+    // 2. Valuasi Produk Master (Supplier Goods)
+    masterData.forEach(m => {
+        const rem = Number(m.stock_qty || 0);
+        const modal = Number(m.buy || 0);
+        const sell = Number(m.sell || 0);
+        const minStock = Number(m.min_stock || 5);
+
+        totalValuation += (rem * modal);
+        totalQty += rem;
+        potentialRev += (rem * sell);
+        if (rem > 0 && rem <= minStock) lowCount++;
+    });
+
+    const valEl = document.getElementById('rep-inv-valuation');
+    if (valEl) valEl.innerText = "Rp " + totalValuation.toLocaleString('id-ID');
+    const qtyEl = document.getElementById('rep-inv-total-qty');
+    if (qtyEl) qtyEl.innerText = totalQty.toLocaleString('id-ID') + " pcs";
+    const revEl = document.getElementById('rep-inv-potential-rev');
+    if (revEl) revEl.innerText = "Rp " + potentialRev.toLocaleString('id-ID');
+    const lowEl = document.getElementById('rep-inv-low-count');
+    if (lowEl) lowEl.innerText = lowCount + " Produk/Batch";
+    const batchEl = document.getElementById('rep-inv-batch-count');
+    if (batchEl) batchEl.innerText = `${repackData.length} batch repack, ${masterData.length} master supplier`;
 
     const tbody = document.getElementById('rep-inventory-body');
     if (!tbody) return;
 
-    if (repackData.length === 0) {
+    if (repackData.length === 0 && masterData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center opacity-50">Belum ada batch repack di gudang.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = repackData.map(r => {
-        const rem = r.remaining_qty || 0;
-        const modal = r.modal_per_pcs || 0;
-        const sell = r.sell_target || 0;
+    const repackRows = repackData.map(r => {
+        const rem = Number(r.remaining_qty || 0);
+        const modal = Number(r.modal_per_pcs || 0);
+        const sell = Number(r.sell_target || 0);
         const assetValue = rem * modal;
 
         let statusBadge = "";
@@ -447,7 +466,7 @@ function renderReportInventory() {
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
                 <td class="p-3 font-mono text-indigo-500 font-bold">${escapeHtml(r.id || '')} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(r.date || '-')}</span></td>
-                <td class="p-3 font-medium">${escapeHtml(r.name || '')}</td>
+                <td class="p-3 font-medium">${escapeHtml(r.name || '')} <span class="text-[10px] opacity-60 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 px-1 rounded ml-1 font-semibold">Repack</span></td>
                 <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-center font-bold font-mono">${rem} / ${r.initial_qty || rem}</td>
@@ -455,7 +474,38 @@ function renderReportInventory() {
                 <td class="p-3 text-center">${statusBadge}</td>
             </tr>
         `;
-    }).join('');
+    });
+
+    const masterRows = masterData.map(m => {
+        const rem = Number(m.stock_qty || 0);
+        const modal = Number(m.buy || 0);
+        const sell = Number(m.sell || 0);
+        const assetValue = rem * modal;
+        const minStock = Number(m.min_stock || 5);
+
+        let statusBadge = "";
+        if (rem <= 0) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Habis (0)</span>`;
+        } else if (rem <= minStock) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Menipis</span>`;
+        } else {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aman</span>`;
+        }
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
+                <td class="p-3 font-mono text-slate-500 font-bold">M-${m.id} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(m.source || 'Supplier')}</span></td>
+                <td class="p-3 font-medium">${escapeHtml(m.name || '')} <span class="text-[10px] opacity-60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 px-1 rounded ml-1 font-semibold">Master</span></td>
+                <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-center font-bold font-mono">${rem} pcs</td>
+                <td class="p-3 text-right font-bold font-mono">Rp ${assetValue.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-center">${statusBadge}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = repackRows.join('') + masterRows.join('');
 }
 
 // ======================= SISTEM DROPDOWN EKSPOR (EXCEL & PDF) ======================= //

@@ -378,6 +378,48 @@ runTest('Verify Apple Design System (Spring Physics, Rubberband, Translucent Mat
   assert.strictEqual(modalsCode.includes('attachModalSwipeDismiss'), true, '05-modals.js must implement attachModalSwipeDismiss');
 });
 
+// 17. Phase 1 Enhancements (Master Stock, POS Cash Calculator, Web Locks & Dual Valuation)
+runTest('Verify Phase 1 Enhancements (Master Stock Tracking, POS Cash Calculator & Multi-Tab Web Locks)', () => {
+  const assert = require('assert');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  const masterCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '09-master.js'), 'utf8');
+  const trxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '11-transactions.js'), 'utf8');
+  const outboxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '04-outbox.js'), 'utf8');
+  const reportsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '12-reports.js'), 'utf8');
+  const printerCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '16-printer.js'), 'utf8');
+  const sqlCode = fs.readFileSync(path.join(rootDir, 'database', 'phase1_master_stock_improvements.sql'), 'utf8');
+
+  // 1. Database schema migration file exists
+  assert.strictEqual(sqlCode.includes('stock_qty INT DEFAULT 0'), true, 'Missing stock_qty column in migration SQL');
+  assert.strictEqual(sqlCode.includes('min_stock INT DEFAULT 5'), true, 'Missing min_stock column in migration SQL');
+
+  // 2. HTML elements for Master Stock & POS Cash Calculator
+  assert.strictEqual(indexHtml.includes('id="m-stock"'), true, 'index.html missing m-stock input');
+  assert.strictEqual(indexHtml.includes('id="edit-m-stock"'), true, 'index.html missing edit-m-stock input');
+  assert.strictEqual(indexHtml.includes('id="t-cash-calculator-box"'), true, 'index.html missing t-cash-calculator-box');
+  assert.strictEqual(indexHtml.includes('id="t-cash-tendered"'), true, 'index.html missing t-cash-tendered input');
+  assert.strictEqual(indexHtml.includes('id="t-cash-change"'), true, 'index.html missing t-cash-change element');
+
+  // 3. Master Stock logic in 09-master.js
+  assert.strictEqual(masterCode.includes('stock_qty: stockQty'), true, '09-master.js missing stock_qty in INSERT_MASTER');
+  assert.strictEqual(masterCode.includes('stock_qty: newStock'), true, '09-master.js missing stock_qty in UPDATE_MASTER');
+
+  // 4. POS Cash Calculator & Stock Deduction in 11-transactions.js
+  assert.strictEqual(trxCode.includes('calculateChangeDue'), true, '11-transactions.js missing calculateChangeDue');
+  assert.strictEqual(trxCode.includes('toggleCashCalculatorVisibility'), true, '11-transactions.js missing toggleCashCalculatorVisibility');
+  assert.strictEqual(trxCode.includes('mItem.stock_qty = Math.max(0, mItem.stock_qty - qty)'), true, '11-transactions.js missing optimistic master stock deduction');
+
+  // 5. Multi-Tab Web Locks in 04-outbox.js
+  assert.strictEqual(outboxCode.includes('snackloop_outbox_sync_lock'), true, '04-outbox.js missing Web Locks guard');
+
+  // 6. Dual Inventory Valuation in 12-reports.js
+  assert.strictEqual(reportsCode.includes('masterData.forEach'), true, '12-reports.js missing masterData valuation in renderReportInventory');
+
+  // 7. Thermal Receipt printing of cash tendered & change due in 16-printer.js
+  assert.strictEqual(printerCode.includes('Tunai/Bayar:'), true, '16-printer.js missing cash tendered receipt row');
+  assert.strictEqual(printerCode.includes('Kembalian:'), true, '16-printer.js missing change due receipt row');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

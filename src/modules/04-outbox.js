@@ -902,6 +902,21 @@ async function syncBatchedItems(type, batchItems) {
 
 async function syncOutboxQueue() {
     if (!navigator.onLine || isSyncing) return;
+
+    // Multi-Tab Web Locks API Guard: Mencegah tab ganda mengeksekusi sinkronisasi paralel
+    if (typeof navigator !== 'undefined' && navigator.locks && typeof navigator.locks.request === 'function') {
+        return navigator.locks.request('snackloop_outbox_sync_lock', { ifAvailable: true }, async (lock) => {
+            if (!lock) {
+                return false;
+            }
+            return await _doSyncOutboxQueue();
+        });
+    }
+    return await _doSyncOutboxQueue();
+}
+
+async function _doSyncOutboxQueue() {
+    if (!navigator.onLine || isSyncing) return;
     const queue = getOutbox();
     if (queue.length === 0) {
         updateNetworkStatus();

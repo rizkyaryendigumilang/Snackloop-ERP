@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-09T09:44:53.277Z from 17 source modules in src/modules/
+// Generated on 2026-11-09T09:57:19.846Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -1725,6 +1725,21 @@ async function syncBatchedItems(type, batchItems) {
 }
 
 async function syncOutboxQueue() {
+    if (!navigator.onLine || isSyncing) return;
+
+    // Multi-Tab Web Locks API Guard: Mencegah tab ganda mengeksekusi sinkronisasi paralel
+    if (typeof navigator !== 'undefined' && navigator.locks && typeof navigator.locks.request === 'function') {
+        return navigator.locks.request('snackloop_outbox_sync_lock', { ifAvailable: true }, async (lock) => {
+            if (!lock) {
+                return false;
+            }
+            return await _doSyncOutboxQueue();
+        });
+    }
+    return await _doSyncOutboxQueue();
+}
+
+async function _doSyncOutboxQueue() {
     if (!navigator.onLine || isSyncing) return;
     const queue = getOutbox();
     if (queue.length === 0) {
@@ -4003,10 +4018,20 @@ async function renderMaster() {
 
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
+        const stockQty = Number(m.stock_qty !== undefined ? m.stock_qty : 0);
+        const minStock = Number(m.min_stock !== undefined ? m.min_stock : 5);
+        let stockBadge = `<span class="font-bold font-mono text-xs">${stockQty.toLocaleString('id-ID')}</span>`;
+        if (stockQty <= 0) {
+            stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">Habis (0)</span>`;
+        } else if (stockQty <= minStock) {
+            stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">${stockQty} (Menipis)</span>`;
+        }
+
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-semibold">${safeName}</td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
+                <td class="p-3 border border-inherit text-center">${stockBadge}</td>
                 <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">Rp ${sellPrice.toLocaleString('id-ID')}</td>
                 <td class="p-3 border border-inherit">${markupDisplay}</td>
@@ -4024,6 +4049,8 @@ function openEditMasterModal(id) {
     document.getElementById('edit-m-name').value = item.name;
     document.getElementById('edit-m-buy').value = item.buy.toLocaleString('id-ID');
     document.getElementById('edit-m-sell').value = item.sell.toLocaleString('id-ID');
+    const editStockEl = document.getElementById('edit-m-stock');
+    if (editStockEl) editStockEl.value = (item.stock_qty !== undefined ? item.stock_qty : 0);
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
@@ -4044,6 +4071,8 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     const newSource = document.getElementById('edit-m-source').value;
     const newBuy = getCleanNumber('edit-m-buy');
     const newSell = getCleanNumber('edit-m-sell');
+    const editStockEl = document.getElementById('edit-m-stock');
+    const newStock = editStockEl ? (parseInt(editStockEl.value, 10) || 0) : 0;
 
     const oldItem = masterData.find(m => m.id === id);
     if(!oldItem) return;
@@ -4067,9 +4096,10 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.source = newSource;
     oldItem.buy = newBuy;
     oldItem.sell = newSell;
+    oldItem.stock_qty = newStock;
     saveCacheToLocal();
 
-    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
 
     renderMaster();
     renderDropdowns();
@@ -4080,12 +4110,12 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         type: 'UPDATE_MASTER',
         payload: {
             id,
-            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell },
+            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock },
             history: priceHistoryPayload
         }
     }, async () => {
         const { error } = await supabaseClient.from('master').update({
-            name: newName, source: newSource, buy: newBuy, sell: newSell
+            name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
         }).eq('id', id);
         if(error) throw error;
         if(priceHistoryPayload) {
@@ -4162,8 +4192,10 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     const source = document.getElementById('m-source').value;
     const buy = getCleanNumber('m-buy');
     const sell = getCleanNumber('m-sell');
+    const stockInput = document.getElementById('m-stock');
+    const stockQty = stockInput ? (parseInt(stockInput.value, 10) || 0) : 0;
 
-    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell };
+    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
     masterData.push(tempMaster);
     saveCacheToLocal();
     renderMaster();
@@ -4174,10 +4206,10 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
 
     dispatchMutation({
         type: 'INSERT_MASTER',
-        payload: { name: normalizedName, source, buy, sell }
+        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 }
     }, async () => {
         const { data, error } = await supabaseClient.from('master').insert([{
-            name: normalizedName, source, buy, sell
+            name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
         }]).select();
         if(error) throw error;
         if(data && data.length > 0) {
@@ -4419,7 +4451,9 @@ function onSourceChange() {
         let opts = `<option value="" disabled selected>Pilih Produk</option>`;
         opts += filtered.map(m => {
             const modalLabel = isSuperAdmin ? ` (Modal: Rp${m.buy.toLocaleString()})` : '';
-            return `<option value="MASTER|${m.id}">${escapeHtml(m.name)}${modalLabel}</option>`;
+            const stockQty = m.stock_qty !== undefined ? m.stock_qty : null;
+            const stockLabel = stockQty !== null ? `[Sisa: ${stockQty}] ` : '';
+            return `<option value="MASTER|${m.id}">${stockLabel}${escapeHtml(m.name)}${modalLabel}</option>`;
         }).join('');
         prodSel.innerHTML = opts;
     }
@@ -4446,8 +4480,94 @@ function fillProductData() {
         buyInput.value = isSuperAdmin ? item.buy.toLocaleString('id-ID') : '*** (Tersimpan)';
         document.getElementById('t-sell').value = item.sell.toLocaleString('id-ID');
         document.getElementById('t-batch').value = "Reguler";
-        document.getElementById('t-qty').removeAttribute('max');
+        if (item.stock_qty !== undefined && item.stock_qty > 0) {
+            document.getElementById('t-qty').max = item.stock_qty;
+        } else {
+            document.getElementById('t-qty').removeAttribute('max');
+        }
     }
+    if (typeof calculateChangeDue === 'function') calculateChangeDue();
+}
+
+// ======================= POS CASH TENDERED & CHANGE CALCULATOR ======================= //
+function getCashierCurrentTotal() {
+    const qty = parseInt(document.getElementById('t-qty')?.value, 10) || 1;
+    const sell = getCleanNumber('t-sell') || 0;
+    const extra = getCleanNumber('t-extracost') || 0;
+    return (qty * sell) + extra;
+}
+
+function toggleCashCalculatorVisibility() {
+    const status = document.getElementById('t-status')?.value;
+    const box = document.getElementById('t-cash-calculator-box');
+    if (!box) return;
+    if (status === 'Lunas') {
+        box.classList.remove('hidden');
+        updateCashierBillDisplay();
+        calculateChangeDue();
+    } else {
+        box.classList.add('hidden');
+    }
+}
+
+function updateCashierBillDisplay() {
+    const total = getCashierCurrentTotal();
+    const billEl = document.getElementById('t-cash-total-bill');
+    if (billEl) billEl.innerText = "Rp " + total.toLocaleString('id-ID');
+}
+
+function calculateChangeDue() {
+    const total = getCashierCurrentTotal();
+    updateCashierBillDisplay();
+    const tendered = getCleanNumber('t-cash-tendered');
+    const change = tendered - total;
+    const changeEl = document.getElementById('t-cash-change');
+    if (!changeEl) return;
+
+    if (tendered === 0) {
+        changeEl.innerText = "Rp 0";
+        changeEl.className = "text-base font-bold font-mono opacity-70";
+    } else if (change >= 0) {
+        changeEl.innerText = "Rp " + change.toLocaleString('id-ID');
+        changeEl.className = "text-base font-bold font-mono text-emerald-600 dark:text-emerald-400";
+    } else {
+        changeEl.innerText = "-Rp " + Math.abs(change).toLocaleString('id-ID') + " (Kurang)";
+        changeEl.className = "text-base font-bold font-mono text-rose-600 dark:text-rose-400";
+    }
+}
+
+function setCashTenderedExact() {
+    const total = getCashierCurrentTotal();
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = total > 0 ? total.toLocaleString('id-ID') : '';
+        calculateChangeDue();
+    }
+}
+
+function setCashTendered(nominal) {
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = Number(nominal).toLocaleString('id-ID');
+        calculateChangeDue();
+    }
+}
+
+function addCashTendered(delta) {
+    const current = getCleanNumber('t-cash-tendered');
+    const input = document.getElementById('t-cash-tendered');
+    if (input) {
+        input.value = (current + delta).toLocaleString('id-ID');
+        calculateChangeDue();
+    }
+}
+
+if (typeof document !== 'undefined') {
+    ['t-qty', 't-sell', 't-extracost'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', () => {
+            if (typeof calculateChangeDue === 'function') calculateChangeDue();
+        });
+    });
 }
 
 let isSubmittingTrx = false;
@@ -4479,6 +4599,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     
     let itemName = ""; let batchId = document.getElementById('t-batch').value || 'Reguler';
     let repackUpdateInfo = null;
+    let masterUpdateInfo = null;
 
     if(source === 'Repack') {
         const rItem = repackData.find(r => r.id === batchId);
@@ -4493,7 +4614,15 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const mId = parseInt(pVal.split('|')[1]);
         const mItem = masterData.find(m => m.id === mId);
         if(!mItem) return showNotification("Peringatan", "Produk master tidak ditemukan.", "warning");
+        if(mItem.stock_qty !== undefined && mItem.stock_qty > 0 && qty > mItem.stock_qty) {
+            return showNotification("Peringatan", `Stok ${mItem.name} hanya tersisa ${mItem.stock_qty} pcs.`, "warning");
+        }
         itemName = mItem.name;
+        // Optimistic pengurangan stok master
+        if(mItem.stock_qty !== undefined) {
+            mItem.stock_qty = Math.max(0, mItem.stock_qty - qty);
+            masterUpdateInfo = { id: mItem.id, newStockQty: mItem.stock_qty };
+        }
     }
 
     // Lock submission & tampilkan feedback visual
@@ -4550,6 +4679,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             invoiceData.unshift(targetInv);
         }
 
+        const cashTendered = status === 'Lunas' ? getCleanNumber('t-cash-tendered') : 0;
+        const changeDue = (cashTendered > 0 && cashTendered >= totalSellComputed) ? (cashTendered - totalSellComputed) : 0;
+
         const newTrxData = {
             id: tempTrxId,
             monthKey: monthKey,
@@ -4566,6 +4698,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             sell: sell,
             totalSell: totalSellComputed,
             status: status,
+            cashTendered: cashTendered,
+            changeDue: changeDue,
             profitPerItem: netProfitItem,
             notes: notes ? `${notes} (Invoice: ${invNumber})` : `Invoice: ${invNumber}`
         };
@@ -4580,6 +4714,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         renderMonthTabs(); 
         updateDashboard(); 
         renderRepackWarehouse();
+        if (typeof renderMaster === 'function') renderMaster();
         renderFinancialChart();
         renderInvoicesTable();
         renderTransactionsForActiveSheet();
@@ -4588,6 +4723,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         this.reset(); 
         const statusEl = document.getElementById('t-status');
         if (statusEl) statusEl.value = 'Belum Lunas';
+        const tenderEl = document.getElementById('t-cash-tendered');
+        if (tenderEl) tenderEl.value = '';
+        if (typeof toggleCashCalculatorVisibility === 'function') toggleCashCalculatorVisibility();
         document.getElementById('t-date').valueAsDate = new Date();
         document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
 
@@ -4614,6 +4752,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
                 transaction: dbTrxPayload,
                 invoice: dbInvPayload,
                 repackUpdate: repackUpdateInfo,
+                masterUpdate: masterUpdateInfo,
                 tempTrxId: tempTrxId
             }
         }, async () => {
@@ -4639,6 +4778,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             if (!atomicSuccess) {
                 if(repackUpdateInfo) {
                     await supabaseClient.from('repack').update({ remaining_qty: repackUpdateInfo.newRemainingQty }).eq('id', repackUpdateInfo.batchId);
+                }
+                if(masterUpdateInfo) {
+                    await supabaseClient.from('master').update({ stock_qty: masterUpdateInfo.newStockQty }).eq('id', masterUpdateInfo.id);
                 }
                 const { data: trxRes, error: trxErr } = await supabaseClient.from('transactions').insert([dbTrxPayload]).select();
                 if(trxErr) throw trxErr;
@@ -6351,10 +6493,17 @@ function confirmDeleteTrx(id) {
         if(trxIdx === -1) return;
         const trx = targetList[trxIdx];
 
-        // Optimistic pengembalian stok repack
+        // Optimistic pengembalian stok repack & master
+        let masterToRestore = null;
         if(trx.source === 'Repack' && trx.batch) {
             const rItem = repackData.find(r => r.id === trx.batch);
             if(rItem) rItem.remaining_qty += trx.qty;
+        } else if (trx.source && trx.itemName) {
+            const mItem = masterData.find(m => m.name === trx.itemName && m.source === trx.source);
+            if(mItem && mItem.stock_qty !== undefined) {
+                mItem.stock_qty += (trx.qty || 1);
+                masterToRestore = { id: mItem.id, stock_qty: mItem.stock_qty };
+            }
         }
 
         // Hapus dari memori lokal & sinkronkan invoice harian
@@ -6368,17 +6517,21 @@ function confirmDeleteTrx(id) {
         updateDashboard(); 
         renderFinancialChart();
         renderRepackWarehouse();
+        if (typeof renderMaster === 'function') renderMaster();
 
         logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Transaksi berhasil dihapus", "success");
 
         dispatchMutation({
             type: 'DELETE_TRANSACTION',
-            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync }
+            payload: { id, source: trx.source, batch: trx.batch, qty: trx.qty, invSync, masterRestore: masterToRestore }
         }, async () => {
             if(trx.source === 'Repack' && trx.batch) {
                 const rItem = repackData.find(r => r.id === trx.batch);
                 if(rItem) await supabaseClient.from('repack').update({ remaining_qty: rItem.remaining_qty }).eq('id', trx.batch);
+            }
+            if(masterToRestore) {
+                await supabaseClient.from('master').update({ stock_qty: masterToRestore.stock_qty }).eq('id', masterToRestore.id);
             }
             if (!String(id).startsWith('trx_')) {
                 const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
@@ -7878,10 +8031,11 @@ function renderReportInventory() {
     let potentialRev = 0;
     let lowCount = 0;
 
+    // 1. Valuasi Repack
     repackData.forEach(r => {
-        const rem = r.remaining_qty || 0;
-        const modal = r.modal_per_pcs || 0;
-        const sell = r.sell_target || 0;
+        const rem = Number(r.remaining_qty || 0);
+        const modal = Number(r.modal_per_pcs || 0);
+        const sell = Number(r.sell_target || 0);
 
         totalValuation += (rem * modal);
         totalQty += rem;
@@ -7889,24 +8043,42 @@ function renderReportInventory() {
         if (rem > 0 && rem < 10) lowCount++;
     });
 
-    document.getElementById('rep-inv-valuation').innerText = "Rp " + totalValuation.toLocaleString('id-ID');
-    document.getElementById('rep-inv-total-qty').innerText = totalQty.toLocaleString('id-ID') + " pcs";
-    document.getElementById('rep-inv-potential-rev').innerText = "Rp " + potentialRev.toLocaleString('id-ID');
-    document.getElementById('rep-inv-low-count').innerText = lowCount + " Batch";
-    document.getElementById('rep-inv-batch-count').innerText = repackData.length + " batch terdaftar";
+    // 2. Valuasi Produk Master (Supplier Goods)
+    masterData.forEach(m => {
+        const rem = Number(m.stock_qty || 0);
+        const modal = Number(m.buy || 0);
+        const sell = Number(m.sell || 0);
+        const minStock = Number(m.min_stock || 5);
+
+        totalValuation += (rem * modal);
+        totalQty += rem;
+        potentialRev += (rem * sell);
+        if (rem > 0 && rem <= minStock) lowCount++;
+    });
+
+    const valEl = document.getElementById('rep-inv-valuation');
+    if (valEl) valEl.innerText = "Rp " + totalValuation.toLocaleString('id-ID');
+    const qtyEl = document.getElementById('rep-inv-total-qty');
+    if (qtyEl) qtyEl.innerText = totalQty.toLocaleString('id-ID') + " pcs";
+    const revEl = document.getElementById('rep-inv-potential-rev');
+    if (revEl) revEl.innerText = "Rp " + potentialRev.toLocaleString('id-ID');
+    const lowEl = document.getElementById('rep-inv-low-count');
+    if (lowEl) lowEl.innerText = lowCount + " Produk/Batch";
+    const batchEl = document.getElementById('rep-inv-batch-count');
+    if (batchEl) batchEl.innerText = `${repackData.length} batch repack, ${masterData.length} master supplier`;
 
     const tbody = document.getElementById('rep-inventory-body');
     if (!tbody) return;
 
-    if (repackData.length === 0) {
+    if (repackData.length === 0 && masterData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center opacity-50">Belum ada batch repack di gudang.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = repackData.map(r => {
-        const rem = r.remaining_qty || 0;
-        const modal = r.modal_per_pcs || 0;
-        const sell = r.sell_target || 0;
+    const repackRows = repackData.map(r => {
+        const rem = Number(r.remaining_qty || 0);
+        const modal = Number(r.modal_per_pcs || 0);
+        const sell = Number(r.sell_target || 0);
         const assetValue = rem * modal;
 
         let statusBadge = "";
@@ -7921,7 +8093,7 @@ function renderReportInventory() {
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
                 <td class="p-3 font-mono text-indigo-500 font-bold">${escapeHtml(r.id || '')} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(r.date || '-')}</span></td>
-                <td class="p-3 font-medium">${escapeHtml(r.name || '')}</td>
+                <td class="p-3 font-medium">${escapeHtml(r.name || '')} <span class="text-[10px] opacity-60 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 px-1 rounded ml-1 font-semibold">Repack</span></td>
                 <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
                 <td class="p-3 text-center font-bold font-mono">${rem} / ${r.initial_qty || rem}</td>
@@ -7929,7 +8101,38 @@ function renderReportInventory() {
                 <td class="p-3 text-center">${statusBadge}</td>
             </tr>
         `;
-    }).join('');
+    });
+
+    const masterRows = masterData.map(m => {
+        const rem = Number(m.stock_qty || 0);
+        const modal = Number(m.buy || 0);
+        const sell = Number(m.sell || 0);
+        const assetValue = rem * modal;
+        const minStock = Number(m.min_stock || 5);
+
+        let statusBadge = "";
+        if (rem <= 0) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Habis (0)</span>`;
+        } else if (rem <= minStock) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Menipis</span>`;
+        } else {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aman</span>`;
+        }
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
+                <td class="p-3 font-mono text-slate-500 font-bold">M-${m.id} <br><span class="text-[10px] opacity-60 text-slate-500">${escapeHtml(m.source || 'Supplier')}</span></td>
+                <td class="p-3 font-medium">${escapeHtml(m.name || '')} <span class="text-[10px] opacity-60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 px-1 rounded ml-1 font-semibold">Master</span></td>
+                <td class="p-3 text-right font-mono opacity-80">Rp ${modal.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-right font-mono font-medium text-emerald-600">Rp ${sell.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-center font-bold font-mono">${rem} pcs</td>
+                <td class="p-3 text-right font-bold font-mono">Rp ${assetValue.toLocaleString('id-ID')}</td>
+                <td class="p-3 text-center">${statusBadge}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = repackRows.join('') + masterRows.join('');
 }
 
 // ======================= SISTEM DROPDOWN EKSPOR (EXCEL & PDF) ======================= //
@@ -11001,6 +11204,15 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
                     <span>Status:</span>
                     <span class="bold">${statusBayar}</span>
                 </div>
+                ${(receiptData.cashTendered > 0) ? `
+                <div class="flex-between" style="margin-top: 2px;">
+                    <span>Tunai/Bayar:</span>
+                    <span>Rp ${Number(receiptData.cashTendered).toLocaleString('id-ID')}</span>
+                </div>
+                <div class="flex-between bold" style="margin-top: 2px;">
+                    <span>Kembalian:</span>
+                    <span>Rp ${Number(receiptData.changeDue || 0).toLocaleString('id-ID')}</span>
+                </div>` : ''}
             </div>
 
             ${bankInfo ? `
@@ -11075,6 +11287,8 @@ function printThermalReceiptFromTrx(targetTrx, format) {
         customer: targetTrx.customer,
         operator: currentUser || 'Kasir',
         status: targetTrx.status,
+        cashTendered: targetTrx.cashTendered || targetTrx.cash_tendered || 0,
+        changeDue: targetTrx.changeDue || targetTrx.change_due || 0,
         items: items,
         extraCost: extraCost,
         grandTotal: grandTotal
