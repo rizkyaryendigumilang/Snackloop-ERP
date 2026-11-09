@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-05T08:42:09.151Z from 17 source modules in src/modules/
+// Generated on 2026-11-09T03:36:04.183Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -3124,40 +3124,62 @@ async function loadDataFromCloud() {
             supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
 
-        agentData = resAgent.data || [];
-        masterData = (resMaster.data || []).map(m => isSuperAdmin ? m : { ...m, buy: 0 });
-        customerData = resCust.data || [];
-        repackData = (resRepack.data || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
-        expenseData = isSuperAdmin ? (resExp.data || []) : [];
-        userData = resUsers.data || [];
-
+        // Fault-tolerant data assignment:
+        // Jangan hapus cache lokal jika query database menghasilkan error/null
+        if (resAgent && !resAgent.error && Array.isArray(resAgent.data)) {
+            agentData = resAgent.data;
+        }
+        if (resMaster && !resMaster.error && Array.isArray(resMaster.data)) {
+            masterData = resMaster.data.map(m => isSuperAdmin ? m : { ...m, buy: 0 });
+        }
+        if (resCust && !resCust.error && Array.isArray(resCust.data)) {
+            customerData = resCust.data;
+        }
+        if (resRepack && !resRepack.error && Array.isArray(resRepack.data)) {
+            repackData = resRepack.data.map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
+        }
+        if (isSuperAdmin && resExp && !resExp.error && Array.isArray(resExp.data)) {
+            expenseData = resExp.data;
+        }
+        if (isSuperAdmin && resUsers && !resUsers.error && Array.isArray(resUsers.data)) {
+            userData = resUsers.data;
+        }
         if (resReturns && !resReturns.error && Array.isArray(resReturns.data)) {
             returnData = resReturns.data;
         }
         if (resJastip && !resJastip.error && Array.isArray(resJastip.data)) {
             jastipData = resJastip.data;
         }
-        invoiceData = resInv.data || [];
-        priceHistoryData = isSuperAdmin ? (resHistory.data || []) : [];
+        if (resInv && !resInv.error && Array.isArray(resInv.data)) {
+            invoiceData = resInv.data;
+        }
+        if (isSuperAdmin && resHistory && !resHistory.error && Array.isArray(resHistory.data)) {
+            priceHistoryData = resHistory.data;
+        }
 
-        transactionData = {};
-        (resTrx.data || []).forEach(t => {
-            const formatted = {
-                id: t.id, monthKey: t.month_key, date: t.date, customer: t.customer,
-                itemName: t.item_name, source: t.source, qty: Number(t.qty) || 0, batch: t.batch,
-                buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
-                extraCost: Number(t.extra_cost) || 0,
-                extraCostNote: t.extra_cost_note || '-',
-                totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
-                sell: Number(t.sell) || 0,
-                totalSell: Number(t.total_sell) || 0,
-                status: t.status,
-                profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
-                notes: t.notes || '-'
-            };
-            if(!transactionData[formatted.monthKey]) transactionData[formatted.monthKey] = [];
-            transactionData[formatted.monthKey].push(formatted);
-        });
+        if (resTrx && !resTrx.error && Array.isArray(resTrx.data)) {
+            const newTrxData = {};
+            resTrx.data.forEach(t => {
+                const formatted = {
+                    id: t.id, monthKey: t.month_key, date: t.date, customer: t.customer,
+                    itemName: t.item_name, source: t.source, qty: Number(t.qty) || 0, batch: t.batch,
+                    buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+                    extraCost: Number(t.extra_cost) || 0,
+                    extraCostNote: t.extra_cost_note || '-',
+                    totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+                    sell: Number(t.sell) || 0,
+                    totalSell: Number(t.total_sell) || 0,
+                    status: t.status,
+                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+                    notes: t.notes || '-'
+                };
+                if (!newTrxData[formatted.monthKey]) newTrxData[formatted.monthKey] = [];
+                newTrxData[formatted.monthKey].push(formatted);
+            });
+            transactionData = newTrxData;
+        } else if (resTrx && resTrx.error) {
+            console.warn('[SnackLoop Sync] Query transaksi menghasilkan error, mempertahankan cache memori lokal:', resTrx.error);
+        }
 
         saveCacheToLocal();
     } catch (err) { console.error("Gagal sinkronisasi Supabase:", err); }
@@ -3226,6 +3248,127 @@ function switchTab(tabId) {
     }
     if(tabId === 'transactions') renderMonthTabs();
     if(tabId === 'invoices') renderInvoicesTable();
+}
+
+/**
+ * Server-Side Paginated Transaction API Gateway.
+ * Memanggil RPC Stored Procedure get_transactions_paginated di Supabase,
+ * dengan graceful fallback ke query PostgREST .range(from, to) jika RPC belum aktif.
+ * 
+ * @param {Object} options
+ * @param {number} [options.page=1] - Nomor halaman (mulai dari 1)
+ * @param {number} [options.pageSize=25] - Jumlah baris per halaman
+ * @param {string} [options.monthKey] - Filter monthKey (misal "Nov 2026" atau "all")
+ * @param {string} [options.search] - Filter pencarian pelanggan atau nama barang
+ * @returns {Promise<{success: boolean, page: number, pageSize: number, totalCount: number, totalPages: number, data: Array}>}
+ */
+async function fetchServerPaginatedTransactions({ page = 1, pageSize = 25, monthKey = null, search = '' } = {}) {
+    if (!supabaseClient) {
+        return { success: false, error: 'Database offline', data: [] };
+    }
+
+    const isSuperAdmin = currentRole === 'super_admin';
+    const safePage = Math.max(1, parseInt(page, 10) || 1);
+    const safePageSize = Math.max(1, Math.min(100, parseInt(pageSize, 10) || 25));
+
+    // 1. Coba panggil RPC get_transactions_paginated
+    try {
+        const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('get_transactions_paginated', {
+            p_month_key: monthKey && monthKey !== 'all' ? monthKey : null,
+            p_page: safePage,
+            p_page_size: safePageSize,
+            p_search: search ? search.trim() : null
+        });
+
+        if (!rpcErr && rpcRes && rpcRes.success) {
+            // Masking data sensitif jika bukan super_admin (P1 Security)
+            const sanitizedRows = (rpcRes.data || []).map(t => ({
+                id: t.id,
+                monthKey: t.month_key,
+                date: t.date,
+                customer: t.customer,
+                itemName: t.item_name,
+                source: t.source,
+                batch: t.batch,
+                qty: Number(t.qty) || 0,
+                buy: isSuperAdmin ? (Number(t.buy_price || t.buy) || 0) : 0,
+                sell: Number(t.sell_price || t.sell) || 0,
+                totalSell: Number(t.total_sell) || 0,
+                totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+                profit: isSuperAdmin ? (Number(t.profit) || 0) : 0,
+                status: t.status,
+                notes: t.notes || '-',
+                extraCost: Number(t.extra_cost) || 0,
+                extraCostNote: t.extra_cost_note || '-'
+            }));
+
+            return {
+                success: true,
+                page: rpcRes.page,
+                pageSize: rpcRes.page_size,
+                totalCount: Number(rpcRes.total_count) || 0,
+                totalPages: Number(rpcRes.total_pages) || 0,
+                data: sanitizedRows
+            };
+        }
+    } catch (err) {
+        console.warn('[API Gateway] RPC get_transactions_paginated tidak tersedia, beralih ke PostgREST fallback:', err);
+    }
+
+    // 2. PostgREST Fallback via .range(from, to)
+    try {
+        const from = (safePage - 1) * safePageSize;
+        const to = from + safePageSize - 1;
+
+        let query = supabaseClient.from('transactions').select('*', { count: 'exact' });
+        if (monthKey && monthKey !== 'all') {
+            query = query.eq('month_key', monthKey);
+        }
+        if (search && search.trim()) {
+            query = query.or(`customer.ilike.%${search.trim()}%,item_name.ilike.%${search.trim()}%`);
+        }
+        query = query.order('date', { ascending: false }).order('id', { ascending: false }).range(from, to);
+
+        const { data, count, error } = await query;
+        if (error) throw error;
+
+        const totalCount = count || 0;
+        const totalPages = Math.ceil(totalCount / safePageSize);
+        const sanitizedRows = (data || []).map(t => ({
+            id: t.id,
+            monthKey: t.month_key,
+            date: t.date,
+            customer: t.customer,
+            itemName: t.item_name,
+            source: t.source,
+            batch: t.batch,
+            qty: Number(t.qty) || 0,
+            buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+            sell: Number(t.sell) || 0,
+            totalSell: Number(t.total_sell) || 0,
+            totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
+            status: t.status,
+            notes: t.notes || '-',
+            extraCost: Number(t.extra_cost) || 0,
+            extraCostNote: t.extra_cost_note || '-'
+        }));
+
+        return {
+            success: true,
+            page: safePage,
+            pageSize: safePageSize,
+            totalCount,
+            totalPages,
+            data: sanitizedRows
+        };
+    } catch (fallbackErr) {
+        console.error('[API Gateway] Gagal memuat transaksi terpaginasi:', fallbackErr);
+        return {
+            success: false,
+            error: fallbackErr.message || 'Gagal memuat transaksi terpaginasi',
+            data: []
+        };
+    }
 }
 
 

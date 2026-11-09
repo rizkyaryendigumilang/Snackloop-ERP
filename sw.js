@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v29 (Master Product Keuntungan Column Label)
-const CACHE_NAME = 'snackloop-cache-v29';
+// SnackLoop ERP Service Worker v30 (DB Integrity Constraints & Fault-Tolerant Paginated API)
+const CACHE_NAME = 'snackloop-cache-v30';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
