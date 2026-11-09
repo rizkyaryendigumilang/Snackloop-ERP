@@ -38,9 +38,9 @@ cleanup_and_rollback() {
           mkdir -p "$STAGE_DIR/restore"
           tar -xzf "$BACKUP_FILE" -C "$STAGE_DIR/restore"
           if command -v rsync >/dev/null 2>&1; then
-            rsync -rlptD --no-owner --no-group --delete --chmod=D755,F644 "$STAGE_DIR/restore/" "$TARGET_DIR/" || cp -a "$STAGE_DIR/restore/." "$TARGET_DIR/"
+            rsync -r -l -D --no-perms --no-owner --no-group --no-times --delete "$STAGE_DIR/restore/" "$TARGET_DIR/" || cp -R "$STAGE_DIR/restore/." "$TARGET_DIR/"
           else
-            cp -a "$STAGE_DIR/restore/." "$TARGET_DIR/"
+            cp -R "$STAGE_DIR/restore/." "$TARGET_DIR/"
           fi
           echo "✅ Rollback completed successfully to previous live state."
         else
@@ -127,17 +127,16 @@ DEPLOY_STATUS="SYNCING"
 IS_DIRTY=1
 
 if command -v rsync >/dev/null 2>&1; then
-  echo "[deploy] Executing non-root rsync with safe owner/group flags..."
-  rsync -rlptD --no-owner --no-group --delete --chmod=D755,F644 "$STAGE_DIR/" "$TARGET_DIR/" || {
-    echo "[deploy] rsync exited with non-zero; applying cp fallback..."
-    cp -a "$STAGE_DIR/." "$TARGET_DIR/"
-    chmod -R u=rwX,go=rX "$TARGET_DIR"
+  echo "[deploy] Executing non-root rsync without timestamp/permission mutations..."
+  rsync -r -l -D --no-perms --no-owner --no-group --no-times --delete "$STAGE_DIR/" "$TARGET_DIR/" || {
+    echo "[deploy] rsync exited with non-zero; applying cp -R fallback..."
+    cp -R "$STAGE_DIR/." "$TARGET_DIR/"
   }
 else
-  echo "[deploy] rsync not found, syncing via cp fallback..."
-  cp -a "$STAGE_DIR/." "$TARGET_DIR/"
-  chmod -R u=rwX,go=rX "$TARGET_DIR"
+  echo "[deploy] rsync not found, syncing via cp -R fallback..."
+  cp -R "$STAGE_DIR/." "$TARGET_DIR/"
 fi
+chmod -R u=rwX,go=rX "$TARGET_DIR" 2>/dev/null || true
 echo "[deploy] Synchronization finished."
 
 # Step 6: Post-Deployment Verification
