@@ -227,7 +227,12 @@
                         <i data-feather="user-plus"></i><span data-i18n="nav_users">Kelola Pengguna</span>
                     </a>
                 </li>
-                <li class="navbar__item navbar__item--divider" id="nav-item-settings">
+                <li class="navbar__item navbar__item--divider" id="nav-item-helpdesk">
+                    <a href="#" onclick="openHelpdeskTicket(); return false;" id="btn-helpdesk" class="navbar__link" title="Bantuan & Lapor Kendala" data-i18n-title="nav_helpdesk">
+                        <i data-feather="help-circle"></i><span data-i18n="nav_helpdesk">Bantuan & Lapor</span>
+                    </a>
+                </li>
+                <li class="navbar__item" id="nav-item-settings">
                     <a href="#" onclick="openSettingsModal('app'); return false;" id="btn-settings" class="navbar__link" title="Pengaturan & Preferensi" data-i18n-title="tab_preferences">
                         <i data-feather="settings"></i><span data-i18n="nav_settings">Pengaturan</span>
                     </a>
@@ -277,6 +282,11 @@
                     <!-- Panduan Pintasan Keyboard Kasir (F1 / ?) - Khusus Desktop/Laptop -->
                     <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border hidden sm:flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Pintasan Keyboard (? / F1)" aria-label="Panduan Pintasan Keyboard">
                         <i class="fa-solid fa-keyboard text-xs text-indigo-500"></i>
+                    </button>
+
+                    <!-- Tombol Bantuan / Helpdesk SSO Header -->
+                    <button id="btn-header-helpdesk" type="button" onclick="openHelpdeskTicket()" class="btn-apple-press w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 shrink-0" title="Bantuan & Laporkan Kendala (Tiket Helpdesk)" aria-label="Bantuan & Lapor Kendala">
+                        <i class="fa-solid fa-headset text-xs md:text-sm"></i>
                     </button>
 
                     <!-- Tombol Pengaturan Header (Kecil, Elegan & Selaras) -->
@@ -2731,7 +2741,36 @@
                         </div>
                     </div>
 
-                    <!-- 5. INFO APLIKASI -->
+                    <!-- 5. BANTUAN & LAPOR KENDALA (VPS HELPDESK SSO HANDOFF) -->
+                    <div class="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/70 via-white to-amber-50/40 dark:from-rose-950/20 dark:via-slate-900/40 dark:to-amber-950/20 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                    <i class="fa-solid fa-headset text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                                        Pusat Bantuan & Lapor Kendala
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">SSO Handoff</span>
+                                    </h4>
+                                    <p class="text-[11px] opacity-70">Mengalami kendala, bug, atau pertanyaan teknis? Formulir tiket baru akan langsung terbuka di VPS Helpdesk terpusat tanpa perlu login ulang.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-1">
+                            <button type="button" onclick="openHelpdeskTicket()" class="btn-apple-press btn-magnetic w-full bg-rose-600 hover:bg-rose-700 text-white !py-2.5 text-xs font-bold flex items-center justify-center gap-2 shadow-sm rounded-xl">
+                                <i class="fa-solid fa-ticket"></i>
+                                <span>Buat Tiket Kendala di VPS Helpdesk</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[10px] opacity-80 ml-0.5"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] opacity-65 font-mono px-0.5">
+                            <span>Sesi: <strong id="helpdesk-user-indicator">-</strong></span>
+                            <span>Target: /portal/new</span>
+                        </div>
+                    </div>
+
+                    <!-- 6. INFO APLIKASI -->
                     <div class="p-3.5 rounded-xl border border-inherit bg-slate-50 dark:bg-slate-900/40 space-y-1.5 text-xs">
                         <span class="font-bold block text-slate-800 dark:text-slate-200">Informasi Aplikasi & Lisensi:</span>
                         <div class="grid grid-cols-2 gap-2 text-[11px] opacity-80 pt-1 font-mono">

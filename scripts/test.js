@@ -420,6 +420,62 @@ runTest('Verify Phase 1 Enhancements (Master Stock Tracking, POS Cash Calculator
   assert.strictEqual(printerCode.includes('Kembalian:'), true, '16-printer.js missing change due receipt row');
 });
 
+// 18. VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Portal & Query Encoding)
+runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Portal & Query Encoding)', () => {
+  const assert = require('assert');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  const settingsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '15-settings.js'), 'utf8');
+
+  // 1. Verify UI entry points
+  assert.strictEqual(indexHtml.includes('id="btn-header-helpdesk"'), true, 'index.html missing #btn-header-helpdesk in navbar');
+  assert.strictEqual(indexHtml.includes('id="btn-helpdesk"'), true, 'index.html missing #btn-helpdesk in sidebar');
+  assert.strictEqual(indexHtml.includes('openHelpdeskTicket()'), true, 'index.html missing openHelpdeskTicket call');
+
+  // 2. Verify settings module implementation
+  assert.strictEqual(settingsCode.includes("baseUrl: 'https://43.156.236.102/helpdesk/handoff'"), true, 'HELPDESK_CONFIG baseUrl mismatch');
+  assert.strictEqual(settingsCode.includes("appSlug: 'snackloop'"), true, 'HELPDESK_CONFIG appSlug mismatch');
+  assert.strictEqual(settingsCode.includes('function buildHelpdeskUrl'), true, 'Missing buildHelpdeskUrl in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function openHelpdeskTicket'), true, 'Missing openHelpdeskTicket in 15-settings.js');
+
+  // 3. Test URL generator in VM sandbox
+  const vm = require('vm');
+  const sandbox = {
+    window: {},
+    currentUser: 'admin_test',
+    currentRole: 'super_admin',
+    userData: [{ id: 42, username: 'admin_test', role: 'super_admin' }],
+    sessionStorage: { getItem: () => null, setItem: () => {} },
+    URLSearchParams: URLSearchParams
+  };
+  vm.createContext(sandbox);
+
+  const scriptToRun = `
+    ${settingsCode.slice(settingsCode.indexOf('const HELPDESK_CONFIG'))}
+  `;
+  vm.runInContext(scriptToRun, sandbox);
+
+  // Test standard user handoff
+  const generatedUrl = sandbox.buildHelpdeskUrl({ from_url: 'https://snackloop.local/#dashboard' });
+  const parsed = new URL(generatedUrl);
+  assert.strictEqual(parsed.origin, 'https://43.156.236.102');
+  assert.strictEqual(parsed.pathname, '/helpdesk/handoff');
+  assert.strictEqual(parsed.searchParams.get('app'), 'snackloop');
+  assert.strictEqual(parsed.searchParams.get('uid'), '42');
+  assert.strictEqual(parsed.searchParams.get('name'), 'admin_test');
+  assert.strictEqual(parsed.searchParams.get('role'), 'Owner (Super Admin)');
+  assert.strictEqual(parsed.searchParams.get('from_url'), 'https://snackloop.local/#dashboard');
+  assert.strictEqual(parsed.searchParams.get('new'), '1');
+
+  // Test guest/fallback handoff
+  sandbox.currentUser = null;
+  sandbox.currentRole = null;
+  const guestUrl = sandbox.buildHelpdeskUrl({ from_url: 'https://snackloop.local/login' });
+  const guestParsed = new URL(guestUrl);
+  assert.strictEqual(guestParsed.searchParams.get('app'), 'snackloop');
+  assert.strictEqual(guestParsed.searchParams.get('uid').startsWith('guest_'), true);
+  assert.strictEqual(guestParsed.searchParams.get('new'), '1');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

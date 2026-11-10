@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-09T09:57:19.846Z from 17 source modules in src/modules/
+// Generated on 2026-11-10T09:36:05.580Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -130,6 +130,7 @@ const I18N = {
         nav_agents: "Kelola Agen",
         nav_users: "Kelola Pengguna",
         nav_settings: "Pengaturan",
+        nav_helpdesk: "Bantuan & Lapor",
         nav_install: "Pasang App",
         nav_logout: "Keluar",
 
@@ -203,6 +204,7 @@ const I18N = {
         nav_agents: "Manage Agents",
         nav_users: "Manage Users",
         nav_settings: "Settings",
+        nav_helpdesk: "Help & Support",
         nav_install: "Install App",
         nav_logout: "Logout",
 
@@ -10957,6 +10959,19 @@ function openSettingsModal(initialTab = 'profile') {
     updateThemeButtonsUI();
     updateLanguageButtonsUI();
     updateSettingsInstallButton();
+
+    // Update status pengguna Helpdesk SSO
+    const helpUserIndicator = document.getElementById('helpdesk-user-indicator');
+    if (helpUserIndicator) {
+        const u = currentUser || 'Tamu / Sesi Aktif';
+        let r = 'Kasir';
+        if (currentRole === 'super_admin') r = 'Super Admin';
+        else if (currentRole === 'staff_rekap') r = 'Staff Rekap';
+        else if (currentRole === 'view') r = 'Viewer';
+        else if (currentRole) r = currentRole;
+        helpUserIndicator.innerText = `${u} • ${r}`;
+    }
+
     switchSettingsTab(initialTab);
     openModalById('modal-settings');
 }
@@ -11065,6 +11080,86 @@ function clearLocalAppCache() {
 window.addEventListener('DOMContentLoaded', () => {
     applyAppSettingsUI();
 });
+
+// ========================================================================================= //
+// ==================== INTEGRASI HELPDESK TERPUSAT (SSO JIT HANDOFF) ====================== //
+// ========================================================================================= //
+
+const HELPDESK_CONFIG = {
+    baseUrl: 'https://43.156.236.102/helpdesk/handoff',
+    appSlug: 'snackloop'
+};
+
+function buildHelpdeskUrl(customContext = {}) {
+    const activeUsername = typeof currentUser === 'string' && currentUser ? currentUser : null;
+    let userObj = null;
+    if (activeUsername && typeof userData !== 'undefined' && Array.isArray(userData)) {
+        userObj = userData.find(u => u.username && u.username.toLowerCase() === activeUsername.toLowerCase());
+    }
+
+    const fallbackGuestId = () => {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                let gid = sessionStorage.getItem('snackloop_guest_id');
+                if (!gid) {
+                    gid = 'guest_' + Math.random().toString(36).substring(2, 9);
+                    sessionStorage.setItem('snackloop_guest_id', gid);
+                }
+                return gid;
+            }
+        } catch(e) {}
+        return 'guest_' + Date.now().toString(36);
+    };
+
+    const uid = customContext.uid 
+        || (userObj && userObj.id ? String(userObj.id) : null) 
+        || activeUsername 
+        || fallbackGuestId();
+
+    const name = customContext.name 
+        || activeUsername 
+        || 'Pengguna SnackLoop';
+
+    let resolvedRole = customContext.role;
+    if (!resolvedRole) {
+        if (currentRole === 'super_admin') resolvedRole = 'Owner (Super Admin)';
+        else if (currentRole === 'staff_rekap') resolvedRole = 'Staff Rekap / Kasir';
+        else if (currentRole === 'view') resolvedRole = 'Viewer';
+        else resolvedRole = currentRole || 'Kasir';
+    }
+
+    const fromUrl = customContext.from_url 
+        || (typeof window !== 'undefined' && window.location ? window.location.href : '');
+
+    const params = new URLSearchParams({
+        app: HELPDESK_CONFIG.appSlug,
+        uid: String(uid).slice(0, 200),
+        name: String(name),
+        role: String(resolvedRole),
+        from_url: fromUrl,
+        new: '1'
+    });
+
+    return `${HELPDESK_CONFIG.baseUrl}?${params.toString()}`;
+}
+
+function openHelpdeskTicket(customContext = {}) {
+    const targetUrl = buildHelpdeskUrl(customContext);
+
+    if (typeof window !== 'undefined') {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+            window.location.href = targetUrl;
+        }
+    }
+    return targetUrl;
+}
+
+if (typeof window !== 'undefined') {
+    window.SnackLoop = window.SnackLoop || {};
+    window.SnackLoop.openHelpdeskTicket = openHelpdeskTicket;
+    window.SnackLoop.buildHelpdeskUrl = buildHelpdeskUrl;
+}
 
 
 // --- [MODULE: 16-printer.js] ---

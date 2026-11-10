@@ -16,6 +16,7 @@ const I18N = {
         nav_agents: "Kelola Agen",
         nav_users: "Kelola Pengguna",
         nav_settings: "Pengaturan",
+        nav_helpdesk: "Bantuan & Lapor",
         nav_install: "Pasang App",
         nav_logout: "Keluar",
 
@@ -89,6 +90,7 @@ const I18N = {
         nav_agents: "Manage Agents",
         nav_users: "Manage Users",
         nav_settings: "Settings",
+        nav_helpdesk: "Help & Support",
         nav_install: "Install App",
         nav_logout: "Logout",
 
