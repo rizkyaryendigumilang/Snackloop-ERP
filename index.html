@@ -228,7 +228,7 @@
                     </a>
                 </li>
                 <li class="navbar__item navbar__item--divider" id="nav-item-helpdesk">
-                    <a href="#" onclick="openHelpdeskTicket(); return false;" id="btn-helpdesk" class="navbar__link" title="Bantuan & Lapor Kendala" data-i18n-title="nav_helpdesk">
+                    <a href="#" onclick="openHelpdeskModal(); return false;" id="btn-helpdesk" class="navbar__link" title="Bantuan & Lapor Kendala" data-i18n-title="nav_helpdesk">
                         <i data-feather="help-circle"></i><span data-i18n="nav_helpdesk">Bantuan & Lapor</span>
                     </a>
                 </li>
@@ -285,7 +285,7 @@
                     </button>
 
                     <!-- Tombol Bantuan / Helpdesk SSO Header -->
-                    <button id="btn-header-helpdesk" type="button" onclick="openHelpdeskTicket()" class="btn-apple-press w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 shrink-0" title="Bantuan & Laporkan Kendala (Tiket Helpdesk)" aria-label="Bantuan & Lapor Kendala">
+                    <button id="btn-header-helpdesk" type="button" onclick="openHelpdeskModal()" class="btn-apple-press w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 shrink-0" title="Bantuan & Laporkan Kendala (Tiket Helpdesk)" aria-label="Bantuan & Lapor Kendala">
                         <i class="fa-solid fa-headset text-xs md:text-sm"></i>
                     </button>
 
@@ -2766,7 +2766,11 @@
                         </div>
                         <div class="flex items-center justify-between text-[10px] opacity-65 font-mono px-0.5">
                             <span>Sesi: <strong id="helpdesk-user-indicator">-</strong></span>
-                            <a href="#" onclick="openHelpdeskPortalDirect(); return false;" class="text-rose-600 hover:underline">Riwayat Tiket &rarr;</a>
+                            <div class="flex items-center gap-2">
+                                <a href="#" onclick="openHelpdeskTicket(); return false;" class="text-rose-600 hover:underline">Tiket Kosong &rarr;</a>
+                                <span>&bull;</span>
+                                <a href="#" onclick="openHelpdeskPortalDirect(); return false;" class="text-rose-600 hover:underline">Riwayat Tiket &rarr;</a>
+                            </div>
                         </div>
                     </div>
 
@@ -2801,10 +2805,10 @@
 
     <!-- ==================== MODAL LAPOR KENDALA HELPDESK ==================== -->
     <div id="modal-helpdesk-report" class="fixed inset-0 bg-slate-900/60 z-[99999] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target === this) closeHelpdeskModal()">
-        <div class="theme-card border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-6 space-y-4 text-left">
+        <div class="theme-card border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 text-left max-h-[92vh] overflow-y-auto custom-scrollbar">
             <div class="flex justify-between items-center pb-3 border-b border-inherit">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                    <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                         <i class="fa-solid fa-headset"></i>
                     </div>
                     <div>
@@ -2858,16 +2862,84 @@
 
                 <div>
                     <label class="block font-bold opacity-80 mb-1">
-                        Rincian Kendala yang Dialami <span class="text-rose-500">*</span>
+                        Rincian Keluhan &amp; Kronologi Masalah <span class="text-rose-500">*</span>
                     </label>
                     <textarea
                         id="helpdesk-modal-description"
                         required
                         rows="3"
                         maxlength="1000"
-                        placeholder="Ceritakan kronologi singkat: apa yang sedang dilakukan, apa pesan error yang muncul, atau rincian masalah..."
+                        placeholder="Ceritakan keluhan Anda: apa yang sedang dilakukan, apa pesan error yang muncul, atau rincian masalah..."
                         class="w-full theme-input border rounded-xl p-2.5 text-xs outline-none resize-none"
                     ></textarea>
+                </div>
+
+                <!-- Foto Masalah (Opsional / Tidak Mandatory) -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block font-bold opacity-80">
+                            Foto / Screenshot Masalah
+                        </label>
+                        <span class="text-[10px] opacity-60 font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                            Tidak Wajib / Opsional
+                        </span>
+                    </div>
+
+                    <!-- Dropzone picker ketika belum ada foto -->
+                    <div id="helpdesk-photo-dropzone">
+                        <label
+                            for="helpdesk-modal-photo"
+                            class="flex flex-col items-center justify-center gap-1.5 p-3.5 border-2 border-dashed border-rose-300/60 dark:border-rose-900/50 hover:border-rose-500 rounded-xl bg-rose-50/30 dark:bg-rose-950/10 cursor-pointer transition text-center group"
+                        >
+                            <div class="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                            <span class="font-semibold text-[11px] text-rose-600 dark:text-rose-400">
+                                Klik untuk unggah foto atau tangkapan layar
+                            </span>
+                            <span class="text-[10px] opacity-60">
+                                Format PNG, JPG, WebP (otomatis dikompres)
+                            </span>
+                        </label>
+                        <input
+                            type="file"
+                            id="helpdesk-modal-photo"
+                            accept="image/*"
+                            class="hidden"
+                            onchange="handleHelpdeskPhotoUpload(event)"
+                        />
+                    </div>
+
+                    <!-- Preview Container saat foto sudah dipilih -->
+                    <div id="helpdesk-photo-preview" class="hidden p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2.5 overflow-hidden">
+                                <img
+                                    id="helpdesk-photo-img"
+                                    src=""
+                                    alt="Preview Foto Masalah"
+                                    class="w-12 h-12 object-cover rounded-lg border border-rose-200 shadow-sm shrink-0"
+                                />
+                                <div class="overflow-hidden">
+                                    <p id="helpdesk-photo-filename" class="font-bold text-xs truncate opacity-90">
+                                        foto_kendala.jpg
+                                    </p>
+                                    <p id="helpdesk-photo-filesize" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-check text-[9px]"></i> Foto siap dilampirkan
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onclick="removeHelpdeskPhoto()"
+                                class="btn-apple-press px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-[11px] font-semibold flex items-center gap-1 shrink-0 transition"
+                                title="Hapus foto"
+                            >
+                                <i class="fa-solid fa-trash-can text-[10px]"></i>
+                                <span>Hapus</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-1">

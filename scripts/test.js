@@ -426,16 +426,26 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
   const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
   const settingsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '15-settings.js'), 'utf8');
 
-  // 1. Verify UI entry points
+  // 1. Verify UI entry points and Helpdesk Modal elements
   assert.strictEqual(indexHtml.includes('id="btn-header-helpdesk"'), true, 'index.html missing #btn-header-helpdesk in navbar');
   assert.strictEqual(indexHtml.includes('id="btn-helpdesk"'), true, 'index.html missing #btn-helpdesk in sidebar');
   assert.strictEqual(indexHtml.includes('openHelpdeskTicket()'), true, 'index.html missing openHelpdeskTicket call');
+  assert.strictEqual(indexHtml.includes('openHelpdeskModal()'), true, 'index.html missing openHelpdeskModal call');
+  assert.strictEqual(indexHtml.includes('id="modal-helpdesk-report"'), true, 'index.html missing #modal-helpdesk-report');
+  assert.strictEqual(indexHtml.includes('id="helpdesk-modal-photo"'), true, 'index.html missing #helpdesk-modal-photo');
+  assert.strictEqual(indexHtml.includes('id="helpdesk-photo-preview"'), true, 'index.html missing #helpdesk-photo-preview');
+  assert.strictEqual(indexHtml.includes('id="helpdesk-modal-description"'), true, 'index.html missing #helpdesk-modal-description');
+  assert.strictEqual(indexHtml.includes('id="btn-submit-helpdesk-modal"'), true, 'index.html missing #btn-submit-helpdesk-modal');
 
   // 2. Verify settings module implementation
   assert.strictEqual(settingsCode.includes("baseUrl: 'https://43.156.236.102/helpdesk/handoff'"), true, 'HELPDESK_CONFIG baseUrl mismatch');
   assert.strictEqual(settingsCode.includes("appSlug: 'snackloop'"), true, 'HELPDESK_CONFIG appSlug mismatch');
   assert.strictEqual(settingsCode.includes('function buildHelpdeskUrl'), true, 'Missing buildHelpdeskUrl in 15-settings.js');
   assert.strictEqual(settingsCode.includes('function openHelpdeskTicket'), true, 'Missing openHelpdeskTicket in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function openHelpdeskModal'), true, 'Missing openHelpdeskModal in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function handleHelpdeskPhotoUpload'), true, 'Missing handleHelpdeskPhotoUpload in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function removeHelpdeskPhoto'), true, 'Missing removeHelpdeskPhoto in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function submitHelpdeskModal'), true, 'Missing submitHelpdeskModal in 15-settings.js');
 
   // 3. Test URL generator in VM sandbox
   const vm = require('vm');
@@ -465,6 +475,21 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
   assert.strictEqual(parsed.searchParams.get('role'), 'Owner (Super Admin)');
   assert.strictEqual(parsed.searchParams.get('from_url'), 'https://snackloop.local/#dashboard');
   assert.strictEqual(parsed.searchParams.get('new'), '1');
+
+  // Test rich complaint + photo payload
+  const richUrl = sandbox.buildHelpdeskUrl({
+    subject: 'Struk Printer Error',
+    description: 'Printer kasir macet saat cetak',
+    category: 'bug_error',
+    priority: 'urgent',
+    has_photo: '1'
+  });
+  const richParsed = new URL(richUrl);
+  assert.strictEqual(richParsed.searchParams.get('subject'), 'Struk Printer Error');
+  assert.strictEqual(richParsed.searchParams.get('description'), 'Printer kasir macet saat cetak');
+  assert.strictEqual(richParsed.searchParams.get('category'), 'bug_error');
+  assert.strictEqual(richParsed.searchParams.get('priority'), 'urgent');
+  assert.strictEqual(richParsed.searchParams.get('has_photo'), '1');
 
   // Test guest/fallback handoff
   sandbox.currentUser = null;

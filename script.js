@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-10T09:36:05.580Z from 17 source modules in src/modules/
+// Generated on 2026-11-10T09:59:43.819Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -11090,7 +11090,10 @@ const HELPDESK_CONFIG = {
     appSlug: 'snackloop'
 };
 
-function getActiveUserContext() {
+let currentHelpdeskPhotoBase64 = null;
+let currentHelpdeskPhotoName = null;
+
+function buildHelpdeskUrl(customContext = {}) {
     const activeUsername = typeof currentUser === 'string' && currentUser ? currentUser : null;
     let userObj = null;
     if (activeUsername && typeof userData !== 'undefined' && Array.isArray(userData)) {
@@ -11111,30 +11114,22 @@ function getActiveUserContext() {
         return 'guest_' + Date.now().toString(36);
     };
 
-    const uid = (userObj && userObj.id ? String(userObj.id) : null) 
+    const uid = customContext.uid 
+        || (userObj && userObj.id ? String(userObj.id) : null) 
         || activeUsername 
         || fallbackGuestId();
 
-    const name = activeUsername || 'Pengguna SnackLoop';
+    const name = customContext.name 
+        || activeUsername 
+        || 'Pengguna SnackLoop';
 
-    let resolvedRole = '';
-    if (typeof currentRole !== 'undefined') {
+    let resolvedRole = customContext.role;
+    if (!resolvedRole) {
         if (currentRole === 'super_admin') resolvedRole = 'Owner (Super Admin)';
         else if (currentRole === 'staff_rekap') resolvedRole = 'Staff Rekap / Kasir';
         else if (currentRole === 'view') resolvedRole = 'Viewer';
         else resolvedRole = currentRole || 'Kasir';
-    } else {
-        resolvedRole = 'Kasir';
     }
-
-    return { uid, name, role: resolvedRole };
-}
-
-function buildHelpdeskUrl(customContext = {}) {
-    const userCtx = getActiveUserContext();
-    const uid = customContext.uid || userCtx.uid;
-    const name = customContext.name || userCtx.name;
-    const resolvedRole = customContext.role || userCtx.role;
 
     const fromUrl = customContext.from_url 
         || (typeof window !== 'undefined' && window.location ? window.location.href : '');
@@ -11148,14 +11143,11 @@ function buildHelpdeskUrl(customContext = {}) {
         new: customContext.new !== undefined ? String(customContext.new) : '1'
     });
 
-    if (customContext.auto_submit) {
-        params.set('auto_submit', String(customContext.auto_submit));
-    }
     if (customContext.subject) {
         params.set('subject', String(customContext.subject).slice(0, 200));
     }
     if (customContext.description) {
-        params.set('description', String(customContext.description).slice(0, 4000));
+        params.set('description', String(customContext.description).slice(0, 2000));
     }
     if (customContext.category) {
         params.set('category', String(customContext.category));
@@ -11163,117 +11155,16 @@ function buildHelpdeskUrl(customContext = {}) {
     if (customContext.priority) {
         params.set('priority', String(customContext.priority));
     }
+    if (customContext.has_photo) {
+        params.set('has_photo', '1');
+    }
 
     return `${HELPDESK_CONFIG.baseUrl}?${params.toString()}`;
 }
 
-function openHelpdeskModal() {
-    const modal = document.getElementById('modal-helpdesk-report');
-    if (!modal) {
-        return openHelpdeskTicketDirect();
-    }
-    const userCtx = getActiveUserContext();
-    const userBadge = document.getElementById('helpdesk-modal-user');
-    if (userBadge) {
-        userBadge.textContent = `${userCtx.name} (${userCtx.role})`;
-    }
-    const subjectInput = document.getElementById('helpdesk-modal-subject');
-    if (subjectInput) {
-        subjectInput.value = '';
-    }
-    const descInput = document.getElementById('helpdesk-modal-description');
-    if (descInput) {
-        descInput.value = '';
-    }
-    const catInput = document.getElementById('helpdesk-modal-category');
-    if (catInput) {
-        catInput.value = 'bug_error';
-    }
-    const urgentInput = document.getElementById('helpdesk-modal-urgent');
-    if (urgentInput) {
-        urgentInput.checked = false;
-    }
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    setTimeout(() => {
-        if (subjectInput) subjectInput.focus();
-    }, 100);
-}
-
-function closeHelpdeskModal() {
-    const modal = document.getElementById('modal-helpdesk-report');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-}
-
-function submitHelpdeskModal(event) {
-    if (event) event.preventDefault();
-    const subject = document.getElementById('helpdesk-modal-subject')?.value?.trim();
-    const description = document.getElementById('helpdesk-modal-description')?.value?.trim();
-    const category = document.getElementById('helpdesk-modal-category')?.value || 'bug_error';
-    const isUrgent = document.getElementById('helpdesk-modal-urgent')?.checked;
-    const priority = isUrgent ? 'urgent' : 'medium';
-
-    if (!subject) {
-        if (typeof showNotification === 'function') {
-            showNotification('Peringatan', 'Judul masalah wajib diisi.', 'warning');
-        }
-        return;
-    }
-
-    const targetUrl = buildHelpdeskUrl({
-        new: '1',
-        auto_submit: '1',
-        subject: subject,
-        description: description || subject,
-        category: category,
-        priority: priority
-    });
-
-    closeHelpdeskModal();
-
-    if (typeof showNotification === 'function') {
-        showNotification('Tiket Terkirim', 'Kendala Anda berhasil dikirim ke Meja Bantuan Helpdesk.', 'success');
-    }
-
-    if (typeof window !== 'undefined') {
-        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-        if (!win) {
-            window.location.href = targetUrl;
-        }
-    }
-}
-
-function openHelpdeskPortalDirect() {
-    closeHelpdeskModal();
-    const targetUrl = buildHelpdeskUrl({ new: '0' });
-    if (typeof window !== 'undefined') {
-        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-        if (!win) {
-            window.location.href = targetUrl;
-        }
-    }
-}
-
 function openHelpdeskTicket(customContext = {}) {
-    if (customContext && (customContext.subject || customContext.auto_submit || customContext.direct)) {
-        const targetUrl = buildHelpdeskUrl(customContext);
-        if (typeof window !== 'undefined') {
-            const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-            if (!win) {
-                window.location.href = targetUrl;
-            }
-        }
-        return targetUrl;
-    }
-    openHelpdeskModal();
-}
+    const targetUrl = buildHelpdeskUrl(customContext);
 
-function openHelpdeskTicketDirect(customContext = {}) {
-    const targetUrl = buildHelpdeskUrl({ ...customContext, new: '1' });
     if (typeof window !== 'undefined') {
         const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
         if (!win) {
@@ -11283,14 +11174,277 @@ function openHelpdeskTicketDirect(customContext = {}) {
     return targetUrl;
 }
 
+function openHelpdeskModal(prefillCategory = '', prefillSubject = '') {
+    const modal = document.getElementById('modal-helpdesk-report');
+    if (!modal) return;
+
+    // Tampilkan identitas pelapor
+    const userBadge = document.getElementById('helpdesk-modal-user');
+    if (userBadge) {
+        const u = typeof currentUser === 'string' && currentUser ? currentUser : 'Tamu / Sesi Aktif';
+        let r = 'Kasir';
+        if (typeof currentRole !== 'undefined') {
+            if (currentRole === 'super_admin') r = 'Owner / Admin';
+            else if (currentRole === 'staff_rekap') r = 'Staff Rekap';
+            else if (currentRole === 'view') r = 'Viewer';
+            else if (currentRole) r = currentRole;
+        }
+        userBadge.textContent = `${u} (${r})`;
+    }
+
+    // Prefill form bila ada parameter
+    const catSelect = document.getElementById('helpdesk-modal-category');
+    if (catSelect && prefillCategory) catSelect.value = prefillCategory;
+
+    const subInput = document.getElementById('helpdesk-modal-subject');
+    if (subInput && prefillSubject) subInput.value = prefillSubject;
+
+    // Reset photo preview bila ada foto tersisa dari sesi sebelumnya
+    removeHelpdeskPhoto();
+
+    if (typeof openModalById === 'function') {
+        openModalById('modal-helpdesk-report');
+    } else {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closeHelpdeskModal() {
+    if (typeof closeModalById === 'function') {
+        closeModalById('modal-helpdesk-report');
+    } else {
+        const modal = document.getElementById('modal-helpdesk-report');
+        if (modal) {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+    }
+    removeHelpdeskPhoto();
+}
+
+function handleHelpdeskPhotoUpload(event) {
+    const file = event.target && event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!file.type || !file.type.startsWith('image/')) {
+        if (typeof showNotification === 'function') {
+            showNotification("Format Salah", "Pilih berkas gambar (JPG, PNG, atau WebP)", "error");
+        } else {
+            alert("Pilih berkas gambar (JPG, PNG, atau WebP)");
+        }
+        event.target.value = '';
+        return;
+    }
+
+    // Batasi ukuran awal sebelum kompresi maksimal 10MB
+    if (file.size > 10 * 1024 * 1024) {
+        if (typeof showNotification === 'function') {
+            showNotification("Berkas Terlalu Besar", "Ukuran foto maksimal 10MB", "error");
+        } else {
+            alert("Ukuran foto maksimal 10MB");
+        }
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 900;
+                const MAX_HEIGHT = 900;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width = Math.round((width * MAX_HEIGHT) / height);
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                currentHelpdeskPhotoBase64 = canvas.toDataURL('image/jpeg', 0.65);
+                currentHelpdeskPhotoName = file.name || 'foto_kendala.jpg';
+
+                const dropzone = document.getElementById('helpdesk-photo-dropzone');
+                const preview = document.getElementById('helpdesk-photo-preview');
+                const previewImg = document.getElementById('helpdesk-photo-img');
+                const nameEl = document.getElementById('helpdesk-photo-filename');
+                const sizeEl = document.getElementById('helpdesk-photo-filesize');
+
+                if (previewImg) previewImg.src = currentHelpdeskPhotoBase64;
+                if (nameEl) nameEl.textContent = currentHelpdeskPhotoName;
+                if (sizeEl) {
+                    const approxKb = Math.round((currentHelpdeskPhotoBase64.length * 3 / 4) / 1024);
+                    sizeEl.innerHTML = `<i class="fa-solid fa-circle-check text-[9px]"></i> Foto terlampir (~${approxKb} KB)`;
+                }
+
+                if (dropzone) dropzone.classList.add('hidden');
+                if (preview) preview.classList.remove('hidden');
+            } catch (err) {
+                console.error("Gagal kompresi foto kendala:", err);
+                currentHelpdeskPhotoBase64 = evt.target.result;
+                currentHelpdeskPhotoName = file.name || 'foto_kendala.jpg';
+                const preview = document.getElementById('helpdesk-photo-preview');
+                const dropzone = document.getElementById('helpdesk-photo-dropzone');
+                if (dropzone) dropzone.classList.add('hidden');
+                if (preview) preview.classList.remove('hidden');
+            }
+        };
+        img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeHelpdeskPhoto() {
+    currentHelpdeskPhotoBase64 = null;
+    currentHelpdeskPhotoName = null;
+
+    const fileInput = document.getElementById('helpdesk-modal-photo');
+    if (fileInput) fileInput.value = '';
+
+    const dropzone = document.getElementById('helpdesk-photo-dropzone');
+    if (dropzone) dropzone.classList.remove('hidden');
+
+    const preview = document.getElementById('helpdesk-photo-preview');
+    if (preview) preview.classList.add('hidden');
+
+    const previewImg = document.getElementById('helpdesk-photo-img');
+    if (previewImg) previewImg.src = '';
+}
+
+function openHelpdeskPortalDirect() {
+    const url = buildHelpdeskUrl({ new: '0' });
+    if (typeof window !== 'undefined') {
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win) window.location.href = url;
+    }
+    return url;
+}
+
+function submitHelpdeskModal(event) {
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
+
+    const catEl = document.getElementById('helpdesk-modal-category');
+    const subEl = document.getElementById('helpdesk-modal-subject');
+    const descEl = document.getElementById('helpdesk-modal-description') || document.getElementById('helpdesk-modal-complaint');
+    const urgentEl = document.getElementById('helpdesk-modal-urgent');
+
+    const category = catEl ? catEl.value : 'other';
+    const subject = subEl ? subEl.value.trim() : '';
+    const complaint = descEl ? descEl.value.trim() : '';
+    const isUrgent = urgentEl ? urgentEl.checked : false;
+
+    if (!subject) {
+        if (typeof showNotification === 'function') {
+            showNotification("Data Kurang", "Mohon isi judul / ringkasan kendala", "error");
+        } else {
+            alert("Mohon isi judul / ringkasan kendala");
+        }
+        if (subEl) subEl.focus();
+        return;
+    }
+
+    if (!complaint) {
+        if (typeof showNotification === 'function') {
+            showNotification("Data Kurang", "Mohon ceritakan rincian keluhan Anda", "error");
+        } else {
+            alert("Mohon ceritakan rincian keluhan Anda");
+        }
+        if (descEl) descEl.focus();
+        return;
+    }
+
+    // Petakan label kategori yang ramah
+    const categoryLabels = {
+        bug_error: 'Bug / Error Sistem',
+        data_transaction: 'Data Transaksi & Struk',
+        account_login: 'Akun & Hak Akses',
+        feature_question: 'Pertanyaan Fitur',
+        other: 'Lainnya'
+    };
+    const categoryName = categoryLabels[category] || category;
+
+    // Susun isi deskripsi / keluhan
+    let fullDescription = `[KATEGORI: ${categoryName.toUpperCase()}]${isUrgent ? ' [PRIORITAS: MENDESAK]' : ''}\n\n${complaint}`;
+    if (currentHelpdeskPhotoBase64) {
+        fullDescription += `\n\n---\n[Lampiran Foto Masalah]: ${currentHelpdeskPhotoName || 'foto_masalah.jpg'} (Telah diverifikasi dan dilampirkan via SnackLoop client)`;
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('snackloop_helpdesk_last_photo', JSON.stringify({
+                    timestamp: Date.now(),
+                    name: currentHelpdeskPhotoName,
+                    preview: currentHelpdeskPhotoBase64.slice(0, 1000)
+                }));
+            }
+        } catch(e) {}
+    }
+
+    const targetUrl = buildHelpdeskUrl({
+        subject: subject,
+        description: fullDescription,
+        category: category,
+        priority: isUrgent ? 'urgent' : 'normal',
+        has_photo: currentHelpdeskPhotoBase64 ? '1' : '0',
+        new: '1'
+    });
+
+    if (typeof logAuditActivity === 'function') {
+        try {
+            logAuditActivity(
+                'HELPDESK_TICKET_SUBMIT',
+                subject,
+                `Lapor kendala ke VPS Helpdesk: "${subject}" (${categoryName})${currentHelpdeskPhotoBase64 ? ' [Dengan Foto]' : ''}`
+            );
+        } catch(e) {
+            console.warn("Audit log helpdesk skip:", e);
+        }
+    }
+
+    if (typeof window !== 'undefined') {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+            window.location.href = targetUrl;
+        }
+    }
+
+    if (typeof showNotification === 'function') {
+        showNotification("Laporan Terkirim", "Kendala dan rincian keluhan Anda berhasil diteruskan ke Meja Kerja VPS Helpdesk!", "success");
+    }
+
+    // Reset dan tutup modal
+    const form = document.getElementById('form-helpdesk-report');
+    if (form) form.reset();
+    removeHelpdeskPhoto();
+    closeHelpdeskModal();
+
+    return targetUrl;
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.openHelpdeskTicket = openHelpdeskTicket;
-    window.SnackLoop.openHelpdeskTicketDirect = openHelpdeskTicketDirect;
     window.SnackLoop.openHelpdeskModal = openHelpdeskModal;
     window.SnackLoop.closeHelpdeskModal = closeHelpdeskModal;
-    window.SnackLoop.submitHelpdeskModal = submitHelpdeskModal;
+    window.SnackLoop.handleHelpdeskPhotoUpload = handleHelpdeskPhotoUpload;
+    window.SnackLoop.removeHelpdeskPhoto = removeHelpdeskPhoto;
     window.SnackLoop.openHelpdeskPortalDirect = openHelpdeskPortalDirect;
+    window.SnackLoop.submitHelpdeskModal = submitHelpdeskModal;
     window.SnackLoop.buildHelpdeskUrl = buildHelpdeskUrl;
 }
 
