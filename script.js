@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-10T09:59:43.819Z from 17 source modules in src/modules/
+// Generated on 2026-11-10T10:05:39.799Z from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -11093,7 +11093,7 @@ const HELPDESK_CONFIG = {
 let currentHelpdeskPhotoBase64 = null;
 let currentHelpdeskPhotoName = null;
 
-function buildHelpdeskUrl(customContext = {}) {
+function dapatkanSesiPenggunaAktif() {
     const activeUsername = typeof currentUser === 'string' && currentUser ? currentUser : null;
     let userObj = null;
     if (activeUsername && typeof userData !== 'undefined' && Array.isArray(userData)) {
@@ -11114,25 +11114,72 @@ function buildHelpdeskUrl(customContext = {}) {
         return 'guest_' + Date.now().toString(36);
     };
 
-    const uid = customContext.uid 
-        || (userObj && userObj.id ? String(userObj.id) : null) 
-        || activeUsername 
-        || fallbackGuestId();
-
-    const name = customContext.name 
-        || activeUsername 
-        || 'Pengguna SnackLoop';
-
-    let resolvedRole = customContext.role;
-    if (!resolvedRole) {
+    let resolvedRole = 'Kasir';
+    if (typeof currentRole !== 'undefined') {
         if (currentRole === 'super_admin') resolvedRole = 'Owner (Super Admin)';
         else if (currentRole === 'staff_rekap') resolvedRole = 'Staff Rekap / Kasir';
         else if (currentRole === 'view') resolvedRole = 'Viewer';
-        else resolvedRole = currentRole || 'Kasir';
+        else if (currentRole) resolvedRole = currentRole;
     }
 
-    const fromUrl = customContext.from_url 
-        || (typeof window !== 'undefined' && window.location ? window.location.href : '');
+    return {
+        id: (userObj && userObj.id ? String(userObj.id) : null) || activeUsername || fallbackGuestId(),
+        username: activeUsername || 'anonymous',
+        name: (userObj && userObj.name ? userObj.name : activeUsername) || 'Pengguna SnackLoop',
+        role: resolvedRole
+    };
+}
+
+function laporkanKendalaKeHelpdesk({ subject, description, category = 'bug_error', isUrgent = false, has_photo = false }) {
+    const userSession = dapatkanSesiPenggunaAktif();
+    const fromUrl = typeof window !== 'undefined' && window.location ? window.location.href : '';
+
+    const params = new URLSearchParams({
+        app: HELPDESK_CONFIG.appSlug,
+        uid: String(userSession.id || userSession.username).slice(0, 200),
+        name: String(userSession.name || userSession.username || 'Pengguna SnackLoop'),
+        role: String(userSession.role || 'Pengguna'),
+        from_url: fromUrl,
+        new: '1',
+        auto_submit: '1',
+        subject: String(subject || '').trim().slice(0, 200),
+        description: String(description || '').trim().slice(0, 2500),
+        category: String(category || 'bug_error'),
+        priority: isUrgent ? 'urgent' : 'medium'
+    });
+
+    if (has_photo) {
+        params.set('has_photo', '1');
+    }
+
+    const targetUrl = `${HELPDESK_CONFIG.baseUrl}?${params.toString()}`;
+
+    if (typeof logAuditActivity === 'function') {
+        try {
+            logAuditActivity(
+                'HELPDESK_TICKET_SUBMIT',
+                subject,
+                `Lapor kendala ke VPS Helpdesk: "${subject}" (${category})${has_photo ? ' [Dengan Foto]' : ''}`
+            );
+        } catch(e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+            window.location.href = targetUrl;
+        }
+    }
+
+    return targetUrl;
+}
+
+function buildHelpdeskUrl(customContext = {}) {
+    const userSession = dapatkanSesiPenggunaAktif();
+    const uid = customContext.uid || userSession.id;
+    const name = customContext.name || userSession.name;
+    const resolvedRole = customContext.role || userSession.role;
+    const fromUrl = customContext.from_url || (typeof window !== 'undefined' && window.location ? window.location.href : '');
 
     const params = new URLSearchParams({
         app: HELPDESK_CONFIG.appSlug,
@@ -11143,11 +11190,14 @@ function buildHelpdeskUrl(customContext = {}) {
         new: customContext.new !== undefined ? String(customContext.new) : '1'
     });
 
+    if (customContext.auto_submit !== undefined) {
+        params.set('auto_submit', String(customContext.auto_submit));
+    }
     if (customContext.subject) {
         params.set('subject', String(customContext.subject).slice(0, 200));
     }
     if (customContext.description) {
-        params.set('description', String(customContext.description).slice(0, 2000));
+        params.set('description', String(customContext.description).slice(0, 2500));
     }
     if (customContext.category) {
         params.set('category', String(customContext.category));
@@ -11181,15 +11231,8 @@ function openHelpdeskModal(prefillCategory = '', prefillSubject = '') {
     // Tampilkan identitas pelapor
     const userBadge = document.getElementById('helpdesk-modal-user');
     if (userBadge) {
-        const u = typeof currentUser === 'string' && currentUser ? currentUser : 'Tamu / Sesi Aktif';
-        let r = 'Kasir';
-        if (typeof currentRole !== 'undefined') {
-            if (currentRole === 'super_admin') r = 'Owner / Admin';
-            else if (currentRole === 'staff_rekap') r = 'Staff Rekap';
-            else if (currentRole === 'view') r = 'Viewer';
-            else if (currentRole) r = currentRole;
-        }
-        userBadge.textContent = `${u} (${r})`;
+        const session = dapatkanSesiPenggunaAktif();
+        userBadge.textContent = `${session.name} (${session.role})`;
     }
 
     // Prefill form bila ada parameter
@@ -11395,33 +11438,14 @@ function submitHelpdeskModal(event) {
         } catch(e) {}
     }
 
-    const targetUrl = buildHelpdeskUrl({
+    // Eksekusi pengiriman via laporkanKendalaKeHelpdesk dengan auto_submit
+    const targetUrl = laporkanKendalaKeHelpdesk({
         subject: subject,
         description: fullDescription,
         category: category,
-        priority: isUrgent ? 'urgent' : 'normal',
-        has_photo: currentHelpdeskPhotoBase64 ? '1' : '0',
-        new: '1'
+        isUrgent: isUrgent,
+        has_photo: !!currentHelpdeskPhotoBase64
     });
-
-    if (typeof logAuditActivity === 'function') {
-        try {
-            logAuditActivity(
-                'HELPDESK_TICKET_SUBMIT',
-                subject,
-                `Lapor kendala ke VPS Helpdesk: "${subject}" (${categoryName})${currentHelpdeskPhotoBase64 ? ' [Dengan Foto]' : ''}`
-            );
-        } catch(e) {
-            console.warn("Audit log helpdesk skip:", e);
-        }
-    }
-
-    if (typeof window !== 'undefined') {
-        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-        if (!win) {
-            window.location.href = targetUrl;
-        }
-    }
 
     if (typeof showNotification === 'function') {
         showNotification("Laporan Terkirim", "Kendala dan rincian keluhan Anda berhasil diteruskan ke Meja Kerja VPS Helpdesk!", "success");
@@ -11438,6 +11462,8 @@ function submitHelpdeskModal(event) {
 
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
+    window.SnackLoop.dapatkanSesiPenggunaAktif = dapatkanSesiPenggunaAktif;
+    window.SnackLoop.laporkanKendalaKeHelpdesk = laporkanKendalaKeHelpdesk;
     window.SnackLoop.openHelpdeskTicket = openHelpdeskTicket;
     window.SnackLoop.openHelpdeskModal = openHelpdeskModal;
     window.SnackLoop.closeHelpdeskModal = closeHelpdeskModal;
@@ -11446,6 +11472,9 @@ if (typeof window !== 'undefined') {
     window.SnackLoop.openHelpdeskPortalDirect = openHelpdeskPortalDirect;
     window.SnackLoop.submitHelpdeskModal = submitHelpdeskModal;
     window.SnackLoop.buildHelpdeskUrl = buildHelpdeskUrl;
+
+    window.dapatkanSesiPenggunaAktif = dapatkanSesiPenggunaAktif;
+    window.laporkanKendalaKeHelpdesk = laporkanKendalaKeHelpdesk;
 }
 
 

@@ -440,6 +440,8 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
   // 2. Verify settings module implementation
   assert.strictEqual(settingsCode.includes("baseUrl: 'https://43.156.236.102/helpdesk/handoff'"), true, 'HELPDESK_CONFIG baseUrl mismatch');
   assert.strictEqual(settingsCode.includes("appSlug: 'snackloop'"), true, 'HELPDESK_CONFIG appSlug mismatch');
+  assert.strictEqual(settingsCode.includes('function dapatkanSesiPenggunaAktif'), true, 'Missing dapatkanSesiPenggunaAktif in 15-settings.js');
+  assert.strictEqual(settingsCode.includes('function laporkanKendalaKeHelpdesk'), true, 'Missing laporkanKendalaKeHelpdesk in 15-settings.js');
   assert.strictEqual(settingsCode.includes('function buildHelpdeskUrl'), true, 'Missing buildHelpdeskUrl in 15-settings.js');
   assert.strictEqual(settingsCode.includes('function openHelpdeskTicket'), true, 'Missing openHelpdeskTicket in 15-settings.js');
   assert.strictEqual(settingsCode.includes('function openHelpdeskModal'), true, 'Missing openHelpdeskModal in 15-settings.js');
@@ -450,7 +452,7 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
   // 3. Test URL generator in VM sandbox
   const vm = require('vm');
   const sandbox = {
-    window: {},
+    window: { open: () => null, location: { href: 'https://snackloop.local/#pos' } },
     currentUser: 'admin_test',
     currentRole: 'super_admin',
     userData: [{ id: 42, username: 'admin_test', role: 'super_admin' }],
@@ -463,6 +465,38 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
     ${settingsCode.slice(settingsCode.indexOf('const HELPDESK_CONFIG'))}
   `;
   vm.runInContext(scriptToRun, sandbox);
+
+  // Test laporkanKendalaKeHelpdesk with auto_submit and medium priority
+  const directReportUrl = sandbox.laporkanKendalaKeHelpdesk({
+    subject: 'Barang tidak tampil di POS',
+    description: 'Kategori basreng kosong',
+    category: 'data_transaction',
+    isUrgent: false,
+    has_photo: true
+  });
+  const parsedDirect = new URL(directReportUrl);
+  assert.strictEqual(parsedDirect.searchParams.get('app'), 'snackloop');
+  assert.strictEqual(parsedDirect.searchParams.get('uid'), '42');
+  assert.strictEqual(parsedDirect.searchParams.get('name'), 'admin_test');
+  assert.strictEqual(parsedDirect.searchParams.get('role'), 'Owner (Super Admin)');
+  assert.strictEqual(parsedDirect.searchParams.get('from_url'), 'https://snackloop.local/#pos');
+  assert.strictEqual(parsedDirect.searchParams.get('new'), '1');
+  assert.strictEqual(parsedDirect.searchParams.get('auto_submit'), '1');
+  assert.strictEqual(parsedDirect.searchParams.get('subject'), 'Barang tidak tampil di POS');
+  assert.strictEqual(parsedDirect.searchParams.get('description'), 'Kategori basreng kosong');
+  assert.strictEqual(parsedDirect.searchParams.get('category'), 'data_transaction');
+  assert.strictEqual(parsedDirect.searchParams.get('priority'), 'medium');
+  assert.strictEqual(parsedDirect.searchParams.get('has_photo'), '1');
+
+  // Test laporkanKendalaKeHelpdesk with urgent priority
+  const urgentReportUrl = sandbox.laporkanKendalaKeHelpdesk({
+    subject: 'Gagal Login Server',
+    description: 'Timeout koneksi Supabase',
+    category: 'account_login',
+    isUrgent: true
+  });
+  const parsedUrgent = new URL(urgentReportUrl);
+  assert.strictEqual(parsedUrgent.searchParams.get('priority'), 'urgent');
 
   // Test standard user handoff
   const generatedUrl = sandbox.buildHelpdeskUrl({ from_url: 'https://snackloop.local/#dashboard' });
