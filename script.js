@@ -11090,7 +11090,7 @@ const HELPDESK_CONFIG = {
     appSlug: 'snackloop'
 };
 
-function buildHelpdeskUrl(customContext = {}) {
+function getActiveUserContext() {
     const activeUsername = typeof currentUser === 'string' && currentUser ? currentUser : null;
     let userObj = null;
     if (activeUsername && typeof userData !== 'undefined' && Array.isArray(userData)) {
@@ -11111,22 +11111,30 @@ function buildHelpdeskUrl(customContext = {}) {
         return 'guest_' + Date.now().toString(36);
     };
 
-    const uid = customContext.uid 
-        || (userObj && userObj.id ? String(userObj.id) : null) 
+    const uid = (userObj && userObj.id ? String(userObj.id) : null) 
         || activeUsername 
         || fallbackGuestId();
 
-    const name = customContext.name 
-        || activeUsername 
-        || 'Pengguna SnackLoop';
+    const name = activeUsername || 'Pengguna SnackLoop';
 
-    let resolvedRole = customContext.role;
-    if (!resolvedRole) {
+    let resolvedRole = '';
+    if (typeof currentRole !== 'undefined') {
         if (currentRole === 'super_admin') resolvedRole = 'Owner (Super Admin)';
         else if (currentRole === 'staff_rekap') resolvedRole = 'Staff Rekap / Kasir';
         else if (currentRole === 'view') resolvedRole = 'Viewer';
         else resolvedRole = currentRole || 'Kasir';
+    } else {
+        resolvedRole = 'Kasir';
     }
+
+    return { uid, name, role: resolvedRole };
+}
+
+function buildHelpdeskUrl(customContext = {}) {
+    const userCtx = getActiveUserContext();
+    const uid = customContext.uid || userCtx.uid;
+    const name = customContext.name || userCtx.name;
+    const resolvedRole = customContext.role || userCtx.role;
 
     const fromUrl = customContext.from_url 
         || (typeof window !== 'undefined' && window.location ? window.location.href : '');
@@ -11137,15 +11145,135 @@ function buildHelpdeskUrl(customContext = {}) {
         name: String(name),
         role: String(resolvedRole),
         from_url: fromUrl,
-        new: '1'
+        new: customContext.new !== undefined ? String(customContext.new) : '1'
     });
+
+    if (customContext.auto_submit) {
+        params.set('auto_submit', String(customContext.auto_submit));
+    }
+    if (customContext.subject) {
+        params.set('subject', String(customContext.subject).slice(0, 200));
+    }
+    if (customContext.description) {
+        params.set('description', String(customContext.description).slice(0, 4000));
+    }
+    if (customContext.category) {
+        params.set('category', String(customContext.category));
+    }
+    if (customContext.priority) {
+        params.set('priority', String(customContext.priority));
+    }
 
     return `${HELPDESK_CONFIG.baseUrl}?${params.toString()}`;
 }
 
-function openHelpdeskTicket(customContext = {}) {
-    const targetUrl = buildHelpdeskUrl(customContext);
+function openHelpdeskModal() {
+    const modal = document.getElementById('modal-helpdesk-report');
+    if (!modal) {
+        return openHelpdeskTicketDirect();
+    }
+    const userCtx = getActiveUserContext();
+    const userBadge = document.getElementById('helpdesk-modal-user');
+    if (userBadge) {
+        userBadge.textContent = `${userCtx.name} (${userCtx.role})`;
+    }
+    const subjectInput = document.getElementById('helpdesk-modal-subject');
+    if (subjectInput) {
+        subjectInput.value = '';
+    }
+    const descInput = document.getElementById('helpdesk-modal-description');
+    if (descInput) {
+        descInput.value = '';
+    }
+    const catInput = document.getElementById('helpdesk-modal-category');
+    if (catInput) {
+        catInput.value = 'bug_error';
+    }
+    const urgentInput = document.getElementById('helpdesk-modal-urgent');
+    if (urgentInput) {
+        urgentInput.checked = false;
+    }
 
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => {
+        if (subjectInput) subjectInput.focus();
+    }, 100);
+}
+
+function closeHelpdeskModal() {
+    const modal = document.getElementById('modal-helpdesk-report');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+function submitHelpdeskModal(event) {
+    if (event) event.preventDefault();
+    const subject = document.getElementById('helpdesk-modal-subject')?.value?.trim();
+    const description = document.getElementById('helpdesk-modal-description')?.value?.trim();
+    const category = document.getElementById('helpdesk-modal-category')?.value || 'bug_error';
+    const isUrgent = document.getElementById('helpdesk-modal-urgent')?.checked;
+    const priority = isUrgent ? 'urgent' : 'medium';
+
+    if (!subject) {
+        if (typeof showNotification === 'function') {
+            showNotification('Peringatan', 'Judul masalah wajib diisi.', 'warning');
+        }
+        return;
+    }
+
+    const targetUrl = buildHelpdeskUrl({
+        new: '1',
+        auto_submit: '1',
+        subject: subject,
+        description: description || subject,
+        category: category,
+        priority: priority
+    });
+
+    closeHelpdeskModal();
+
+    if (typeof showNotification === 'function') {
+        showNotification('Tiket Terkirim', 'Kendala Anda berhasil dikirim ke Meja Bantuan Helpdesk.', 'success');
+    }
+
+    if (typeof window !== 'undefined') {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+            window.location.href = targetUrl;
+        }
+    }
+}
+
+function openHelpdeskPortalDirect() {
+    closeHelpdeskModal();
+    const targetUrl = buildHelpdeskUrl({ new: '0' });
+    if (typeof window !== 'undefined') {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+            window.location.href = targetUrl;
+        }
+    }
+}
+
+function openHelpdeskTicket(customContext = {}) {
+    if (customContext && (customContext.subject || customContext.auto_submit || customContext.direct)) {
+        const targetUrl = buildHelpdeskUrl(customContext);
+        if (typeof window !== 'undefined') {
+            const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+            if (!win) {
+                window.location.href = targetUrl;
+            }
+        }
+        return targetUrl;
+    }
+    openHelpdeskModal();
+}
+
+function openHelpdeskTicketDirect(customContext = {}) {
+    const targetUrl = buildHelpdeskUrl({ ...customContext, new: '1' });
     if (typeof window !== 'undefined') {
         const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
         if (!win) {
@@ -11158,6 +11286,11 @@ function openHelpdeskTicket(customContext = {}) {
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.openHelpdeskTicket = openHelpdeskTicket;
+    window.SnackLoop.openHelpdeskTicketDirect = openHelpdeskTicketDirect;
+    window.SnackLoop.openHelpdeskModal = openHelpdeskModal;
+    window.SnackLoop.closeHelpdeskModal = closeHelpdeskModal;
+    window.SnackLoop.submitHelpdeskModal = submitHelpdeskModal;
+    window.SnackLoop.openHelpdeskPortalDirect = openHelpdeskPortalDirect;
     window.SnackLoop.buildHelpdeskUrl = buildHelpdeskUrl;
 }
 
