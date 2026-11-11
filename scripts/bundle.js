@@ -20,7 +20,7 @@ function bundle() {
   const chunks = [
     '// ==========================================================================',
     '// SnackLoop ERP - Modular Architecture Bundle',
-    `// Generated on ${new Date().toISOString()} from ${moduleFiles.length} source modules in src/modules/`,
+    `// Assembled from ${moduleFiles.length} source modules in src/modules/`,
     '// ==========================================================================\n'
   ];
 

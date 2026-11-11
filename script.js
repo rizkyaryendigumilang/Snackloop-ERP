@@ -1,6 +1,6 @@
 // ==========================================================================
 // SnackLoop ERP - Modular Architecture Bundle
-// Generated on 2026-11-10T10:16:03.066Z from 17 source modules in src/modules/
+// Assembled from 17 source modules in src/modules/
 // ==========================================================================
 
 // --- [MODULE: 01-config.js] ---
@@ -650,6 +650,15 @@ function toggleNavbarCollapse(forceCollapsed) {
     return nextCollapsed;
 }
 
+// Validasi Masa Aktif Sesi Pengguna (Session TTL: Default 7 Hari = 604,800,000 ms)
+function validateSessionTTL(sessionData, maxAgeMs = 7 * 24 * 60 * 60 * 1000) {
+    if (!sessionData || typeof sessionData !== 'object') return false;
+    if (!sessionData.username) return false;
+    const loginTs = sessionData.loginAt || sessionData.timestamp || 0;
+    if (!loginTs || typeof loginTs !== 'number') return false;
+    return (Date.now() - loginTs) <= maxAgeMs;
+}
+
 // ======================= PENGGANTI DEFAULT TOOLTIP BROWSER & PERSISTENT SESSION ======================= //
 document.addEventListener("DOMContentLoaded", async function() {
     const forms = document.querySelectorAll('form');
@@ -695,19 +704,26 @@ document.addEventListener("DOMContentLoaded", async function() {
     await loadCacheFromLocal();
     updateNetworkStatus();
 
-    // Cek Sesi Login yang Tersimpan (Persistent Session Check)
+    // Cek Sesi Login yang Tersimpan dengan Validasi TTL 7 Hari (Persistent Session Check)
     const savedSession = localStorage.getItem('snackloop_session');
     if (savedSession) {
         try {
             const sessionData = JSON.parse(savedSession);
-            currentUser = sessionData.username;
-            currentRole = sessionData.role;
+            if (validateSessionTTL(sessionData)) {
+                currentUser = sessionData.username;
+                currentRole = sessionData.role;
 
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
-            
-            applyRolePermissions();
-            initApp();
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                
+                applyRolePermissions();
+                initApp();
+            } else {
+                console.info("[Auth] Sesi login telah kedaluwarsa (> 7 hari). Membersihkan sesi lokal demi keamanan.");
+                localStorage.removeItem('snackloop_session');
+                currentUser = null;
+                currentRole = null;
+            }
         } catch(e) {
             localStorage.removeItem('snackloop_session');
         }
@@ -820,6 +836,9 @@ const AppleMotion = {
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.AppleMotion = AppleMotion;
+    if (typeof validateSessionTTL !== 'undefined') {
+        window.SnackLoop.validateSessionTTL = validateSessionTTL;
+    }
 }
 
 
@@ -1167,21 +1186,21 @@ function saveCacheToLocal(immediate = false) {
             clearTimeout(_saveCacheTimer);
             _saveCacheTimer = null;
         }
-        return _executeSaveCache();
+        return _executeSaveCache(true);
     }
 
     if (!_saveCacheTimer) {
         _pendingSavePromise = new Promise(resolve => {
             _saveCacheTimer = setTimeout(() => {
                 _saveCacheTimer = null;
-                resolve(_executeSaveCache());
+                resolve(_executeSaveCache(false));
             }, 120);
         });
     }
     return _pendingSavePromise;
 }
 
-function _executeSaveCache() {
+function _executeSaveCache(forceSync = false) {
     const isSuperAdmin = currentRole === 'super_admin';
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
 
@@ -1226,6 +1245,7 @@ function _executeSaveCache() {
     });
 
     // 2. Mirror ringan ke localStorage menggunakan idle callback agar tidak menjeda UI thread
+    // Jika forceSync === true (saat event beforeunload), tulis sinkron seketika agar cache tidak terputus
     const saveToLocalStorage = () => {
         try {
             const jsonStr = JSON.stringify(cacheObj);
@@ -1240,7 +1260,9 @@ function _executeSaveCache() {
         }
     };
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    if (forceSync) {
+        saveToLocalStorage();
+    } else if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         window.requestIdleCallback(saveToLocalStorage, { timeout: 1000 });
     } else {
         setTimeout(saveToLocalStorage, 0);

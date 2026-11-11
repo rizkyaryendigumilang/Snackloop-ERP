@@ -341,21 +341,21 @@ function saveCacheToLocal(immediate = false) {
             clearTimeout(_saveCacheTimer);
             _saveCacheTimer = null;
         }
-        return _executeSaveCache();
+        return _executeSaveCache(true);
     }
 
     if (!_saveCacheTimer) {
         _pendingSavePromise = new Promise(resolve => {
             _saveCacheTimer = setTimeout(() => {
                 _saveCacheTimer = null;
-                resolve(_executeSaveCache());
+                resolve(_executeSaveCache(false));
             }, 120);
         });
     }
     return _pendingSavePromise;
 }
 
-function _executeSaveCache() {
+function _executeSaveCache(forceSync = false) {
     const isSuperAdmin = currentRole === 'super_admin';
     const jData = typeof jastipData !== 'undefined' ? jastipData : [];
 
@@ -400,6 +400,7 @@ function _executeSaveCache() {
     });
 
     // 2. Mirror ringan ke localStorage menggunakan idle callback agar tidak menjeda UI thread
+    // Jika forceSync === true (saat event beforeunload), tulis sinkron seketika agar cache tidak terputus
     const saveToLocalStorage = () => {
         try {
             const jsonStr = JSON.stringify(cacheObj);
@@ -414,7 +415,9 @@ function _executeSaveCache() {
         }
     };
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    if (forceSync) {
+        saveToLocalStorage();
+    } else if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         window.requestIdleCallback(saveToLocalStorage, { timeout: 1000 });
     } else {
         setTimeout(saveToLocalStorage, 0);

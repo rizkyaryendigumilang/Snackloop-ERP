@@ -300,6 +300,24 @@ runTest('Verify Enterprise Security Contracts (Bcrypt RPC, P1 Column Isolation &
   assert.strictEqual(sandbox.escapeHtml("Tom & Jerry's"), 'Tom &amp; Jerry&#039;s');
   assert.strictEqual(sandbox.escapeHtml(null), '');
   assert.strictEqual(sandbox.escapeHtml(123), '123');
+
+  // Verify validateSessionTTL in 03-ui-utils.js (Session TTL & Auth Security)
+  assert.strictEqual(uiUtilsCode.includes('function validateSessionTTL'), true, 'Missing validateSessionTTL in 03-ui-utils.js');
+  const ttlSandbox = { Date, validateSessionTTL: null };
+  const ttlIdx = uiUtilsCode.indexOf('function validateSessionTTL');
+  const ttlEnd = uiUtilsCode.indexOf('// ======================= PENGGANTI', ttlIdx);
+  vm.createContext(ttlSandbox);
+  vm.runInContext(uiUtilsCode.slice(ttlIdx, ttlEnd), ttlSandbox);
+
+  const now = Date.now();
+  // Valid active session (< 7 days)
+  assert.strictEqual(ttlSandbox.validateSessionTTL({ username: 'kasir_1', loginAt: now - 1000 }), true);
+  // Expired session (> 7 days)
+  assert.strictEqual(ttlSandbox.validateSessionTTL({ username: 'kasir_1', loginAt: now - (8 * 24 * 60 * 60 * 1000) }), false);
+  // Invalid session payload
+  assert.strictEqual(ttlSandbox.validateSessionTTL(null), false);
+  assert.strictEqual(ttlSandbox.validateSessionTTL({}), false);
+  assert.strictEqual(ttlSandbox.validateSessionTTL({ username: 'kasir' }), false);
 });
 
 // 15. Architecture Registry & Enterprise Namespace Encapsulation Verification
@@ -332,6 +350,7 @@ runTest('Verify Apple Design System (Spring Physics, Rubberband, Translucent Mat
   assert.strictEqual(styleCss.includes('.apple-display'), true, 'Missing .apple-display class in style.css');
   assert.strictEqual(styleCss.includes('letter-spacing: -0.02em'), true, 'Missing Apple optical negative tracking in style.css');
   assert.strictEqual(styleCss.includes('.btn-apple-press:active'), true, 'Missing .btn-apple-press instant touch feedback');
+  assert.strictEqual(styleCss.includes('.apple-sheet-handle'), true, 'Missing .apple-sheet-handle class in style.css');
   assert.strictEqual(styleCss.includes('@media (prefers-reduced-transparency: reduce)'), true, 'Missing prefers-reduced-transparency accessibility block');
 
   // 2. Verify Apple Motion Math in ui-utils (rubberband, momentum projection, spring step)
@@ -373,6 +392,7 @@ runTest('Verify Apple Design System (Spring Physics, Rubberband, Translucent Mat
   // 3. Verify HTML and Modal Gesture Integration
   const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
   assert.strictEqual(indexHtml.includes('apple-header'), true, 'index.html main header must include apple-header class');
+  assert.strictEqual(indexHtml.includes('class="apple-sheet-handle sm:hidden"'), true, 'index.html missing apple-sheet-handle for mobile modals');
   assert.strictEqual(styleCss.includes('.apple-sheet-handle'), true, 'style.css must define .apple-sheet-handle');
   const modalsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '05-modals.js'), 'utf8');
   assert.strictEqual(modalsCode.includes('attachModalSwipeDismiss'), true, '05-modals.js must implement attachModalSwipeDismiss');
@@ -409,8 +429,10 @@ runTest('Verify Phase 1 Enhancements (Master Stock Tracking, POS Cash Calculator
   assert.strictEqual(trxCode.includes('toggleCashCalculatorVisibility'), true, '11-transactions.js missing toggleCashCalculatorVisibility');
   assert.strictEqual(trxCode.includes('mItem.stock_qty = Math.max(0, mItem.stock_qty - qty)'), true, '11-transactions.js missing optimistic master stock deduction');
 
-  // 5. Multi-Tab Web Locks in 04-outbox.js
+  // 5. Multi-Tab Web Locks & Synchronous Beforeunload Cache in 04-outbox.js
   assert.strictEqual(outboxCode.includes('snackloop_outbox_sync_lock'), true, '04-outbox.js missing Web Locks guard');
+  assert.strictEqual(outboxCode.includes('_executeSaveCache(true)'), true, '04-outbox.js missing _executeSaveCache(true) on immediate');
+  assert.strictEqual(outboxCode.includes('if (forceSync) {'), true, '04-outbox.js missing forceSync check');
 
   // 6. Dual Inventory Valuation in 12-reports.js
   assert.strictEqual(reportsCode.includes('masterData.forEach'), true, '12-reports.js missing masterData valuation in renderReportInventory');
