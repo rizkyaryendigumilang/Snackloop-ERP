@@ -503,7 +503,15 @@
                                     <option value="" disabled selected> Pilih Sumber </option>
                                 </select>
                             </div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Produk / Batch <span class="text-rose-500">*</span></label><select id="t-product" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="fillProductData()" required><option value="" disabled selected> Pilih Sumber Dulu </option></select></div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-[11px] font-bold opacity-70">Produk / Batch <span class="text-rose-500">*</span></label>
+                                    <button type="button" onclick="openBarcodeScannerModal('pos')" class="btn-apple-press text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1" title="Scan Barcode via Kamera">
+                                        <i class="fa-solid fa-camera text-xs"></i> <span>Scan Barcode</span>
+                                    </button>
+                                </div>
+                                <select id="t-product" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="fillProductData()" required><option value="" disabled selected> Pilih Sumber Dulu </option></select>
+                            </div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Qty <span class="text-rose-500">*</span></label><input type="number" inputmode="numeric" id="t-qty" value="1" min="1" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             
                             <div>
@@ -517,7 +525,11 @@
 
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">ID Batch </label><input type="text" id="t-batch" class="theme-input opacity-60 w-full border rounded-xl p-2.5 outline-none" readonly placeholder="Otomatis"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Modal /Pcs<span class="text-rose-500">*</span></label><input type="text" id="t-buy" required class="theme-input opacity-60 w-full border rounded-xl p-2.5 outline-none" readonly></div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual /Pcs<span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="t-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div>
+                                <label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual /Pcs<span class="text-rose-500">*</span></label>
+                                <input type="text" inputmode="numeric" id="t-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none">
+                                <div id="t-tier-badge" class="mt-1 hidden"></div>
+                            </div>
                             <div class="md:col-span-2"><label class="block text-[11px] font-bold opacity-70 mb-1">Catatan Pesanan Lainnya</label><input type="text" id="t-notes" placeholder="Contoh: Titip di pos satpam" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div>
                                 <label class="block text-[11px] font-bold opacity-70 mb-1">Status Pembayaran</label>
@@ -1354,7 +1366,45 @@
                             </div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Stok Awal (Pcs)</label><input type="number" inputmode="numeric" id="m-stock" min="0" placeholder="0" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Beli /Modal <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-buy" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual Eceran <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            
+                            <!-- Tier Harga Grosir & Barcode (Fase 1) -->
+                            <div class="md:col-span-5 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-tags text-indigo-500"></i> Tier Harga Grosir &amp; Barcode (Opsional)
+                                    </span>
+                                    <span class="text-[10px] opacity-65 font-medium">Otomatis berubah harga saat pembelian grosir</span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Barcode Produk</label>
+                                        <div class="flex items-center gap-1.5">
+                                            <input type="text" id="m-barcode" placeholder="Ketik/Scan..." class="theme-input w-full border rounded-xl p-2 font-mono text-xs outline-none">
+                                            <button type="button" onclick="openBarcodeScannerModal('master')" class="btn-apple-press p-2 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 shrink-0" title="Scan Kamera">
+                                                <i class="fa-solid fa-camera text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Harga Grosir (Rp)</label>
+                                        <input type="text" inputmode="numeric" id="m-wholesale-price" placeholder="0" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Min. Grosir (Pcs)</label>
+                                        <input type="number" inputmode="numeric" id="m-wholesale-qty" value="10" min="1" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Harga Dus/Bal (Rp)</label>
+                                        <input type="text" inputmode="numeric" id="m-box-price" placeholder="0" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Min. Dus (Pcs)</label>
+                                        <input type="number" inputmode="numeric" id="m-box-qty" value="50" min="1" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
                             <div id="m-markup-preview" class="md:col-span-5 p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
                                 <span class="opacity-75 font-medium">Estimasi Keuntungan:</span>
                                 <span id="m-markup-text" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">-</span>
@@ -1458,11 +1508,13 @@
                                 <div>
                                     <label class="block text-[11px] font-bold opacity-70 mb-1">Peran / Hak Akses (Role) <span class="text-rose-500">*</span></label>
                                     <select id="u-role" class="theme-input w-full border rounded-xl p-2.5 outline-none font-semibold text-xs">
-                                        <option value="staff_rekap">Staff Rekap / Kasir (Bisa Input Penjualan, Laba & Modal Dirahasiakan)</option>
+                                        <option value="kasir">Kasir Penjualan (Hanya Transaksi &amp; POS, HPP/Laba Dirahasiakan)</option>
+                                        <option value="admin_gudang">Admin Gudang &amp; Stok (Kelola Stok Masuk, Repack &amp; Master)</option>
+                                        <option value="staff_rekap">Staff Rekap Data (Input Penjualan &amp; Mutasi)</option>
                                         <option value="super_admin">Super Admin / Owner (Akses Penuh 100%)</option>
                                         <option value="view">Viewer (Hanya Lihat / Read-Only)</option>
                                     </select>
-                                    <p class="text-[10px] opacity-60 mt-1">Staff Rekap tidak bisa menghapus transaksi atau melihat laba bersih & harga kulakan modal.</p>
+                                    <p class="text-[10px] opacity-60 mt-1">Kasir dan Staff tidak bisa menghapus transaksi lampau atau melihat modal &amp; laba bersih.</p>
                                 </div>
                                 <div>
                                     <button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5 py-3">
@@ -1548,6 +1600,9 @@
                                     <option value="USER_">Pengelolaan Akun User</option>
                                     <option value="DATA_">Backup / Restore Database</option>
                                 </select>
+                                <button type="button" onclick="exportAuditLogsCSV()" class="px-2.5 py-2 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400" title="Ekspor Seluruh Log ke Format CSV Excel">
+                                    <i class="fa-solid fa-file-csv"></i> <span class="hidden sm:inline">Ekspor CSV</span>
+                                </button>
                                 <button type="button" onclick="refreshAuditLogs()" class="p-2 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Muat Ulang Log">
                                     <i class="fa-solid fa-arrows-rotate text-xs"></i>
                                 </button>
@@ -1630,7 +1685,42 @@
                 <div><label class="block font-semibold mb-1">Sumber Agen <span class="text-rose-500">*</span></label><select id="edit-m-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></select></div>
                 <div><label class="block font-semibold mb-1">Stok Tersedia (Pcs)</label><input type="number" inputmode="numeric" id="edit-m-stock" min="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" placeholder="0"></div>
                 <div><label class="block font-semibold mb-1">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
-                <div><label class="block font-semibold mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
+                <div><label class="block font-semibold mb-1">Harga Jual Eceran (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
+
+                <!-- Tier Harga Grosir & Barcode Edit -->
+                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 space-y-2">
+                    <span class="font-bold text-[11px] text-slate-800 dark:text-slate-200 block flex items-center gap-1.5">
+                        <i class="fa-solid fa-tags text-indigo-500"></i> Tier Grosir &amp; Barcode
+                    </span>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-70">Barcode</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="text" id="edit-m-barcode" placeholder="Barcode produk..." class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none font-mono text-xs">
+                            <button type="button" onclick="openBarcodeScannerModal('edit-master')" class="btn-apple-press p-1.5 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 shrink-0" title="Scan Kamera">
+                                <i class="fa-solid fa-camera text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold mb-1 opacity-70">Harga Grosir (Rp)</label>
+                            <input type="text" inputmode="numeric" id="edit-m-wholesale-price" placeholder="0" class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1 opacity-70">Min. Grosir (Pcs)</label>
+                            <input type="number" inputmode="numeric" id="edit-m-wholesale-qty" value="10" min="1" class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1 opacity-70">Harga Dus/Bal (Rp)</label>
+                            <input type="text" inputmode="numeric" id="edit-m-box-price" placeholder="0" class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1 opacity-70">Min. Dus (Pcs)</label>
+                            <input type="number" inputmode="numeric" id="edit-m-box-qty" value="50" min="1" class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none">
+                        </div>
+                    </div>
+                </div>
+
                 <div id="edit-m-markup-preview" class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
                     <span class="opacity-75 font-medium">Estimasi Keuntungan:</span>
                     <span id="edit-m-markup-text" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">-</span>
@@ -3472,6 +3562,64 @@
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </div>
                     <span class="text-[11px] font-semibold leading-tight">Keluar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KAMERA BARCODE SCANNER (FASE 1) -->
+    <div id="modal-barcode-scanner" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md hidden items-center justify-center z-[100000] p-4" onclick="if(event.target === this) closeBarcodeScannerModal()">
+        <div class="theme-card rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
+            <div class="apple-sheet-handle sm:hidden"></div>
+            <div class="flex justify-between items-center pb-2 border-b border-inherit">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-barcode"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold leading-tight">Pemindai Barcode Kamera</h3>
+                        <p id="scanner-status-text" class="text-[10px] opacity-60 leading-none">Arahkan kamera ke barcode produk...</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeBarcodeScannerModal()" class="btn-apple-press w-7 h-7 rounded-lg theme-input border flex items-center justify-center text-xs opacity-70 hover:opacity-100 transition" aria-label="Tutup pemindai" title="Tutup (Esc)">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Viewfinder Area -->
+            <div class="scanner-viewfinder aspect-[4/3] w-full flex items-center justify-center relative shadow-inner">
+                <video id="scanner-video" class="w-full h-full object-cover" playsinline autoplay muted></video>
+                <div class="scanner-corner scanner-corner-tl"></div>
+                <div class="scanner-corner scanner-corner-tr"></div>
+                <div class="scanner-corner scanner-corner-bl"></div>
+                <div class="scanner-corner scanner-corner-br"></div>
+                <div class="scanner-laser-line"></div>
+                
+                <!-- Quick controls overlay -->
+                <div class="absolute bottom-2.5 right-2.5 flex items-center gap-2 z-10">
+                    <button type="button" onclick="switchScannerCamera()" class="btn-apple-press w-8 h-8 rounded-full bg-slate-900/70 text-white backdrop-blur-sm border border-white/20 flex items-center justify-center text-xs hover:bg-slate-900 transition" title="Ganti Kamera Depan/Belakang">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                    </button>
+                    <button type="button" onclick="toggleScannerTorch()" class="btn-apple-press w-8 h-8 rounded-full bg-slate-900/70 text-white backdrop-blur-sm border border-white/20 flex items-center justify-center text-xs hover:bg-slate-900 transition" title="Nyalakan/Matikan Senter Flash">
+                        <i class="fa-solid fa-bolt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Fallback Input Manual -->
+            <div class="space-y-1.5 pt-1">
+                <label class="block text-[10px] font-bold opacity-70">Input Manual Barcode (Jika Kamera Bermasalah):</label>
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="scanner-manual-code" placeholder="Ketik nomor barcode..." class="theme-input w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none" onkeydown="if(event.key === 'Enter') { event.preventDefault(); submitManualBarcode(); }">
+                    <button type="button" onclick="submitManualBarcode()" class="btn-apple-press px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shrink-0 shadow-sm transition">
+                        Gunakan
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-1">
+                <button type="button" onclick="closeBarcodeScannerModal()" class="w-full btn-apple-press py-2 text-xs theme-input border rounded-xl font-semibold opacity-80 hover:opacity-100 transition">
+                    Tutup Pemindai
                 </button>
             </div>
         </div>

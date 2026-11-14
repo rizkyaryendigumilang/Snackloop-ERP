@@ -771,7 +771,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 function applyRolePermissions() {
     const isSuperAdmin = currentRole === 'super_admin';
     const isStaffRekap = currentRole === 'staff_rekap';
-    const isView = currentRole === 'view' || (!isSuperAdmin && !isStaffRekap);
+    const isKasir = currentRole === 'kasir';
+    const isAdminGudang = currentRole === 'admin_gudang';
+    const isView = currentRole === 'view' || (!isSuperAdmin && !isStaffRekap && !isKasir && !isAdminGudang);
 
     // 1. Label Pengguna & Badge Peran di Top Header
     const userLabelEl = document.getElementById('current-user-label');
@@ -779,6 +781,8 @@ function applyRolePermissions() {
     if (userLabelEl) {
         let roleDisplay = 'VIEWER';
         if (isSuperAdmin) roleDisplay = 'OWNER';
+        else if (isKasir) roleDisplay = 'KASIR';
+        else if (isAdminGudang) roleDisplay = 'ADMIN GUDANG';
         else if (isStaffRekap) roleDisplay = 'STAFF REKAP';
         userLabelEl.innerText = `${currentUser || 'User'} (${roleDisplay})`;
     }
@@ -796,14 +800,34 @@ function applyRolePermissions() {
     const navSettings = document.getElementById('nav-item-settings');
     if (navSettings) navSettings.style.display = '';
 
+    // Menu Gudang vs Kasir
+    const navRepack = document.getElementById('nav-item-repack');
+    if (navRepack) navRepack.style.display = isKasir ? 'none' : '';
+
+    const navMaster = document.getElementById('nav-item-master');
+    if (navMaster) navMaster.style.display = isKasir ? 'none' : '';
+
+    const navAgents = document.getElementById('nav-item-agents');
+    if (navAgents) navAgents.style.display = isKasir ? 'none' : '';
+
     // 3. Form Input Cards
-    // Staff Rekap & Owner BISA input transaksi, pelanggan, agen, repack, master
-    // Viewer TIDAK BISA input apapun
+    // Kasir & Staff Rekap: BISA input transaksi & pelanggan
+    // Admin Gudang: BISA input master, repack, agen
+    // Owner: BISA SEMUA
+    // Viewer: TIDAK BISA input
     const formCards = ['form-transaksi-card', 'form-repack-card', 'form-master-card', 'form-customer-card', 'form-agent-card'];
     formCards.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.style.display = isView ? 'none' : 'block';
+            if (isView) {
+                el.style.display = 'none';
+            } else if (isKasir) {
+                el.style.display = (id === 'form-transaksi-card' || id === 'form-customer-card') ? 'block' : 'none';
+            } else if (isAdminGudang) {
+                el.style.display = (id === 'form-master-card' || id === 'form-repack-card' || id === 'form-agent-card') ? 'block' : 'none';
+            } else {
+                el.style.display = 'block';
+            }
         }
     });
 
@@ -3037,11 +3061,239 @@ function closeMobileMenuSheet() {
     closeModalById('modal-mobile-menu');
 }
 
+// =========================================================================
+// INTEGRATED CAMERA BARCODE SCANNER (HTML5 / WEBCAM / MOBILE)
+// =========================================================================
+let scannerMediaStream = null;
+let scannerAnimationFrame = null;
+let currentScannerTarget = 'pos'; // 'pos' | 'master' | 'edit-master'
+let currentScannerFacingMode = 'environment';
+let isScannerTorchOn = false;
+
+function playScanBeep() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+    } catch(e) {}
+}
+
+async function openBarcodeScannerModal(targetContext = 'pos') {
+    currentScannerTarget = targetContext;
+    if (!openModalById('modal-barcode-scanner')) return;
+
+    const statusEl = document.getElementById('scanner-status-text');
+    const manualInput = document.getElementById('scanner-manual-code');
+    if (manualInput) manualInput.value = '';
+
+    if (statusEl) statusEl.innerText = "Mengakses kamera perangkat...";
+    await startScannerCamera();
+}
+
+async function startScannerCamera() {
+    const videoEl = document.getElementById('scanner-video');
+    const statusEl = document.getElementById('scanner-status-text');
+    if (!videoEl) return;
+
+    stopScannerMediaStream();
+
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (statusEl) statusEl.innerText = "Kamera tidak didukung oleh browser ini. Gunakan input manual di bawah.";
+            return;
+        }
+
+        const constraints = {
+            video: {
+                facingMode: { ideal: currentScannerFacingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        scannerMediaStream = stream;
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        if (statusEl) statusEl.innerText = "Arahkan kamera ke barcode produk...";
+        startBarcodeDetectionLoop();
+    } catch (err) {
+        console.warn("[BarcodeScanner] Gagal mengakses kamera:", err);
+        if (statusEl) {
+            statusEl.innerText = "Izin kamera ditolak atau tidak tersedia. Masukkan barcode secara manual:";
+        }
+    }
+}
+
+function stopScannerMediaStream() {
+    if (scannerAnimationFrame) {
+        cancelAnimationFrame(scannerAnimationFrame);
+        scannerAnimationFrame = null;
+    }
+    if (scannerMediaStream) {
+        scannerMediaStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e) {}
+        });
+        scannerMediaStream = null;
+    }
+    const videoEl = document.getElementById('scanner-video');
+    if (videoEl) videoEl.srcObject = null;
+    isScannerTorchOn = false;
+}
+
+function closeBarcodeScannerModal() {
+    stopScannerMediaStream();
+    closeModalById('modal-barcode-scanner');
+}
+
+async function switchScannerCamera() {
+    currentScannerFacingMode = currentScannerFacingMode === 'environment' ? 'user' : 'environment';
+    await startScannerCamera();
+}
+
+async function toggleScannerTorch() {
+    if (!scannerMediaStream) return;
+    const track = scannerMediaStream.getVideoTracks()[0];
+    if (!track) return;
+    try {
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.torch) {
+            isScannerTorchOn = !isScannerTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: isScannerTorchOn }] });
+        } else {
+            showNotification("Info", "Lampu flash (torch) tidak didukung pada kamera ini.", "info");
+        }
+    } catch(e) {
+        console.warn("Torch error:", e);
+    }
+}
+
+function handleBarcodeDetected(code) {
+    if (!code) return;
+    playScanBeep();
+    if (typeof AppleMotion !== 'undefined' && AppleMotion.triggerHaptic) {
+        AppleMotion.triggerHaptic('success');
+    }
+
+    const trimmed = String(code).trim();
+    if (typeof logAuditActivity === 'function') {
+        logAuditActivity('BARCODE_SCAN', trimmed, `Scan barcode [${trimmed}] pada konteks ${currentScannerTarget}`);
+    }
+
+    if (currentScannerTarget === 'pos') {
+        const foundMaster = masterData.find(m => (m.barcode && String(m.barcode).trim() === trimmed) || String(m.id) === trimmed);
+        const foundRepack = !foundMaster ? repackData.find(r => String(r.id).toLowerCase() === trimmed.toLowerCase()) : null;
+
+        if (foundMaster) {
+            const productSelect = document.getElementById('t-product');
+            const sourceSelect = document.getElementById('t-source');
+            if (sourceSelect) {
+                sourceSelect.value = foundMaster.source;
+                if (typeof onSourceChange === 'function') onSourceChange();
+            }
+            if (productSelect) {
+                productSelect.value = `MASTER|${foundMaster.id}`;
+                if (typeof fillProductData === 'function') fillProductData();
+            }
+            showNotification("Barcode Terdeteksi", `Produk ditemukan: ${foundMaster.name}`, "success");
+            closeBarcodeScannerModal();
+        } else if (foundRepack) {
+            const productSelect = document.getElementById('t-product');
+            const sourceSelect = document.getElementById('t-source');
+            if (sourceSelect) {
+                sourceSelect.value = "Repack";
+                if (typeof onSourceChange === 'function') onSourceChange();
+            }
+            if (productSelect) {
+                productSelect.value = `REPACK|${foundRepack.id}`;
+                if (typeof fillProductData === 'function') fillProductData();
+            }
+            showNotification("Barcode Terdeteksi", `Produk repack: ${foundRepack.name}`, "success");
+            closeBarcodeScannerModal();
+        } else {
+            showNotification("Perhatian", `Barcode "${trimmed}" belum terdaftar pada Master Produk.`, "warning");
+        }
+    } else if (currentScannerTarget === 'master') {
+        const input = document.getElementById('m-barcode');
+        if (input) input.value = trimmed;
+        showNotification("Sukses", `Barcode "${trimmed}" dimasukkan!`, "success");
+        closeBarcodeScannerModal();
+    } else if (currentScannerTarget === 'edit-master') {
+        const input = document.getElementById('edit-m-barcode');
+        if (input) input.value = trimmed;
+        showNotification("Sukses", `Barcode "${trimmed}" dimasukkan!`, "success");
+        closeBarcodeScannerModal();
+    }
+}
+
+function submitManualBarcode() {
+    const input = document.getElementById('scanner-manual-code');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+        showNotification("Perhatian", "Silakan ketik kode barcode terlebih dahulu.", "warning");
+        return;
+    }
+    handleBarcodeDetected(val);
+}
+
+function startBarcodeDetectionLoop() {
+    const videoEl = document.getElementById('scanner-video');
+    if (!videoEl) return;
+
+    if ('BarcodeDetector' in window) {
+        const barcodeDetector = new window.BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code', 'upc_a', 'upc_e']
+        });
+
+        let isDetecting = false;
+        const checkFrame = async () => {
+            if (!scannerMediaStream) return;
+            if (!isDetecting && videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                isDetecting = true;
+                try {
+                    const barcodes = await barcodeDetector.detect(videoEl);
+                    if (barcodes && barcodes.length > 0) {
+                        const rawValue = barcodes[0].rawValue;
+                        handleBarcodeDetected(rawValue);
+                        return;
+                    }
+                } catch(e) {}
+                isDetecting = false;
+            }
+            scannerAnimationFrame = requestAnimationFrame(checkFrame);
+        };
+        scannerAnimationFrame = requestAnimationFrame(checkFrame);
+    } else {
+        const statusEl = document.getElementById('scanner-status-text');
+        if (statusEl) {
+            statusEl.innerHTML = `<span>Arahkan kamera ke barcode atau masukkan kode manual jika kamera tidak mendeteksi otomatis.</span>`;
+        }
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.attachModalSwipeDismiss = attachModalSwipeDismiss;
     window.openMobileMenuSheet = openMobileMenuSheet;
     window.closeMobileMenuSheet = closeMobileMenuSheet;
+    window.openBarcodeScannerModal = openBarcodeScannerModal;
+    window.closeBarcodeScannerModal = closeBarcodeScannerModal;
+    window.switchScannerCamera = switchScannerCamera;
+    window.toggleScannerTorch = toggleScannerTorch;
+    window.submitManualBarcode = submitManualBarcode;
 }
 
 
@@ -3935,8 +4187,12 @@ async function renderUsers() {
         let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
             roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300">Owner (Super Admin)</span>`;
+        } else if (u.role === 'kasir') {
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300">Kasir Penjualan</span>`;
+        } else if (u.role === 'admin_gudang') {
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">Admin Gudang</span>`;
         } else if (u.role === 'staff_rekap') {
-            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap / Kasir</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap Data</span>`;
         }
 
         return `
@@ -4016,7 +4272,7 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
         if(error) return showNotification("Gagal", error.message, "error");
     }
     
-    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
+    const roleLabel = role === 'super_admin' ? 'Owner / Super Admin' : (role === 'kasir' ? 'Kasir Penjualan' : (role === 'admin_gudang' ? 'Admin Gudang' : (role === 'staff_rekap' ? 'Staff Rekap Data' : 'Viewer')));
     logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);
 
     await loadDataFromCloud(); 
@@ -4523,6 +4779,7 @@ async function renderMaster() {
 
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
+        const barcodeDisplay = m.barcode ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 mt-1"><i class="fa-solid fa-barcode text-[8px]"></i>${escapeHtml(m.barcode)}</span>` : '';
         const stockQty = Number(m.stock_qty !== undefined ? m.stock_qty : 0);
         const minStock = Number(m.min_stock !== undefined ? m.min_stock : 5);
         let stockBadge = `<span class="font-bold font-mono text-xs">${stockQty.toLocaleString('id-ID')}</span>`;
@@ -4532,13 +4789,23 @@ async function renderMaster() {
             stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">${stockQty} (Menipis)</span>`;
         }
 
+        const tierGrosirBadge = (m.wholesale_price && Number(m.wholesale_price) > 0) ? `<span class="block text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">Grosir (≥${m.wholesale_min_qty || 10}): Rp ${Number(m.wholesale_price).toLocaleString('id-ID')}</span>` : '';
+        const tierBoxBadge = (m.box_price && Number(m.box_price) > 0) ? `<span class="block text-[10px] text-amber-600 dark:text-amber-400 font-mono mt-0.5">Dus (≥${m.box_min_qty || 50}): Rp ${Number(m.box_price).toLocaleString('id-ID')}</span>` : '';
+
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit font-semibold">
+                    <div>${safeName}</div>
+                    ${barcodeDisplay}
+                </td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
                 <td class="p-3 border border-inherit text-center">${stockBadge}</td>
                 <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
-                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">Rp ${sellPrice.toLocaleString('id-ID')}</td>
+                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    <div>Rp ${sellPrice.toLocaleString('id-ID')}</div>
+                    ${tierGrosirBadge}
+                    ${tierBoxBadge}
+                </td>
                 <td class="p-3 border border-inherit">${markupDisplay}</td>
                 <td class="p-3 border border-inherit text-center">${actionBtns}</td>
             </tr>`;
@@ -4556,6 +4823,17 @@ function openEditMasterModal(id) {
     document.getElementById('edit-m-sell').value = item.sell.toLocaleString('id-ID');
     const editStockEl = document.getElementById('edit-m-stock');
     if (editStockEl) editStockEl.value = (item.stock_qty !== undefined ? item.stock_qty : 0);
+
+    const editBarcodeEl = document.getElementById('edit-m-barcode');
+    if (editBarcodeEl) editBarcodeEl.value = item.barcode || '';
+    const editWholesalePriceEl = document.getElementById('edit-m-wholesale-price');
+    if (editWholesalePriceEl) editWholesalePriceEl.value = item.wholesale_price ? Number(item.wholesale_price).toLocaleString('id-ID') : '';
+    const editWholesaleQtyEl = document.getElementById('edit-m-wholesale-qty');
+    if (editWholesaleQtyEl) editWholesaleQtyEl.value = item.wholesale_min_qty || 10;
+    const editBoxPriceEl = document.getElementById('edit-m-box-price');
+    if (editBoxPriceEl) editBoxPriceEl.value = item.box_price ? Number(item.box_price).toLocaleString('id-ID') : '';
+    const editBoxQtyEl = document.getElementById('edit-m-box-qty');
+    if (editBoxQtyEl) editBoxQtyEl.value = item.box_min_qty || 50;
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
@@ -4578,6 +4856,12 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     const newSell = getCleanNumber('edit-m-sell');
     const editStockEl = document.getElementById('edit-m-stock');
     const newStock = editStockEl ? (parseInt(editStockEl.value, 10) || 0) : 0;
+
+    const newBarcode = document.getElementById('edit-m-barcode')?.value.trim() || null;
+    const newWholesalePrice = getCleanNumber('edit-m-wholesale-price');
+    const newWholesaleQty = parseInt(document.getElementById('edit-m-wholesale-qty')?.value, 10) || 10;
+    const newBoxPrice = getCleanNumber('edit-m-box-price');
+    const newBoxQty = parseInt(document.getElementById('edit-m-box-qty')?.value, 10) || 50;
 
     const oldItem = masterData.find(m => m.id === id);
     if(!oldItem) return;
@@ -4602,9 +4886,14 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.buy = newBuy;
     oldItem.sell = newSell;
     oldItem.stock_qty = newStock;
+    oldItem.barcode = newBarcode;
+    oldItem.wholesale_price = newWholesalePrice;
+    oldItem.wholesale_min_qty = newWholesaleQty;
+    oldItem.box_price = newBoxPrice;
+    oldItem.box_min_qty = newBoxQty;
     saveCacheToLocal();
 
-    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}, Grosir Rp ${newWholesalePrice.toLocaleString()}`);
 
     renderMaster();
     renderDropdowns();
@@ -4615,14 +4904,24 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         type: 'UPDATE_MASTER',
         payload: {
             id,
-            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock },
+            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock, barcode: newBarcode, wholesale_price: newWholesalePrice, wholesale_min_qty: newWholesaleQty, box_price: newBoxPrice, box_min_qty: newBoxQty },
             history: priceHistoryPayload
         }
     }, async () => {
-        const { error } = await supabaseClient.from('master').update({
-            name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
-        }).eq('id', id);
-        if(error) throw error;
+        const updateObj = { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock };
+        if (newBarcode) updateObj.barcode = newBarcode;
+        if (newWholesalePrice > 0) { updateObj.wholesale_price = newWholesalePrice; updateObj.wholesale_min_qty = newWholesaleQty; }
+        if (newBoxPrice > 0) { updateObj.box_price = newBoxPrice; updateObj.box_min_qty = newBoxQty; }
+
+        try {
+            const { error } = await supabaseClient.from('master').update(updateObj).eq('id', id);
+            if(error) throw error;
+        } catch(upErr) {
+            // Graceful fallback jika kolom tambahan belum dimigrasikan di cloud
+            await supabaseClient.from('master').update({
+                name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
+            }).eq('id', id);
+        }
         if(priceHistoryPayload) {
             await supabaseClient.from('price_history').insert([priceHistoryPayload]);
         }
@@ -4700,7 +4999,26 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     const stockInput = document.getElementById('m-stock');
     const stockQty = stockInput ? (parseInt(stockInput.value, 10) || 0) : 0;
 
-    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
+    const barcode = document.getElementById('m-barcode')?.value.trim() || null;
+    const wholesalePrice = getCleanNumber('m-wholesale-price');
+    const wholesaleQty = parseInt(document.getElementById('m-wholesale-qty')?.value, 10) || 10;
+    const boxPrice = getCleanNumber('m-box-price');
+    const boxQty = parseInt(document.getElementById('m-box-qty')?.value, 10) || 50;
+
+    const tempMaster = {
+        id: Date.now(),
+        name: normalizedName,
+        source,
+        buy,
+        sell,
+        stock_qty: stockQty,
+        min_stock: 5,
+        barcode,
+        wholesale_price: wholesalePrice,
+        wholesale_min_qty: wholesaleQty,
+        box_price: boxPrice,
+        box_min_qty: boxQty
+    };
     masterData.push(tempMaster);
     saveCacheToLocal();
     renderMaster();
@@ -4711,17 +5029,31 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
 
     dispatchMutation({
         type: 'INSERT_MASTER',
-        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 }
+        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5, barcode, wholesale_price: wholesalePrice, wholesale_min_qty: wholesaleQty, box_price: boxPrice, box_min_qty: boxQty }
     }, async () => {
-        const { data, error } = await supabaseClient.from('master').insert([{
-            name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
-        }]).select();
-        if(error) throw error;
-        if(data && data.length > 0) {
-            tempMaster.id = data[0].id;
-            saveCacheToLocal();
-            renderMaster();
-            renderDropdowns();
+        const insertObj = { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
+        if (barcode) insertObj.barcode = barcode;
+        if (wholesalePrice > 0) { insertObj.wholesale_price = wholesalePrice; insertObj.wholesale_min_qty = wholesaleQty; }
+        if (boxPrice > 0) { insertObj.box_price = boxPrice; insertObj.box_min_qty = boxQty; }
+
+        try {
+            const { data, error } = await supabaseClient.from('master').insert([insertObj]).select();
+            if(error) throw error;
+            if(data && data.length > 0) {
+                tempMaster.id = data[0].id;
+                saveCacheToLocal();
+                renderMaster();
+                renderDropdowns();
+            }
+        } catch(insErr) {
+            // Fallback graceful jika kolom tier belum ditambahkan di cloud
+            const { data, error } = await supabaseClient.from('master').insert([{
+                name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
+            }]).select();
+            if(!error && data && data.length > 0) {
+                tempMaster.id = data[0].id;
+                saveCacheToLocal();
+            }
         }
     });
 });
@@ -4966,6 +5298,78 @@ function onSourceChange() {
     }
 }
 
+function calculateTierPrice(item, qty) {
+    if (!item) return { unitPrice: 0, tier: 'normal', savingsPerPcs: 0, label: 'Eceran' };
+    const normalPrice = Number(item.sell) || 0;
+    const boxPrice = Number(item.box_price) || 0;
+    const boxQty = Number(item.box_min_qty) || 50;
+    const wholesalePrice = Number(item.wholesale_price) || 0;
+    const wholesaleQty = Number(item.wholesale_min_qty) || 10;
+
+    if (boxPrice > 0 && qty >= boxQty) {
+        return {
+            unitPrice: boxPrice,
+            tier: 'box',
+            savingsPerPcs: Math.max(0, normalPrice - boxPrice),
+            label: `Harga Dus (≥${boxQty} pcs)`
+        };
+    } else if (wholesalePrice > 0 && qty >= wholesaleQty) {
+        return {
+            unitPrice: wholesalePrice,
+            tier: 'wholesale',
+            savingsPerPcs: Math.max(0, normalPrice - wholesalePrice),
+            label: `Harga Grosir (≥${wholesaleQty} pcs)`
+        };
+    }
+    return {
+        unitPrice: normalPrice,
+        tier: 'normal',
+        savingsPerPcs: 0,
+        label: 'Harga Eceran'
+    };
+}
+
+function updateTierPricingOnPos() {
+    const val = document.getElementById('t-product')?.value;
+    const qty = parseInt(document.getElementById('t-qty')?.value, 10) || 1;
+    const sellInput = document.getElementById('t-sell');
+    const badgeEl = document.getElementById('t-tier-badge');
+    if (!val || !sellInput) return;
+
+    const parts = val.split('|');
+    const type = parts[0];
+    const id = parts[1];
+
+    if (type === 'MASTER') {
+        const item = masterData.find(m => m.id === parseInt(id));
+        if (item) {
+            const tierInfo = calculateTierPrice(item, qty);
+            sellInput.value = tierInfo.unitPrice.toLocaleString('id-ID');
+            if (badgeEl) {
+                if (tierInfo.tier === 'box') {
+                    badgeEl.className = "mt-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5";
+                    badgeEl.innerHTML = `<i class="fa-solid fa-box"></i><span>${tierInfo.label}</span> <span class="bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded text-[10px]">Hemat Rp ${(tierInfo.savingsPerPcs * qty).toLocaleString('id-ID')}</span>`;
+                    badgeEl.classList.remove('hidden');
+                } else if (tierInfo.tier === 'wholesale') {
+                    badgeEl.className = "mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5";
+                    badgeEl.innerHTML = `<i class="fa-solid fa-tags"></i><span>${tierInfo.label}</span> <span class="bg-indigo-100 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded text-[10px]">Hemat Rp ${(tierInfo.savingsPerPcs * qty).toLocaleString('id-ID')}</span>`;
+                    badgeEl.classList.remove('hidden');
+                } else {
+                    badgeEl.classList.add('hidden');
+                    badgeEl.innerHTML = '';
+                }
+            }
+        }
+    } else {
+        if (badgeEl) {
+            badgeEl.classList.add('hidden');
+            badgeEl.innerHTML = '';
+        }
+    }
+    if (typeof updateCashierBillDisplay === 'function') updateCashierBillDisplay();
+    if (typeof calculateChangeDue === 'function') calculateChangeDue();
+}
+
 function fillProductData() {
     const val = document.getElementById('t-product').value;
     if(!val) return;
@@ -4993,6 +5397,7 @@ function fillProductData() {
             document.getElementById('t-qty').removeAttribute('max');
         }
     }
+    updateTierPricingOnPos();
     if (typeof calculateChangeDue === 'function') calculateChangeDue();
 }
 
@@ -5072,6 +5477,9 @@ function addCashTendered(delta) {
 if (typeof document !== 'undefined') {
     ['t-qty', 't-sell', 't-extracost'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', () => {
+            if (id === 't-qty' && typeof updateTierPricingOnPos === 'function') {
+                updateTierPricingOnPos();
+            }
             if (typeof calculateChangeDue === 'function') calculateChangeDue();
         });
     });

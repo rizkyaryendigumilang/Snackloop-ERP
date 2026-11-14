@@ -81,6 +81,7 @@ async function renderMaster() {
 
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
+        const barcodeDisplay = m.barcode ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 mt-1"><i class="fa-solid fa-barcode text-[8px]"></i>${escapeHtml(m.barcode)}</span>` : '';
         const stockQty = Number(m.stock_qty !== undefined ? m.stock_qty : 0);
         const minStock = Number(m.min_stock !== undefined ? m.min_stock : 5);
         let stockBadge = `<span class="font-bold font-mono text-xs">${stockQty.toLocaleString('id-ID')}</span>`;
@@ -90,13 +91,23 @@ async function renderMaster() {
             stockBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">${stockQty} (Menipis)</span>`;
         }
 
+        const tierGrosirBadge = (m.wholesale_price && Number(m.wholesale_price) > 0) ? `<span class="block text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">Grosir (≥${m.wholesale_min_qty || 10}): Rp ${Number(m.wholesale_price).toLocaleString('id-ID')}</span>` : '';
+        const tierBoxBadge = (m.box_price && Number(m.box_price) > 0) ? `<span class="block text-[10px] text-amber-600 dark:text-amber-400 font-mono mt-0.5">Dus (≥${m.box_min_qty || 50}): Rp ${Number(m.box_price).toLocaleString('id-ID')}</span>` : '';
+
         return `
             <tr class="hover:bg-slate-50/50">
-                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit font-semibold">
+                    <div>${safeName}</div>
+                    ${barcodeDisplay}
+                </td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
                 <td class="p-3 border border-inherit text-center">${stockBadge}</td>
                 <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
-                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">Rp ${sellPrice.toLocaleString('id-ID')}</td>
+                <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                    <div>Rp ${sellPrice.toLocaleString('id-ID')}</div>
+                    ${tierGrosirBadge}
+                    ${tierBoxBadge}
+                </td>
                 <td class="p-3 border border-inherit">${markupDisplay}</td>
                 <td class="p-3 border border-inherit text-center">${actionBtns}</td>
             </tr>`;
@@ -114,6 +125,17 @@ function openEditMasterModal(id) {
     document.getElementById('edit-m-sell').value = item.sell.toLocaleString('id-ID');
     const editStockEl = document.getElementById('edit-m-stock');
     if (editStockEl) editStockEl.value = (item.stock_qty !== undefined ? item.stock_qty : 0);
+
+    const editBarcodeEl = document.getElementById('edit-m-barcode');
+    if (editBarcodeEl) editBarcodeEl.value = item.barcode || '';
+    const editWholesalePriceEl = document.getElementById('edit-m-wholesale-price');
+    if (editWholesalePriceEl) editWholesalePriceEl.value = item.wholesale_price ? Number(item.wholesale_price).toLocaleString('id-ID') : '';
+    const editWholesaleQtyEl = document.getElementById('edit-m-wholesale-qty');
+    if (editWholesaleQtyEl) editWholesaleQtyEl.value = item.wholesale_min_qty || 10;
+    const editBoxPriceEl = document.getElementById('edit-m-box-price');
+    if (editBoxPriceEl) editBoxPriceEl.value = item.box_price ? Number(item.box_price).toLocaleString('id-ID') : '';
+    const editBoxQtyEl = document.getElementById('edit-m-box-qty');
+    if (editBoxQtyEl) editBoxQtyEl.value = item.box_min_qty || 50;
 
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
@@ -136,6 +158,12 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     const newSell = getCleanNumber('edit-m-sell');
     const editStockEl = document.getElementById('edit-m-stock');
     const newStock = editStockEl ? (parseInt(editStockEl.value, 10) || 0) : 0;
+
+    const newBarcode = document.getElementById('edit-m-barcode')?.value.trim() || null;
+    const newWholesalePrice = getCleanNumber('edit-m-wholesale-price');
+    const newWholesaleQty = parseInt(document.getElementById('edit-m-wholesale-qty')?.value, 10) || 10;
+    const newBoxPrice = getCleanNumber('edit-m-box-price');
+    const newBoxQty = parseInt(document.getElementById('edit-m-box-qty')?.value, 10) || 50;
 
     const oldItem = masterData.find(m => m.id === id);
     if(!oldItem) return;
@@ -160,9 +188,14 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.buy = newBuy;
     oldItem.sell = newSell;
     oldItem.stock_qty = newStock;
+    oldItem.barcode = newBarcode;
+    oldItem.wholesale_price = newWholesalePrice;
+    oldItem.wholesale_min_qty = newWholesaleQty;
+    oldItem.box_price = newBoxPrice;
+    oldItem.box_min_qty = newBoxQty;
     saveCacheToLocal();
 
-    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}`);
+    logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}, Grosir Rp ${newWholesalePrice.toLocaleString()}`);
 
     renderMaster();
     renderDropdowns();
@@ -173,14 +206,24 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         type: 'UPDATE_MASTER',
         payload: {
             id,
-            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock },
+            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock, barcode: newBarcode, wholesale_price: newWholesalePrice, wholesale_min_qty: newWholesaleQty, box_price: newBoxPrice, box_min_qty: newBoxQty },
             history: priceHistoryPayload
         }
     }, async () => {
-        const { error } = await supabaseClient.from('master').update({
-            name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
-        }).eq('id', id);
-        if(error) throw error;
+        const updateObj = { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock };
+        if (newBarcode) updateObj.barcode = newBarcode;
+        if (newWholesalePrice > 0) { updateObj.wholesale_price = newWholesalePrice; updateObj.wholesale_min_qty = newWholesaleQty; }
+        if (newBoxPrice > 0) { updateObj.box_price = newBoxPrice; updateObj.box_min_qty = newBoxQty; }
+
+        try {
+            const { error } = await supabaseClient.from('master').update(updateObj).eq('id', id);
+            if(error) throw error;
+        } catch(upErr) {
+            // Graceful fallback jika kolom tambahan belum dimigrasikan di cloud
+            await supabaseClient.from('master').update({
+                name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock
+            }).eq('id', id);
+        }
         if(priceHistoryPayload) {
             await supabaseClient.from('price_history').insert([priceHistoryPayload]);
         }
@@ -258,7 +301,26 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     const stockInput = document.getElementById('m-stock');
     const stockQty = stockInput ? (parseInt(stockInput.value, 10) || 0) : 0;
 
-    const tempMaster = { id: Date.now(), name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
+    const barcode = document.getElementById('m-barcode')?.value.trim() || null;
+    const wholesalePrice = getCleanNumber('m-wholesale-price');
+    const wholesaleQty = parseInt(document.getElementById('m-wholesale-qty')?.value, 10) || 10;
+    const boxPrice = getCleanNumber('m-box-price');
+    const boxQty = parseInt(document.getElementById('m-box-qty')?.value, 10) || 50;
+
+    const tempMaster = {
+        id: Date.now(),
+        name: normalizedName,
+        source,
+        buy,
+        sell,
+        stock_qty: stockQty,
+        min_stock: 5,
+        barcode,
+        wholesale_price: wholesalePrice,
+        wholesale_min_qty: wholesaleQty,
+        box_price: boxPrice,
+        box_min_qty: boxQty
+    };
     masterData.push(tempMaster);
     saveCacheToLocal();
     renderMaster();
@@ -269,17 +331,31 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
 
     dispatchMutation({
         type: 'INSERT_MASTER',
-        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 }
+        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5, barcode, wholesale_price: wholesalePrice, wholesale_min_qty: wholesaleQty, box_price: boxPrice, box_min_qty: boxQty }
     }, async () => {
-        const { data, error } = await supabaseClient.from('master').insert([{
-            name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
-        }]).select();
-        if(error) throw error;
-        if(data && data.length > 0) {
-            tempMaster.id = data[0].id;
-            saveCacheToLocal();
-            renderMaster();
-            renderDropdowns();
+        const insertObj = { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
+        if (barcode) insertObj.barcode = barcode;
+        if (wholesalePrice > 0) { insertObj.wholesale_price = wholesalePrice; insertObj.wholesale_min_qty = wholesaleQty; }
+        if (boxPrice > 0) { insertObj.box_price = boxPrice; insertObj.box_min_qty = boxQty; }
+
+        try {
+            const { data, error } = await supabaseClient.from('master').insert([insertObj]).select();
+            if(error) throw error;
+            if(data && data.length > 0) {
+                tempMaster.id = data[0].id;
+                saveCacheToLocal();
+                renderMaster();
+                renderDropdowns();
+            }
+        } catch(insErr) {
+            // Fallback graceful jika kolom tier belum ditambahkan di cloud
+            const { data, error } = await supabaseClient.from('master').insert([{
+                name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5
+            }]).select();
+            if(!error && data && data.length > 0) {
+                tempMaster.id = data[0].id;
+                saveCacheToLocal();
+            }
         }
     });
 });

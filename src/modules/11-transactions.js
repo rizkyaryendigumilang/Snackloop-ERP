@@ -51,6 +51,78 @@ function onSourceChange() {
     }
 }
 
+function calculateTierPrice(item, qty) {
+    if (!item) return { unitPrice: 0, tier: 'normal', savingsPerPcs: 0, label: 'Eceran' };
+    const normalPrice = Number(item.sell) || 0;
+    const boxPrice = Number(item.box_price) || 0;
+    const boxQty = Number(item.box_min_qty) || 50;
+    const wholesalePrice = Number(item.wholesale_price) || 0;
+    const wholesaleQty = Number(item.wholesale_min_qty) || 10;
+
+    if (boxPrice > 0 && qty >= boxQty) {
+        return {
+            unitPrice: boxPrice,
+            tier: 'box',
+            savingsPerPcs: Math.max(0, normalPrice - boxPrice),
+            label: `Harga Dus (≥${boxQty} pcs)`
+        };
+    } else if (wholesalePrice > 0 && qty >= wholesaleQty) {
+        return {
+            unitPrice: wholesalePrice,
+            tier: 'wholesale',
+            savingsPerPcs: Math.max(0, normalPrice - wholesalePrice),
+            label: `Harga Grosir (≥${wholesaleQty} pcs)`
+        };
+    }
+    return {
+        unitPrice: normalPrice,
+        tier: 'normal',
+        savingsPerPcs: 0,
+        label: 'Harga Eceran'
+    };
+}
+
+function updateTierPricingOnPos() {
+    const val = document.getElementById('t-product')?.value;
+    const qty = parseInt(document.getElementById('t-qty')?.value, 10) || 1;
+    const sellInput = document.getElementById('t-sell');
+    const badgeEl = document.getElementById('t-tier-badge');
+    if (!val || !sellInput) return;
+
+    const parts = val.split('|');
+    const type = parts[0];
+    const id = parts[1];
+
+    if (type === 'MASTER') {
+        const item = masterData.find(m => m.id === parseInt(id));
+        if (item) {
+            const tierInfo = calculateTierPrice(item, qty);
+            sellInput.value = tierInfo.unitPrice.toLocaleString('id-ID');
+            if (badgeEl) {
+                if (tierInfo.tier === 'box') {
+                    badgeEl.className = "mt-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5";
+                    badgeEl.innerHTML = `<i class="fa-solid fa-box"></i><span>${tierInfo.label}</span> <span class="bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded text-[10px]">Hemat Rp ${(tierInfo.savingsPerPcs * qty).toLocaleString('id-ID')}</span>`;
+                    badgeEl.classList.remove('hidden');
+                } else if (tierInfo.tier === 'wholesale') {
+                    badgeEl.className = "mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5";
+                    badgeEl.innerHTML = `<i class="fa-solid fa-tags"></i><span>${tierInfo.label}</span> <span class="bg-indigo-100 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded text-[10px]">Hemat Rp ${(tierInfo.savingsPerPcs * qty).toLocaleString('id-ID')}</span>`;
+                    badgeEl.classList.remove('hidden');
+                } else {
+                    badgeEl.classList.add('hidden');
+                    badgeEl.innerHTML = '';
+                }
+            }
+        }
+    } else {
+        if (badgeEl) {
+            badgeEl.classList.add('hidden');
+            badgeEl.innerHTML = '';
+        }
+    }
+    if (typeof updateCashierBillDisplay === 'function') updateCashierBillDisplay();
+    if (typeof calculateChangeDue === 'function') calculateChangeDue();
+}
+
 function fillProductData() {
     const val = document.getElementById('t-product').value;
     if(!val) return;
@@ -78,6 +150,7 @@ function fillProductData() {
             document.getElementById('t-qty').removeAttribute('max');
         }
     }
+    updateTierPricingOnPos();
     if (typeof calculateChangeDue === 'function') calculateChangeDue();
 }
 
@@ -157,6 +230,9 @@ function addCashTendered(delta) {
 if (typeof document !== 'undefined') {
     ['t-qty', 't-sell', 't-extracost'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', () => {
+            if (id === 't-qty' && typeof updateTierPricingOnPos === 'function') {
+                updateTierPricingOnPos();
+            }
             if (typeof calculateChangeDue === 'function') calculateChangeDue();
         });
     });

@@ -361,7 +361,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 function applyRolePermissions() {
     const isSuperAdmin = currentRole === 'super_admin';
     const isStaffRekap = currentRole === 'staff_rekap';
-    const isView = currentRole === 'view' || (!isSuperAdmin && !isStaffRekap);
+    const isKasir = currentRole === 'kasir';
+    const isAdminGudang = currentRole === 'admin_gudang';
+    const isView = currentRole === 'view' || (!isSuperAdmin && !isStaffRekap && !isKasir && !isAdminGudang);
 
     // 1. Label Pengguna & Badge Peran di Top Header
     const userLabelEl = document.getElementById('current-user-label');
@@ -369,6 +371,8 @@ function applyRolePermissions() {
     if (userLabelEl) {
         let roleDisplay = 'VIEWER';
         if (isSuperAdmin) roleDisplay = 'OWNER';
+        else if (isKasir) roleDisplay = 'KASIR';
+        else if (isAdminGudang) roleDisplay = 'ADMIN GUDANG';
         else if (isStaffRekap) roleDisplay = 'STAFF REKAP';
         userLabelEl.innerText = `${currentUser || 'User'} (${roleDisplay})`;
     }
@@ -386,14 +390,34 @@ function applyRolePermissions() {
     const navSettings = document.getElementById('nav-item-settings');
     if (navSettings) navSettings.style.display = '';
 
+    // Menu Gudang vs Kasir
+    const navRepack = document.getElementById('nav-item-repack');
+    if (navRepack) navRepack.style.display = isKasir ? 'none' : '';
+
+    const navMaster = document.getElementById('nav-item-master');
+    if (navMaster) navMaster.style.display = isKasir ? 'none' : '';
+
+    const navAgents = document.getElementById('nav-item-agents');
+    if (navAgents) navAgents.style.display = isKasir ? 'none' : '';
+
     // 3. Form Input Cards
-    // Staff Rekap & Owner BISA input transaksi, pelanggan, agen, repack, master
-    // Viewer TIDAK BISA input apapun
+    // Kasir & Staff Rekap: BISA input transaksi & pelanggan
+    // Admin Gudang: BISA input master, repack, agen
+    // Owner: BISA SEMUA
+    // Viewer: TIDAK BISA input
     const formCards = ['form-transaksi-card', 'form-repack-card', 'form-master-card', 'form-customer-card', 'form-agent-card'];
     formCards.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.style.display = isView ? 'none' : 'block';
+            if (isView) {
+                el.style.display = 'none';
+            } else if (isKasir) {
+                el.style.display = (id === 'form-transaksi-card' || id === 'form-customer-card') ? 'block' : 'none';
+            } else if (isAdminGudang) {
+                el.style.display = (id === 'form-master-card' || id === 'form-repack-card' || id === 'form-agent-card') ? 'block' : 'none';
+            } else {
+                el.style.display = 'block';
+            }
         }
     });
 

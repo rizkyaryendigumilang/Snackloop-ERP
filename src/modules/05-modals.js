@@ -413,9 +413,237 @@ function closeMobileMenuSheet() {
     closeModalById('modal-mobile-menu');
 }
 
+// =========================================================================
+// INTEGRATED CAMERA BARCODE SCANNER (HTML5 / WEBCAM / MOBILE)
+// =========================================================================
+let scannerMediaStream = null;
+let scannerAnimationFrame = null;
+let currentScannerTarget = 'pos'; // 'pos' | 'master' | 'edit-master'
+let currentScannerFacingMode = 'environment';
+let isScannerTorchOn = false;
+
+function playScanBeep() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+    } catch(e) {}
+}
+
+async function openBarcodeScannerModal(targetContext = 'pos') {
+    currentScannerTarget = targetContext;
+    if (!openModalById('modal-barcode-scanner')) return;
+
+    const statusEl = document.getElementById('scanner-status-text');
+    const manualInput = document.getElementById('scanner-manual-code');
+    if (manualInput) manualInput.value = '';
+
+    if (statusEl) statusEl.innerText = "Mengakses kamera perangkat...";
+    await startScannerCamera();
+}
+
+async function startScannerCamera() {
+    const videoEl = document.getElementById('scanner-video');
+    const statusEl = document.getElementById('scanner-status-text');
+    if (!videoEl) return;
+
+    stopScannerMediaStream();
+
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (statusEl) statusEl.innerText = "Kamera tidak didukung oleh browser ini. Gunakan input manual di bawah.";
+            return;
+        }
+
+        const constraints = {
+            video: {
+                facingMode: { ideal: currentScannerFacingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        scannerMediaStream = stream;
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        if (statusEl) statusEl.innerText = "Arahkan kamera ke barcode produk...";
+        startBarcodeDetectionLoop();
+    } catch (err) {
+        console.warn("[BarcodeScanner] Gagal mengakses kamera:", err);
+        if (statusEl) {
+            statusEl.innerText = "Izin kamera ditolak atau tidak tersedia. Masukkan barcode secara manual:";
+        }
+    }
+}
+
+function stopScannerMediaStream() {
+    if (scannerAnimationFrame) {
+        cancelAnimationFrame(scannerAnimationFrame);
+        scannerAnimationFrame = null;
+    }
+    if (scannerMediaStream) {
+        scannerMediaStream.getTracks().forEach(track => {
+            try { track.stop(); } catch(e) {}
+        });
+        scannerMediaStream = null;
+    }
+    const videoEl = document.getElementById('scanner-video');
+    if (videoEl) videoEl.srcObject = null;
+    isScannerTorchOn = false;
+}
+
+function closeBarcodeScannerModal() {
+    stopScannerMediaStream();
+    closeModalById('modal-barcode-scanner');
+}
+
+async function switchScannerCamera() {
+    currentScannerFacingMode = currentScannerFacingMode === 'environment' ? 'user' : 'environment';
+    await startScannerCamera();
+}
+
+async function toggleScannerTorch() {
+    if (!scannerMediaStream) return;
+    const track = scannerMediaStream.getVideoTracks()[0];
+    if (!track) return;
+    try {
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.torch) {
+            isScannerTorchOn = !isScannerTorchOn;
+            await track.applyConstraints({ advanced: [{ torch: isScannerTorchOn }] });
+        } else {
+            showNotification("Info", "Lampu flash (torch) tidak didukung pada kamera ini.", "info");
+        }
+    } catch(e) {
+        console.warn("Torch error:", e);
+    }
+}
+
+function handleBarcodeDetected(code) {
+    if (!code) return;
+    playScanBeep();
+    if (typeof AppleMotion !== 'undefined' && AppleMotion.triggerHaptic) {
+        AppleMotion.triggerHaptic('success');
+    }
+
+    const trimmed = String(code).trim();
+    if (typeof logAuditActivity === 'function') {
+        logAuditActivity('BARCODE_SCAN', trimmed, `Scan barcode [${trimmed}] pada konteks ${currentScannerTarget}`);
+    }
+
+    if (currentScannerTarget === 'pos') {
+        const foundMaster = masterData.find(m => (m.barcode && String(m.barcode).trim() === trimmed) || String(m.id) === trimmed);
+        const foundRepack = !foundMaster ? repackData.find(r => String(r.id).toLowerCase() === trimmed.toLowerCase()) : null;
+
+        if (foundMaster) {
+            const productSelect = document.getElementById('t-product');
+            const sourceSelect = document.getElementById('t-source');
+            if (sourceSelect) {
+                sourceSelect.value = foundMaster.source;
+                if (typeof onSourceChange === 'function') onSourceChange();
+            }
+            if (productSelect) {
+                productSelect.value = `MASTER|${foundMaster.id}`;
+                if (typeof fillProductData === 'function') fillProductData();
+            }
+            showNotification("Barcode Terdeteksi", `Produk ditemukan: ${foundMaster.name}`, "success");
+            closeBarcodeScannerModal();
+        } else if (foundRepack) {
+            const productSelect = document.getElementById('t-product');
+            const sourceSelect = document.getElementById('t-source');
+            if (sourceSelect) {
+                sourceSelect.value = "Repack";
+                if (typeof onSourceChange === 'function') onSourceChange();
+            }
+            if (productSelect) {
+                productSelect.value = `REPACK|${foundRepack.id}`;
+                if (typeof fillProductData === 'function') fillProductData();
+            }
+            showNotification("Barcode Terdeteksi", `Produk repack: ${foundRepack.name}`, "success");
+            closeBarcodeScannerModal();
+        } else {
+            showNotification("Perhatian", `Barcode "${trimmed}" belum terdaftar pada Master Produk.`, "warning");
+        }
+    } else if (currentScannerTarget === 'master') {
+        const input = document.getElementById('m-barcode');
+        if (input) input.value = trimmed;
+        showNotification("Sukses", `Barcode "${trimmed}" dimasukkan!`, "success");
+        closeBarcodeScannerModal();
+    } else if (currentScannerTarget === 'edit-master') {
+        const input = document.getElementById('edit-m-barcode');
+        if (input) input.value = trimmed;
+        showNotification("Sukses", `Barcode "${trimmed}" dimasukkan!`, "success");
+        closeBarcodeScannerModal();
+    }
+}
+
+function submitManualBarcode() {
+    const input = document.getElementById('scanner-manual-code');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+        showNotification("Perhatian", "Silakan ketik kode barcode terlebih dahulu.", "warning");
+        return;
+    }
+    handleBarcodeDetected(val);
+}
+
+function startBarcodeDetectionLoop() {
+    const videoEl = document.getElementById('scanner-video');
+    if (!videoEl) return;
+
+    if ('BarcodeDetector' in window) {
+        const barcodeDetector = new window.BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code', 'upc_a', 'upc_e']
+        });
+
+        let isDetecting = false;
+        const checkFrame = async () => {
+            if (!scannerMediaStream) return;
+            if (!isDetecting && videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                isDetecting = true;
+                try {
+                    const barcodes = await barcodeDetector.detect(videoEl);
+                    if (barcodes && barcodes.length > 0) {
+                        const rawValue = barcodes[0].rawValue;
+                        handleBarcodeDetected(rawValue);
+                        return;
+                    }
+                } catch(e) {}
+                isDetecting = false;
+            }
+            scannerAnimationFrame = requestAnimationFrame(checkFrame);
+        };
+        scannerAnimationFrame = requestAnimationFrame(checkFrame);
+    } else {
+        const statusEl = document.getElementById('scanner-status-text');
+        if (statusEl) {
+            statusEl.innerHTML = `<span>Arahkan kamera ke barcode atau masukkan kode manual jika kamera tidak mendeteksi otomatis.</span>`;
+        }
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.attachModalSwipeDismiss = attachModalSwipeDismiss;
     window.openMobileMenuSheet = openMobileMenuSheet;
     window.closeMobileMenuSheet = closeMobileMenuSheet;
+    window.openBarcodeScannerModal = openBarcodeScannerModal;
+    window.closeBarcodeScannerModal = closeBarcodeScannerModal;
+    window.switchScannerCamera = switchScannerCamera;
+    window.toggleScannerTorch = toggleScannerTorch;
+    window.submitManualBarcode = submitManualBarcode;
 }

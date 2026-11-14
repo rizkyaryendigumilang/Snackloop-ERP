@@ -8,8 +8,12 @@ async function renderUsers() {
         let roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border theme-input text-slate-600 dark:text-slate-400">Viewer</span>`;
         if (u.role === 'super_admin') {
             roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300">Owner (Super Admin)</span>`;
+        } else if (u.role === 'kasir') {
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300">Kasir Penjualan</span>`;
+        } else if (u.role === 'admin_gudang') {
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">Admin Gudang</span>`;
         } else if (u.role === 'staff_rekap') {
-            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap / Kasir</span>`;
+            roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">Staff Rekap Data</span>`;
         }
 
         return `
@@ -89,7 +93,7 @@ document.getElementById('user-form')?.addEventListener('submit', async function(
         if(error) return showNotification("Gagal", error.message, "error");
     }
     
-    const roleLabel = role === 'staff_rekap' ? 'Staff Rekap / Kasir' : (role === 'super_admin' ? 'Owner / Super Admin' : 'Viewer');
+    const roleLabel = role === 'super_admin' ? 'Owner / Super Admin' : (role === 'kasir' ? 'Kasir Penjualan' : (role === 'admin_gudang' ? 'Admin Gudang' : (role === 'staff_rekap' ? 'Staff Rekap Data' : 'Viewer')));
     logAuditActivity('USER_CREATE', username, `Mendaftarkan pengguna baru: ${username} (${roleLabel})`);
 
     await loadDataFromCloud(); 
