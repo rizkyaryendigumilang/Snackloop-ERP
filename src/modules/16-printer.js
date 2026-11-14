@@ -195,7 +195,15 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
 }
 
 function printThermalReceiptFromTrx(targetTrx, format) {
-    const matchingTransactions = (transactionData[targetTrx.monthKey] || []).filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
+    if (!targetTrx) return;
+    const pool = (targetTrx.monthKey && transactionData[targetTrx.monthKey])
+        ? transactionData[targetTrx.monthKey]
+        : (typeof getAllTransactions === 'function' ? getAllTransactions() : []);
+
+    let matchingTransactions = pool.filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
+    if (matchingTransactions.length === 0) {
+        matchingTransactions = [targetTrx];
+    }
     
     let items = [];
     let extraCost = 0;

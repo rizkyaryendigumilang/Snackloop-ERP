@@ -172,17 +172,17 @@
             <ul class="navbar__menu">
                 <li id="navbar-hover-pill" class="navbar__hover-pill" aria-hidden="true"></li>
                 <li id="navbar-active-pill" class="navbar__active-pill" aria-hidden="true"></li>
-                <li class="navbar__item">
+                <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('dashboard'); return false;" id="btn-dashboard" class="navbar__link active">
                         <i data-feather="home"></i><span data-i18n="nav_dashboard">Dashboard</span>
                     </a>
                 </li>
-                <li class="navbar__item">
+                <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('transactions'); return false;" id="btn-transactions" class="navbar__link">
                         <i data-feather="book-open"></i><span data-i18n="nav_transactions">Buku Transaksi</span>
                     </a>
                 </li>
-                <li class="navbar__item">
+                <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('invoices'); return false;" id="btn-invoices" class="navbar__link">
                         <i data-feather="file-text"></i><span data-i18n="nav_invoices">Manajemen Invoice</span>
                     </a>
@@ -207,7 +207,7 @@
                         <i data-feather="cpu"></i><span data-i18n="nav_calculator">Kalkulator Repack</span>
                     </a>
                 </li>
-                <li class="navbar__item">
+                <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('master'); return false;" id="btn-master" class="navbar__link">
                         <i data-feather="archive"></i><span data-i18n="nav_master">Master Produk</span>
                     </a>
@@ -240,6 +240,11 @@
                 <li class="navbar__item">
                     <a href="#" onclick="logoutApp(); return false;" class="navbar__link navbar__link--logout" title="Keluar dari Aplikasi" data-i18n-title="nav_logout">
                         <i data-feather="log-out"></i><span data-i18n="nav_logout">Keluar</span>
+                    </a>
+                </li>
+                <li class="navbar__item mobile-core-nav mobile-only-nav" id="nav-item-mobile-more">
+                    <a href="#" onclick="openMobileMenuSheet(); return false;" id="btn-mobile-more" class="navbar__link" title="Menu Lainnya" data-i18n-title="nav_more">
+                        <i data-feather="grid"></i><span data-i18n="nav_more">Lainnya</span>
                     </a>
                 </li>
             </ul>
@@ -551,6 +556,7 @@
                                         <button type="button" onclick="addCashTendered(20000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">+20rb</button>
                                         <button type="button" onclick="setCashTendered(50000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">50rb</button>
                                         <button type="button" onclick="setCashTendered(100000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">100rb</button>
+                                        <button type="button" onclick="setCashTendered(200000)" class="btn-apple-press px-2 py-1 text-xs rounded-lg border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-mono transition">200rb</button>
                                     </div>
                                     <div class="p-2 rounded-xl border bg-white dark:bg-slate-800 flex flex-col justify-center text-right">
                                         <span class="text-[10px] opacity-65 font-bold uppercase tracking-wider">Uang Kembalian</span>
@@ -559,8 +565,9 @@
                                 </div>
                             </div>
                             <div class="md:col-span-1 flex justify-end">
-                                <button type="submit" class="btn-magnetic w-full flex items-center justify-center gap-1.5">
+                                <button type="submit" id="btn_save_sale" class="btn-magnetic w-full flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-save"></i> <span data-i18n="btn_save_sale">Simpan Penjualan</span>
+                                    <kbd class="hidden md:inline-flex items-center ml-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-white/80 bg-black/25 border border-white/20 rounded">↵ Enter</kbd>
                                 </button>
                             </div>
                         </form>
@@ -583,7 +590,12 @@
                                 <button onclick="filterTrxStatus('Belum Lunas')" id="filter-btn-belum" class="px-3 py-1.5 rounded-lg font-bold theme-btn-filter transition" data-i18n="opt_unpaid">Belum Lunas</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto">
+
+                        <!-- Mobile Card View Mode (Point 2: < 640px) -->
+                        <div id="trx-mobile-cards" class="sm:hidden space-y-3"></div>
+
+                        <!-- Desktop Table View Mode (>= 640px) -->
+                        <div class="hidden sm:block overflow-x-auto">
                             <table id="main-table" class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
@@ -1350,7 +1362,7 @@
                                     <option value="" disabled selected> Pilih Agen </option>
                                 </select>
                             </div>
-                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Stok Awal (Pcs)</label><input type="number" id="m-stock" min="0" placeholder="0" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Stok Awal (Pcs)</label><input type="number" inputmode="numeric" id="m-stock" min="0" placeholder="0" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Beli /Modal <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-buy" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Harga Jual <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="m-sell" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div id="m-markup-preview" class="md:col-span-5 p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
@@ -1471,14 +1483,20 @@
                         </div>
                         
                         <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
-                            <h3 class="text-base font-bold mb-2"><i class="fa-solid fa-database text-emerald-500 mr-2"></i>Backup & Restore Data Lokal (Admin)</h3>
-                            <p class="text-xs opacity-70">Cadangkan seluruh data database lokal Anda ke format JSON atau Excel untuk keamanan ekstra.</p>
-                            <div class="flex flex-col gap-3 pt-2">
-                                <button onclick="backupDataJSON()" class="btn-magnetic bg-indigo-600 text-white w-full py-3 flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-download"></i><span>Download Backup (JSON)</span>
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <h3 class="text-base font-bold"><i class="fa-solid fa-database text-emerald-500 mr-2"></i>Pusat Cadangan Data (JSON & CSV Excel)</h3>
+                                <span class="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Auto-Sync Siap</span>
+                            </div>
+                            <p class="text-xs opacity-70">Cadangkan seluruh data ke format JSON untuk pemulihan sistem, atau ekspor ke CSV untuk pembukuan pribadi di Microsoft Excel & Google Sheets.</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 text-white w-full py-3 flex items-center justify-center gap-2 text-xs font-semibold">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i><span>Auto-Sync Backup (.JSON)</span>
                                 </button>
-                                <label class="btn-magnetic bg-emerald-600 text-white w-full py-3 flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fa-solid fa-upload"></i><span>Restore dari File JSON</span>
+                                <button type="button" onclick="exportTransactionsCSV('all')" class="btn-magnetic bg-emerald-600 text-white w-full py-3 flex items-center justify-center gap-2 text-xs font-semibold">
+                                    <i class="fa-solid fa-file-csv"></i><span>Rekap Transaksi (.CSV)</span>
+                                </button>
+                                <label class="sm:col-span-2 btn-magnetic bg-slate-700 hover:bg-slate-800 text-white w-full py-2.5 flex items-center justify-center gap-2 cursor-pointer text-xs font-semibold">
+                                    <i class="fa-solid fa-upload"></i><span>Pulihkan (Restore) dari File JSON</span>
                                     <input type="file" id="restore-file-input" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
                                 </label>
                             </div>
@@ -1620,7 +1638,7 @@
                 <input type="hidden" id="edit-m-id">
                 <div><label class="block font-semibold mb-1">Nama Barang <span class="text-rose-500">*</span></label><input type="text" id="edit-m-name" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Sumber Agen <span class="text-rose-500">*</span></label><select id="edit-m-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></select></div>
-                <div><label class="block font-semibold mb-1">Stok Tersedia (Pcs)</label><input type="number" id="edit-m-stock" min="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" placeholder="0"></div>
+                <div><label class="block font-semibold mb-1">Stok Tersedia (Pcs)</label><input type="number" inputmode="numeric" id="edit-m-stock" min="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" placeholder="0"></div>
                 <div><label class="block font-semibold mb-1">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div><label class="block font-semibold mb-1">Harga Jual (Rp) <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="edit-m-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required></div>
                 <div id="edit-m-markup-preview" class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900/40 text-xs flex justify-between items-center hidden">
@@ -2596,9 +2614,113 @@
                     </div>
                 </div>
 
-                <!-- SUB-TAB 2: CADANGAN DATA -->
+                <!-- SUB-TAB 2: CADANGAN DATA (DUAL-LAYER + AUTO-SYNC) -->
                 <div id="set-panel-backup" class="hidden space-y-3">
-                    <!-- 1. KETAHANAN PENYIMPANAN & ESTIMASI STORAGE -->
+                    
+                    <!-- 1. AUTO-SYNC & KESEGARAN DATA MUTAKHIR -->
+                    <div id="auto-sync-status-container" class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <div class="flex items-center justify-between pb-2 border-b border-inherit">
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex h-2.5 w-2.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Auto-Sync Real-Time: Online & Mutakhir</span>
+                            </div>
+                            <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                Freshness Terjamin
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] pt-1 text-slate-600 dark:text-slate-300 items-center">
+                            <div>
+                                <span class="opacity-60 block text-[10px]">Waktu Sinkron Terakhir:</span>
+                                <strong class="tabular-nums font-semibold">Baru saja</strong>
+                            </div>
+                            <div>
+                                <span class="opacity-60 block text-[10px]">Status Outbox:</span>
+                                <strong class="tabular-nums font-semibold">Tersinkron Penuh</strong>
+                            </div>
+                            <div class="flex items-center gap-1.5 justify-end">
+                                <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh JSON">
+                                    <i class="fa-solid fa-rotate"></i> <span>Sync JSON</span>
+                                </button>
+                                <button type="button" onclick="syncAndDownloadLatestBackup('csv')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh CSV">
+                                    <i class="fa-solid fa-file-csv"></i> <span>Sync CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. LAPISAN 1: CADANGAN & REKAP PRIBADI (CSV / EXCEL SPREADSHEET) -->
+                    <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-950/60 bg-emerald-50/30 dark:bg-emerald-950/15 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-file-csv text-emerald-600 dark:text-emerald-400 text-sm"></i>
+                                <span>Lapisan 1: Cadangan & Rekap Pribadi (CSV / Excel)</span>
+                            </h4>
+                            <span class="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                Buka di Excel / Google Sheets
+                            </span>
+                        </div>
+                        <p class="text-[11px] opacity-75">Ekspor tabel pembukuan pribadi pemilik usaha dalam format CSV siap buka di Excel/Spreadsheet tanpa butuh pembaca teknis JSON.</p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+                            <button type="button" onclick="exportTransactionsCSV('all')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white !py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 font-semibold text-xs shadow-sm" title="Ekspor seluruh buku transaksi penjualan ke CSV">
+                                <i class="fa-solid fa-table-list"></i> <span>Semua Transaksi (CSV)</span>
+                            </button>
+                            <button type="button" onclick="exportMasterProductsCSV()" class="btn-magnetic bg-emerald-700 hover:bg-emerald-800 text-white !py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 font-semibold text-xs shadow-sm" title="Ekspor daftar master produk dan nilai stok fisik ke CSV">
+                                <i class="fa-solid fa-boxes-stacked"></i> <span>Master & Stok (CSV)</span>
+                            </button>
+                            <button type="button" onclick="exportFinancialSummaryCSV()" class="btn-magnetic bg-emerald-800 hover:bg-emerald-900 text-white !py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 font-semibold text-xs shadow-sm" title="Ekspor ringkasan laba rugi P&L per bulan ke CSV">
+                                <i class="fa-solid fa-chart-line"></i> <span>Rekap Keuangan P&L</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. LAPISAN 2: CADANGAN SISTEM LENGKAP (JSON ENTERPRISE) -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i>
+                                <span>Lapisan 2: Cadangan Database Sistem Lengkap (JSON)</span>
+                            </h4>
+                            <span class="text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                                13 Entitas Lengkap
+                            </span>
+                        </div>
+                        <p class="text-[11px] opacity-70">Salinan arsip 13 entitas (transaksi, master, pelanggan, agen, gudang repack, retur, jastip, log audit) untuk disaster recovery dan migrasi perangkat.</p>
+                        <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white w-full !py-2.5 text-xs flex items-center justify-center gap-1.5 font-semibold shadow-sm">
+                            <i class="fa-solid fa-download"></i> <span>Auto-Sync & Download Backup (.json)</span>
+                        </button>
+                    </div>
+
+                    <!-- 4. PEMULIHAN DATA DARI FILE CADANGAN (RESTORE) -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                        <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i> Pulihkan Data dari File Cadangan (Restore)
+                        </h4>
+                        <p class="text-[11px] opacity-70">Pulihkan sistem dari file JSON cadangan. Jaring pengaman otomatis membuat snapshot darurat sebelum data ditimpa.</p>
+                        <label class="btn-magnetic bg-slate-700 hover:bg-slate-800 text-white w-full !py-2.5 text-xs flex items-center justify-center gap-1.5 font-semibold cursor-pointer shadow-sm">
+                            <i class="fa-solid fa-upload"></i> <span>Pilih File Cadangan Restore (.json)</span>
+                            <input type="file" id="set-restore-file" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- 5. KETAHANAN PENYIMPANAN & SNAPSHOT HARIAN -->
+                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> Snapshot Harian Lokal (7 Hari Rotasi)
+                            </h4>
+                            <button type="button" onclick="triggerManualSnapshot()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Ambil Snapshot Sekarang</button>
+                        </div>
+                        <p class="text-[11px] opacity-70">Pencadangan snapshot lokal mandiri 7 hari terakhir di IndexedDB untuk pemulihan cepat jika terjadi kesalahan input kasir.</p>
+                        <div id="snapshot-history-list" class="space-y-1.5 pt-1 text-xs max-h-36 overflow-y-auto">
+                            <div class="p-2 rounded-lg border theme-input text-center text-[11px] opacity-60">Memeriksa snapshot harian...</div>
+                        </div>
+                    </div>
+
+                    <!-- 6. KETAHANAN STORAGE INDEXEDDB -->
                     <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2.5">
                         <div class="flex items-center justify-between">
                             <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -2624,45 +2746,10 @@
                         </div>
                     </div>
 
-                    <!-- 2. SNAPSHOT HARIAN OTOMATIS (DISASTER RECOVERY) -->
-                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                <i class="fa-solid fa-clock-rotate-left text-amber-500"></i> Snapshot Harian Otomatis
-                            </h4>
-                            <button type="button" onclick="triggerManualSnapshot()" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Ambil Sekarang</button>
-                        </div>
-                        <p class="text-[11px] opacity-70">Pencadangan snapshot lokal mandiri 7 hari terakhir untuk pemulihan cepat jika terjadi kesalahan input kasir.</p>
-                        <div id="snapshot-history-list" class="space-y-1.5 pt-1 text-xs max-h-36 overflow-y-auto">
-                            <div class="p-2 rounded-lg border theme-input text-center text-[11px] opacity-60">Memeriksa snapshot harian...</div>
-                        </div>
-                    </div>
-
-                    <!-- 3. FILE CADANGAN MANUAL (JSON) -->
-                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
-                        <h4 class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <i class="fa-solid fa-cloud-arrow-down text-indigo-500"></i> Unduh File Cadangan (JSON)
-                        </h4>
-                        <p class="text-[11px] opacity-70">Simpan salinan seluruh transaksi, data master, pelanggan, agen, gudang repack, catatan retur, dan jastip ke komputer/HP Anda.</p>
-                        <button type="button" onclick="backupDataJSON()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white w-full !py-2 text-xs flex items-center justify-center gap-1.5 font-semibold">
-                            <i class="fa-solid fa-download"></i> <span>Download Backup Database (.json)</span>
-                        </button>
-                    </div>
-
-                    <div class="p-3.5 rounded-xl border border-inherit bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
-                        <h4 class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                            <i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i> Pulihkan Data dari File Cadangan
-                        </h4>
-                        <p class="text-[11px] opacity-70">Pulihkan database jika Anda berganti perangkat atau ingin me-restore data lama.</p>
-                        <label class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white w-full !py-2 text-xs flex items-center justify-center gap-1.5 font-semibold cursor-pointer">
-                            <i class="fa-solid fa-upload"></i> <span>Pilih File Backup (.json)</span>
-                            <input type="file" id="set-restore-file" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
-                        </label>
-                    </div>
-
+                    <!-- 7. BERSIHKAN CACHE OFFLINE -->
                     <div class="p-3 rounded-xl border border-rose-200 dark:border-rose-950/60 bg-rose-50/40 dark:bg-rose-950/20 space-y-1.5">
                         <div class="flex items-center justify-between">
-                            <span class="font-bold text-rose-600 dark:text-rose-400 text-xs">Bersihkan Cache Offline</span>
+                            <span class="font-bold text-rose-600 dark:text-rose-400 text-xs">Bersihkan Cache Offline Browser</span>
                             <button type="button" onclick="clearLocalAppCache()" class="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition">Bersihkan</button>
                         </div>
                         <p class="text-[10px] opacity-70">Hanya membersihkan cache memori browser jika web terasa berat, tidak menghapus akun Anda di cloud.</p>
@@ -3256,6 +3343,107 @@
                         <span id="bulk-submit-btn-text">Simpan Transaksi</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOBILE MORE MENU BOTTOM SHEET (Point 1) -->
+    <div id="modal-mobile-menu" class="fixed inset-0 bg-slate-900/60 z-[99999] hidden items-end justify-center p-0 backdrop-blur-sm" onclick="if(event.target === this) closeMobileMenuSheet()">
+        <div class="theme-card apple-sheet rounded-t-3xl w-full max-h-[85vh] overflow-y-auto p-5 space-y-4 shadow-2xl border-t">
+            <div class="apple-sheet-handle"></div>
+            <div class="flex items-center justify-between pb-2 border-b border-inherit">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold">Menu & Fitur Lainnya</h3>
+                        <p class="text-[11px] opacity-65">Akses cepat modul operasional & pengaturan</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeMobileMenuSheet()" class="p-1.5 rounded-lg opacity-60 hover:opacity-100 theme-btn-filter transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Grid of secondary modules -->
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1 text-center">
+                <button type="button" onclick="switchTab('returns'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Retur Toko</span>
+                </button>
+
+                <button type="button" onclick="switchTab('jastip'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Jastip</span>
+                </button>
+
+                <button type="button" onclick="switchTab('reports'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5" id="mobile-more-reports">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Laporan</span>
+                </button>
+
+                <button type="button" onclick="switchTab('calculator'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Repack</span>
+                </button>
+
+                <button type="button" onclick="switchTab('customers'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Pelanggan</span>
+                </button>
+
+                <button type="button" onclick="switchTab('agents'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5" id="mobile-more-agents">
+                    <div class="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-truck"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Kelola Agen</span>
+                </button>
+
+                <button type="button" onclick="switchTab('users'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5" id="mobile-more-users" style="display: none;">
+                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 dark:text-pink-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Pengguna</span>
+                </button>
+
+                <button type="button" onclick="openHelpdeskModal(); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-headset"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Bantuan</span>
+                </button>
+
+                <button type="button" onclick="openSettingsModal('app'); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-gear"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Pengaturan</span>
+                </button>
+
+                <button type="button" onclick="toggleDarkMode();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-indigo-500/50 active:scale-95 transition space-y-1.5">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-moon"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Mode Gelap</span>
+                </button>
+
+                <button type="button" onclick="logoutApp(); closeMobileMenuSheet();" class="flex flex-col items-center justify-center p-3 rounded-2xl border theme-card hover:border-rose-500/50 active:scale-95 transition space-y-1.5 text-rose-600 dark:text-rose-400">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </div>
+                    <span class="text-[11px] font-semibold leading-tight">Keluar</span>
+                </button>
             </div>
         </div>
     </div>

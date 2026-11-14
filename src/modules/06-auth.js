@@ -363,6 +363,10 @@ async function initApp() {
     if(navigator.onLine) {
         syncOutboxQueue();
     }
+    // Auto-Snapshot Harian Otomatis ke IndexedDB
+    if (typeof checkAndTriggerAutoSnapshot === 'function') {
+        checkAndTriggerAutoSnapshot();
+    }
     // P3: Inisialisasi Realtime Multi-Device Sync
     if (typeof initSupabaseRealtimeSync === 'function') {
         initSupabaseRealtimeSync();
@@ -378,6 +382,26 @@ async function loadDataFromCloud() {
             if (localStorage.getItem('snackloop_pending_restore_sync')) {
                 return;
             }
+        }
+
+        // P1: Verifikasi Integritas Peran Akun untuk Mencegah Pemalsuan LocalStorage
+        if (currentUser && navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: dbUser } = await supabaseClient.from('users').select('id, username, role').eq('username', currentUser).limit(1);
+                if (dbUser && dbUser.length > 0) {
+                    const actualRole = dbUser[0].role;
+                    if (actualRole && actualRole !== currentRole) {
+                        console.warn(`[Security] Sesi role mismatch: local=${currentRole}, actual=${actualRole}. Menyelaraskan izin.`);
+                        currentRole = actualRole;
+                        try {
+                            const sess = JSON.parse(localStorage.getItem('snackloop_session') || '{}');
+                            sess.role = actualRole;
+                            localStorage.setItem('snackloop_session', JSON.stringify(sess));
+                        } catch(e) {}
+                        if (typeof applyRolePermissions === 'function') applyRolePermissions();
+                    }
+                }
+            } catch(authVerifyErr) {}
         }
 
         const isSuperAdmin = currentRole === 'super_admin';
@@ -508,6 +532,16 @@ function switchTab(tabId) {
         if (typeof activeBtn.blur === 'function') activeBtn.blur();
         if (typeof window !== 'undefined' && window.innerWidth <= 768 && typeof activeBtn.scrollIntoView === 'function') {
             try { activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (e) {}
+        }
+    }
+
+    const coreMobileTabs = ['dashboard', 'transactions', 'invoices', 'master'];
+    const moreBtn = document.getElementById('btn-mobile-more');
+    if (moreBtn) {
+        if (!coreMobileTabs.includes(tabId)) {
+            moreBtn.classList.add('active');
+        } else {
+            moreBtn.classList.remove('active');
         }
     }
 

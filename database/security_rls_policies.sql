@@ -205,6 +205,12 @@ CREATE POLICY "Allow read users metadata"
     ON users FOR SELECT
     USING (true);
 
+-- SEC-001: Isolasi Kolom Kredensial (Mencegah Ekstraksi Password Hash via Anon REST)
+-- Anon dan authenticated hanya diizinkan membaca kolom non-sensitif (id, username, role, created_at).
+-- Verifikasi password wajib melalui RPC verify_user_login (SECURITY DEFINER).
+REVOKE SELECT ON users FROM anon, authenticated;
+GRANT SELECT (id, username, role, created_at) ON users TO anon, authenticated;
+
 -- Cegah pembuatan akun liar langsung via REST API PostgREST tanpa hak akses Super Admin
 DROP POLICY IF EXISTS "Allow user insert for admin" ON users;
 DROP POLICY IF EXISTS "Allow user insert via admin or service role" ON users;

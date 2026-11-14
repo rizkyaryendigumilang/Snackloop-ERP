@@ -124,6 +124,7 @@ function switchSettingsTab(tabName) {
             if (p === 'backup') {
                 if (typeof renderStorageHealthUI === 'function') renderStorageHealthUI();
                 if (typeof renderSnapshotListUI === 'function') renderSnapshotListUI();
+                if (typeof renderAutoSyncStatusUI === 'function') renderAutoSyncStatusUI();
             }
         } else {
             if (panelEl) {

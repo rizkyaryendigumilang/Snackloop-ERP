@@ -339,6 +339,19 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
     }
 
+    // P4: Normalisasi Otomatis Nomor WhatsApp pada Seluruh Input Formulir
+    const phoneInputIds = ['cu-phone', 'jastip-cust-phone', 'set-biz-phone', 'wa-modal-phone'];
+    phoneInputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('blur', function() {
+                if (this.value && typeof normalizeWaPhone === 'function') {
+                    this.value = normalizeWaPhone(this.value);
+                }
+            });
+        }
+    });
+
     if (typeof feather !== 'undefined') feather.replace();
     initNavbarPillInteractions();
     syncNavbarActivePill(true);

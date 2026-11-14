@@ -72,8 +72,8 @@ function fillProductData() {
         buyInput.value = isSuperAdmin ? item.buy.toLocaleString('id-ID') : '*** (Tersimpan)';
         document.getElementById('t-sell').value = item.sell.toLocaleString('id-ID');
         document.getElementById('t-batch').value = "Reguler";
-        if (item.stock_qty !== undefined && item.stock_qty > 0) {
-            document.getElementById('t-qty').max = item.stock_qty;
+        if (item.stock_qty !== undefined) {
+            document.getElementById('t-qty').max = Math.max(0, item.stock_qty);
         } else {
             document.getElementById('t-qty').removeAttribute('max');
         }
@@ -196,7 +196,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     if(source === 'Repack') {
         const rItem = repackData.find(r => r.id === batchId);
         if(!rItem) return showNotification("Peringatan", "Pilih batch produk Repack dengan benar.", "warning");
-        if(qty > rItem.remaining_qty) return showNotification("Peringatan", `Stok ${rItem.name} hanya sisa ${rItem.remaining_qty}.`, "warning");
+        if(rItem.remaining_qty <= 0 || qty > rItem.remaining_qty) {
+            return showNotification("Peringatan", `Stok batch ${rItem.name} tidak mencukupi (Tersisa: ${Math.max(0, rItem.remaining_qty)} pcs).`, "warning");
+        }
         itemName = rItem.name;
         // Optimistic pengurangan stok repack di memori
         rItem.remaining_qty -= qty;
@@ -206,8 +208,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const mId = parseInt(pVal.split('|')[1]);
         const mItem = masterData.find(m => m.id === mId);
         if(!mItem) return showNotification("Peringatan", "Produk master tidak ditemukan.", "warning");
-        if(mItem.stock_qty !== undefined && mItem.stock_qty > 0 && qty > mItem.stock_qty) {
-            return showNotification("Peringatan", `Stok ${mItem.name} hanya tersisa ${mItem.stock_qty} pcs.`, "warning");
+        if(mItem.stock_qty !== undefined && (mItem.stock_qty <= 0 || qty > mItem.stock_qty)) {
+            return showNotification("Peringatan", `Stok produk ${mItem.name} tidak mencukupi (Tersisa: ${Math.max(0, mItem.stock_qty)} pcs).`, "warning");
         }
         itemName = mItem.name;
         // Optimistic pengurangan stok master
@@ -1319,13 +1321,21 @@ function calculateCustomerLeaderboard(period = 'all') {
             custMap[cName] = {
                 name: cName,
                 totalSpent: 0,
+                paidSpent: 0,
+                unpaidSpent: 0,
                 orderCount: 0,
                 totalQty: 0,
                 lastDate: t.date,
                 items: {}
             };
         }
-        custMap[cName].totalSpent += (t.totalSell || 0);
+        const sellAmount = (t.totalSell || 0);
+        custMap[cName].totalSpent += sellAmount;
+        if (t.status === 'Lunas') {
+            custMap[cName].paidSpent += sellAmount;
+        } else {
+            custMap[cName].unpaidSpent += sellAmount;
+        }
         custMap[cName].orderCount += 1;
         custMap[cName].totalQty += (t.qty || 0);
         if (t.date > custMap[cName].lastDate) {
@@ -1334,7 +1344,8 @@ function calculateCustomerLeaderboard(period = 'all') {
         custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
     });
 
-    return Object.values(custMap).sort((a, b) => b.totalSpent - a.totalSpent);
+    // Urutkan berdasarkan pembayaran riil (paidSpent) lalu total volume
+    return Object.values(custMap).sort((a, b) => (b.paidSpent - a.paidSpent) || (b.totalSpent - a.totalSpent));
 }
 
 function renderCustomerLeaderboard() {
@@ -1398,8 +1409,9 @@ function renderCustomerLeaderboard() {
 
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Belanja</span>
-                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${cust.totalSpent.toLocaleString()}</span>
+                        <span class="opacity-60 block text-[10px]">Belanja (Lunas)</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${(cust.paidSpent || 0).toLocaleString()}</span>
+                        ${cust.unpaidSpent > 0 ? `<span class="text-[9px] text-rose-500 font-semibold block mt-0.5"><i class="fa-solid fa-clock mr-1"></i>Tempo: Rp ${cust.unpaidSpent.toLocaleString()}</span>` : ''}
                     </div>
                     <div>
                         <span class="opacity-60 block text-[10px]">Volume Produk</span>
@@ -1946,16 +1958,46 @@ function renderTransactionsForActiveSheet() {
     if(filteredList.length === 0) {
         const hasActiveFilter = currentTransactionFilter !== 'all' || Boolean(currentSearchKeyword);
         tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center">
-            <div class="flex flex-col items-center justify-center gap-2">
-                <i class="fas fa-search text-2xl opacity-30 mb-1"></i>
-                <p class="text-xs font-semibold opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau kata kunci pencarian Anda' : 'pada periode ini'}.</p>
+            <div class="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center text-xl shadow-sm">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">Belum Ada Transaksi</h4>
+                    <p class="text-xs opacity-70 mt-1">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau kata kunci pencarian Anda' : 'pada lembar bulan ini'}.</p>
+                </div>
                 ${hasActiveFilter ? `
-                    <button type="button" onclick="resetTransactionFilters()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition">
-                        <i class="fas fa-rotate-left text-[11px]"></i> Reset Filter & Pencarian
+                    <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Filter & Pencarian
                     </button>
-                ` : ''}
+                ` : `
+                    <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Tambah Transaksi Baru
+                    </button>
+                `}
             </div>
         </td></tr>`;
+
+        const mobileCards = document.getElementById('trx-mobile-cards');
+        if (mobileCards) {
+            mobileCards.innerHTML = `
+                <div class="p-6 text-center theme-card rounded-2xl border space-y-3">
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center text-xl shadow-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">Belum Ada Transaksi</h4>
+                    <p class="text-xs opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau pencarian Anda' : 'pada lembar bulan ini'}.</p>
+                    ${hasActiveFilter ? `
+                        <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Filter
+                        </button>
+                    ` : `
+                        <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Tambah Transaksi Baru
+                        </button>
+                    `}
+                </div>`;
+        }
         renderPaginationControls(0);
         return;
     }
@@ -2018,6 +2060,78 @@ function renderTransactionsForActiveSheet() {
     }).join('');
 
     tbody.innerHTML = rowsHtml;
+
+    const mobileCards = document.getElementById('trx-mobile-cards');
+    if (mobileCards) {
+        const cardsHtml = paginatedList.map((t) => {
+            const itemProfit = t.profitPerItem * t.qty;
+            const safeCustomer = escapeHtml(t.customer);
+            const safeItemName = escapeHtml(t.itemName);
+            const safeSource = escapeHtml(t.source);
+            const safeBatch = escapeHtml(t.batch);
+            const safeNotes = escapeHtml(t.notes);
+            const safeExtraCostNote = escapeHtml(t.extraCostNote);
+            const safeDate = escapeHtml(t.date);
+
+            const isNegativeOrReturn = t.isReturn || (t.qty < 0);
+            const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
+            const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1.5 py-0.5 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1.5 py-0.5 rounded font-bold">${safeSource}</span>`;
+            const notesDisplay = t.notes && t.notes !== '-' ? `<div class="text-[10px] text-amber-500 italic mt-0.5">Catatan: ${safeNotes}</div>` : '';
+            const extraCostDisplay = t.extraCost > 0 ? `<div class="text-[10px] text-amber-500 font-semibold mt-0.5">+Ongkir/Biaya: Rp ${t.extraCost.toLocaleString()} (${safeExtraCostNote})</div>` : '';
+
+            const statusPill = t.status === 'Lunas' 
+                ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-good"><i class="fa-solid fa-check text-[10px]"></i> Lunas</span>`
+                : (canMarkPaid
+                    ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> Belum Lunas (Lunasi)</button>`
+                    : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-bad">${t.status}</span>`);
+
+            const profitDisplay = isSuperAdmin ? `<span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
+
+            return `
+                <div class="theme-card rounded-2xl border p-4 space-y-3 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 border-b border-inherit pb-2.5">
+                        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span class="text-xs font-semibold opacity-75 tabular-nums"><i class="fa-regular fa-calendar text-[10px] mr-1 opacity-60"></i>${safeDate}</span>
+                            ${srcBadge}
+                        </div>
+                        <div>${statusPill}</div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <h4 class="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">${safeCustomer}</h4>
+                            <span class="text-xs opacity-70 shrink-0 font-medium">Qty: <strong class="text-slate-900 dark:text-white tabular-nums">${t.qty}</strong></span>
+                        </div>
+                        <p class="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1">${returBadge}${safeItemName}</p>
+                        ${notesDisplay}
+                        ${extraCostDisplay}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <span class="text-[10px] opacity-60 block leading-none">Total Penjualan</span>
+                            <span class="text-sm font-bold text-slate-900 dark:text-white tabular-nums">Rp ${t.totalSell.toLocaleString()}</span>
+                        </div>
+                        <div class="text-right">
+                            ${profitDisplay}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 pt-2 border-t border-inherit">
+                        ${!isNegativeOrReturn ? `<button type="button" onclick="openReturnModalFromTrx('${t.id}')" class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 text-xs font-semibold active:scale-95 transition" title="Retur Toko"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : ''}
+                        <button type="button" onclick="downloadPDF('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="fa-solid fa-print"></i> <span>Struk</span>
+                        </button>
+                        <button type="button" onclick="sendWhatsAppOnly('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> <span>WhatsApp</span>
+                        </button>
+                        ${isSuperAdmin ? `<button type="button" onclick="confirmDeleteTrx('${t.id}')" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 text-xs font-semibold active:scale-95 transition" title="Hapus Transaksi"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
+        mobileCards.innerHTML = cardsHtml;
+    }
+
     renderPaginationControls(totalPages);
 }
 
@@ -2396,7 +2510,12 @@ function setDashboardTimeFilter(filterType) {
 }
 
 function updateDashboard() {
-    let Pendapatan = 0, modal = 0, KeuntunganKotor = 0, Hutang = 0, totalExpense = 0; 
+    let Pendapatan = 0;          // Omzet Kas Masuk (Penjualan Lunas)
+    let modalLunas = 0;          // HPP Barang Terjual Lunas
+    let modalPiutang = 0;        // HPP Barang Belum Lunas (Modal Tertahan)
+    let KeuntunganKotor = 0;     // Laba Kotor Penjualan Lunas
+    let Piutang = 0;             // Total Tagihan Piutang (Penjualan Tempo Belum Dibayar)
+    let totalExpense = 0;        // Beban Operasional Toko
     let unpaidList = [];
     let productSalesMap = {}; 
 
@@ -2418,18 +2537,18 @@ function updateDashboard() {
 
     for(let mk in transactionData) {
         (transactionData[mk] || []).forEach((t) => {
-            const tDateStr = t.date || '';
+            const tDateStr = (t.date || '').trim().slice(0, 10);
             if (currentDashboardTimeFilter === 'today' && tDateStr !== todayStr) return;
             if (currentDashboardTimeFilter === '7days' && (tDateStr < cutoff7Str || tDateStr > todayStr)) return;
             if (currentDashboardTimeFilter === '30days' && (tDateStr < cutoff30Str || tDateStr > todayStr)) return;
 
-            modal += (t.totalModal || 0);
-
             if(t.status === 'Lunas') {
                 Pendapatan += (t.totalSell || 0); 
+                modalLunas += (t.totalModal || 0);
                 KeuntunganKotor += ((t.profitPerItem || 0) * (t.qty || 0));
             } else { 
-                Hutang += (t.totalSell || 0); 
+                Piutang += (t.totalSell || 0); 
+                modalPiutang += (t.totalModal || 0);
                 unpaidList.push(t); 
             }
 
@@ -2442,7 +2561,7 @@ function updateDashboard() {
     }
 
     (expenseData || []).forEach(exp => {
-        const expDateStr = exp.date || '';
+        const expDateStr = (exp.date || '').trim().slice(0, 10);
         if (currentDashboardTimeFilter === 'today' && expDateStr !== todayStr) return;
         if (currentDashboardTimeFilter === '7days' && (expDateStr < cutoff7Str || expDateStr > todayStr)) return;
         if (currentDashboardTimeFilter === '30days' && (expDateStr < cutoff30Str || expDateStr > todayStr)) return;
@@ -2457,26 +2576,33 @@ function updateDashboard() {
     document.getElementById('stat-Pendapatan').innerText = 'Rp ' + Pendapatan.toLocaleString();
     document.getElementById('stat-expense').innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
     document.getElementById('stat-Keuntungan').innerText = isSuperAdmin ? ('Rp ' + NetProfitFinal.toLocaleString()) : '*** (Rahasia)';
-    document.getElementById('stat-Hutang').innerText = 'Rp ' + Hutang.toLocaleString();
+    document.getElementById('stat-Hutang').innerText = 'Rp ' + Piutang.toLocaleString();
 
-    // Sorvo Financial Split Bar calculations
-    const totalVolume = modal + Math.max(0, NetProfitFinal) + totalExpense;
-    let mPct = 0, pPct = 0, ePct = 0;
-    if (totalVolume > 0) {
-        mPct = Math.round((modal / totalVolume) * 100);
-        pPct = Math.round((Math.max(0, NetProfitFinal) / totalVolume) * 100);
-        ePct = Math.max(0, 100 - (mPct + pPct));
+    // Standar Struktur Rasio Finansial (Berbasis Pendapatan Kas Masuk 100%)
+    let mPct = 0, ePct = 0, pPct = 0;
+    if (Pendapatan > 0) {
+        mPct = Math.round((modalLunas / Pendapatan) * 100);
+        ePct = Math.round((totalExpense / Pendapatan) * 100);
+        pPct = Math.round((NetProfitFinal / Pendapatan) * 100);
     }
     const splitRatioText = document.getElementById('stat-split-ratio-text');
     if (splitRatioText) {
-        splitRatioText.textContent = `Modal ${mPct}% • Laba ${pPct}% • Biaya ${ePct}%`;
+        if (Pendapatan > 0) {
+            if (NetProfitFinal >= 0) {
+                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Laba ${pPct}%`;
+            } else {
+                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Rugi ${Math.abs(pPct)}%`;
+            }
+        } else {
+            splitRatioText.textContent = `Modal 0% • Beban 0% • Laba 0%`;
+        }
     }
     const mBar = document.getElementById('stat-split-modal-bar');
-    if (mBar) mBar.style.width = `${mPct}%`;
-    const pBar = document.getElementById('stat-split-profit-bar');
-    if (pBar) pBar.style.width = `${pPct}%`;
+    if (mBar) mBar.style.width = `${Math.min(100, Math.max(0, mPct))}%`;
     const eBar = document.getElementById('stat-split-expense-bar');
-    if (eBar) eBar.style.width = `${ePct}%`;
+    if (eBar) eBar.style.width = `${Math.min(100, Math.max(0, ePct))}%`;
+    const pBar = document.getElementById('stat-split-profit-bar');
+    if (pBar) pBar.style.width = `${Math.min(100, Math.max(0, pPct))}%`;
     
     const labelsDesc = {
         'id': { 'today': 'Hari Ini', '7days': '7 Hari Terakhir', '30days': '30 Hari Terakhir', 'all': 'Keseluruhan' },
@@ -2622,16 +2748,30 @@ function renderFinancialChart() {
     let pendapatanData = [];
     let keuntunganData = [];
 
+    // Hitung beban operasional bulanan agar laba bersih chart sinkron dengan kartu KPI
+    const expenseByMonth = {};
+    (expenseData || []).forEach(exp => {
+        const eDate = (exp.date || '').trim().slice(0, 10);
+        if (eDate) {
+            const eMonthKey = typeof getCurrentMonthKey === 'function' ? getCurrentMonthKey(new Date(eDate + 'T00:00:00')) : '';
+            if (eMonthKey) {
+                expenseByMonth[eMonthKey] = (expenseByMonth[eMonthKey] || 0) + (exp.amount || 0);
+            }
+        }
+    });
+
     months.forEach(mk => {
-        let omz = 0; let lab = 0;
+        let omz = 0; let labKotor = 0;
         (transactionData[mk] || []).forEach(t => {
             if(t.status === 'Lunas') {
-                omz += t.totalSell;
-                lab += (t.profitPerItem * t.qty);
+                omz += (t.totalSell || 0);
+                labKotor += ((t.profitPerItem || 0) * (t.qty || 0));
             }
         });
+        const expMonth = expenseByMonth[mk] || 0;
+        const labBersih = labKotor - expMonth;
         pendapatanData.push(omz);
-        keuntunganData.push(lab);
+        keuntunganData.push(labBersih);
     });
 
     const isDark = document.body.classList.contains('dark-theme');
@@ -2677,7 +2817,7 @@ function renderFinancialChart() {
                     borderSkipped: false
                 },
                 {
-                    label: 'Keuntungan Bersih',
+                    label: 'Laba Bersih Final',
                     data: kData,
                     backgroundColor: 'rgba(16, 185, 129, 0.82)',
                     borderColor: 'rgb(16, 185, 129)',

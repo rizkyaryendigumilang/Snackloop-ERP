@@ -23,8 +23,10 @@ function calculateRepack() {
         document.getElementById('res-profit').style.display = 'none';
     }
 
+    const cleanDate = (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const randEntropy = Math.random().toString(36).substring(2, 5).toUpperCase();
     currentRepackCalcResult = {
-        id: `BATCH-${Date.now().toString().slice(-5)}`,
+        id: `RPK-${cleanDate}-${Date.now().toString().slice(-4)}${randEntropy}`,
         date: getLocalDateStr(),
         name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
     };

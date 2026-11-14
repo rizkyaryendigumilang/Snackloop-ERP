@@ -107,6 +107,26 @@ window.SnackLoop = {
         renderMaster: () => (typeof renderMaster === 'function' && renderMaster()),
         renderReturns: () => (typeof renderReturns === 'function' && renderReturns()),
         renderInvoicesTable: () => (typeof renderInvoicesTable === 'function' && renderInvoicesTable())
+    },
+    store: {
+        getAgents: () => agentData,
+        getMaster: () => masterData,
+        getCustomers: () => customerData,
+        getRepack: () => repackData,
+        getTransactions: () => transactionData,
+        getExpenses: () => expenseData,
+        getInvoices: () => invoiceData,
+        getJastip: () => (typeof jastipData !== 'undefined' ? jastipData : []),
+        findProductById: (id) => masterData.find(m => m.id === Number(id)),
+        findBatchById: (id) => repackData.find(r => r.id === String(id)),
+        updateProductStock: (id, newStock) => {
+            const p = masterData.find(m => m.id === Number(id));
+            if (p) p.stock_qty = Math.max(0, newStock);
+        },
+        updateBatchStock: (id, newRemaining) => {
+            const b = repackData.find(r => r.id === String(id));
+            if (b) b.remaining_qty = Math.max(0, newRemaining);
+        }
     }
 };
 
@@ -729,6 +749,19 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
     }
 
+    // P4: Normalisasi Otomatis Nomor WhatsApp pada Seluruh Input Formulir
+    const phoneInputIds = ['cu-phone', 'jastip-cust-phone', 'set-biz-phone', 'wa-modal-phone'];
+    phoneInputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('blur', function() {
+                if (this.value && typeof normalizeWaPhone === 'function') {
+                    this.value = normalizeWaPhone(this.value);
+                }
+            });
+        }
+    });
+
     if (typeof feather !== 'undefined') feather.replace();
     initNavbarPillInteractions();
     syncNavbarActivePill(true);
@@ -1046,6 +1079,19 @@ async function createDailySnapshot(dateKey = null) {
     }
 }
 
+async function checkAndTriggerAutoSnapshot() {
+    try {
+        const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+        const lastDate = localStorage.getItem('snackloop_last_snapshot_date');
+        if (lastDate !== today) {
+            await createDailySnapshot(today);
+            console.info(`[AutoBackup] Snapshot harian otomatis (${today}) berhasil dicadangkan ke IndexedDB.`);
+        }
+    } catch(e) {
+        console.warn("[AutoBackup] Gagal membuat snapshot otomatis:", e);
+    }
+}
+
 async function pruneOldSnapshots(db) {
     try {
         const tx = db.transaction('snapshots', 'readwrite');
@@ -1267,6 +1313,13 @@ function _executeSaveCache(forceSync = false) {
     } else {
         setTimeout(saveToLocalStorage, 0);
     }
+
+    try {
+        localStorage.setItem('snackloop_last_sync_timestamp', new Date().toISOString());
+        if (typeof renderAutoSyncStatusUI === 'function' && typeof document !== 'undefined' && document.getElementById('auto-sync-status-container')) {
+            renderAutoSyncStatusUI();
+        }
+    } catch(e) {}
 
     return p;
 }
@@ -1539,22 +1592,45 @@ async function syncSingleOutboxItem(item) {
     }
 
     if (item.type === 'INSERT_TRANSACTION') {
-        if (item.payload && item.payload.repackUpdate) {
-            await supabaseClient.from('repack')
-                .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
-                .eq('id', item.payload.repackUpdate.batchId);
-        }
         const trxRow = item.payload && (item.payload.transaction || item.payload);
+        const invPayload = item.payload && item.payload.invoice;
+        const repackUp = item.payload && item.payload.repackUpdate;
+
+        let rpcSuccess = false;
         if (trxRow) {
-            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
-            if (trxErr) throw trxErr;
-            if (insertedTrx && insertedTrx.length > 0) {
-                reconcileOfflineTransactionIds(insertedTrx);
-            }
+            try {
+                const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                    p_trx: trxRow,
+                    p_inv: invPayload || null,
+                    p_repack_batch_id: repackUp ? repackUp.batchId : null,
+                    p_repack_deduct_qty: repackUp ? (repackUp.deductQty || 0) : 0
+                });
+                if (!rpcErr && rpcRes && rpcRes.success) {
+                    rpcSuccess = true;
+                    if (rpcRes.new_trx_id) {
+                        reconcileOfflineTransactionIds([{ id: rpcRes.new_trx_id, ...trxRow }]);
+                    }
+                }
+            } catch(e) {}
         }
 
-        if (item.payload && item.payload.invoice) {
-            await syncInvoicePayloadToCloud(item.payload.invoice);
+        if (!rpcSuccess) {
+            // Fallback REST path jika RPC belum aktif di Supabase
+            if (repackUp) {
+                await supabaseClient.from('repack')
+                    .update({ remaining_qty: repackUp.newRemainingQty })
+                    .eq('id', repackUp.batchId);
+            }
+            if (trxRow) {
+                const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
+                if (trxErr) throw trxErr;
+                if (insertedTrx && insertedTrx.length > 0) {
+                    reconcileOfflineTransactionIds(insertedTrx);
+                }
+            }
+            if (invPayload) {
+                await syncInvoicePayloadToCloud(invPayload);
+            }
         }
     } else if (item.type === 'INSERT_BULK_TRANSACTIONS') {
         const rows = item.payload && Array.isArray(item.payload.transactions) ? item.payload.transactions : [];
@@ -1576,13 +1652,14 @@ async function syncSingleOutboxItem(item) {
             await supabaseClient.from('invoices').delete().in('id', idsToDelete);
         }
         const updates = (item.payload && Array.isArray(item.payload.masterInvUpdates)) ? item.payload.masterInvUpdates : [];
-        for (const up of updates) {
-            if (up.id && !String(up.id).startsWith('inv_')) {
-                await supabaseClient.from('invoices').update({
+        const validUpdates = updates.filter(up => up && up.id && !String(up.id).startsWith('inv_'));
+        if (validUpdates.length > 0) {
+            await Promise.allSettled(validUpdates.map(up => 
+                supabaseClient.from('invoices').update({
                     total_amount: up.total_amount,
                     status: up.status
-                }).eq('id', up.id);
-            }
+                }).eq('id', up.id)
+            ));
         }
     } else if (item.type === 'DELETE_TRANSACTION') {
         if (item.payload.source === 'Repack' && item.payload.batch) {
@@ -2834,7 +2911,7 @@ function attachModalSwipeDismiss(modal) {
     // Optional drag handle insertion for mobile viewports if absent
     if (!card.querySelector('.apple-sheet-handle') && !card.classList.contains('no-sheet-handle')) {
         const handle = document.createElement('div');
-        handle.className = 'apple-sheet-handle hidden sm:hidden';
+        handle.className = 'apple-sheet-handle block sm:hidden';
         card.insertBefore(handle, card.firstChild);
     }
 
@@ -2935,9 +3012,28 @@ if (typeof document !== 'undefined') {
     }
 }
 
+function openMobileMenuSheet() {
+    const userRole = (typeof currentRole !== 'undefined' ? currentRole : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : '') || '';
+    const usersBtn = document.getElementById('mobile-more-users');
+    if (usersBtn) {
+        usersBtn.style.display = (userRole === 'super_admin' || userRole === 'admin') ? 'flex' : 'none';
+    }
+    const reportsBtn = document.getElementById('mobile-more-reports');
+    if (reportsBtn) {
+        reportsBtn.style.display = (userRole === 'super_admin') ? 'flex' : 'none';
+    }
+    openModalById('modal-mobile-menu');
+}
+
+function closeMobileMenuSheet() {
+    closeModalById('modal-mobile-menu');
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.attachModalSwipeDismiss = attachModalSwipeDismiss;
+    window.openMobileMenuSheet = openMobileMenuSheet;
+    window.closeMobileMenuSheet = closeMobileMenuSheet;
 }
 
 
@@ -3307,6 +3403,10 @@ async function initApp() {
     if(navigator.onLine) {
         syncOutboxQueue();
     }
+    // Auto-Snapshot Harian Otomatis ke IndexedDB
+    if (typeof checkAndTriggerAutoSnapshot === 'function') {
+        checkAndTriggerAutoSnapshot();
+    }
     // P3: Inisialisasi Realtime Multi-Device Sync
     if (typeof initSupabaseRealtimeSync === 'function') {
         initSupabaseRealtimeSync();
@@ -3322,6 +3422,26 @@ async function loadDataFromCloud() {
             if (localStorage.getItem('snackloop_pending_restore_sync')) {
                 return;
             }
+        }
+
+        // P1: Verifikasi Integritas Peran Akun untuk Mencegah Pemalsuan LocalStorage
+        if (currentUser && navigator.onLine && typeof supabaseClient !== 'undefined' && supabaseClient) {
+            try {
+                const { data: dbUser } = await supabaseClient.from('users').select('id, username, role').eq('username', currentUser).limit(1);
+                if (dbUser && dbUser.length > 0) {
+                    const actualRole = dbUser[0].role;
+                    if (actualRole && actualRole !== currentRole) {
+                        console.warn(`[Security] Sesi role mismatch: local=${currentRole}, actual=${actualRole}. Menyelaraskan izin.`);
+                        currentRole = actualRole;
+                        try {
+                            const sess = JSON.parse(localStorage.getItem('snackloop_session') || '{}');
+                            sess.role = actualRole;
+                            localStorage.setItem('snackloop_session', JSON.stringify(sess));
+                        } catch(e) {}
+                        if (typeof applyRolePermissions === 'function') applyRolePermissions();
+                    }
+                }
+            } catch(authVerifyErr) {}
         }
 
         const isSuperAdmin = currentRole === 'super_admin';
@@ -3452,6 +3572,16 @@ function switchTab(tabId) {
         if (typeof activeBtn.blur === 'function') activeBtn.blur();
         if (typeof window !== 'undefined' && window.innerWidth <= 768 && typeof activeBtn.scrollIntoView === 'function') {
             try { activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (e) {}
+        }
+    }
+
+    const coreMobileTabs = ['dashboard', 'transactions', 'invoices', 'master'];
+    const moreBtn = document.getElementById('btn-mobile-more');
+    if (moreBtn) {
+        if (!coreMobileTabs.includes(tabId)) {
+            moreBtn.classList.add('active');
+        } else {
+            moreBtn.classList.remove('active');
         }
     }
 
@@ -3930,6 +4060,12 @@ function restoreDataJSON(event) {
                 const data = JSON.parse(e.target.result);
                 if (!data || typeof data !== 'object') throw new Error("Format JSON tidak valid");
 
+                // P2: Jaring Pengaman Darurat - Buat snapshot lokal sebelum restore
+                if (typeof createDailySnapshot === 'function') {
+                    const emergencyTag = `SEBELUM_RESTORE_${Date.now().toString().slice(-6)}`;
+                    await createDailySnapshot(emergencyTag);
+                }
+
                 applyStateBundle(data);
 
                 if (data.appSettings && typeof appSettings !== 'undefined') {
@@ -3955,6 +4091,343 @@ function restoreDataJSON(event) {
         };
         reader.readAsText(file);
     });
+}
+
+// Helper konversi array ke baris CSV ber-escape tanda kutip
+function toCsvRow(arr) {
+    return arr.map(val => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+    }).join(',');
+}
+
+// ======================= LAPISAN 1: REKAP & CADANGAN PRIBADI (CSV) ======================= //
+function exportTransactionsCSV(monthKey = 'all') {
+    const isSuperAdmin = currentRole === 'super_admin';
+    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+
+    let allTrx = [];
+    if (monthKey === 'all') {
+        const sortedMonths = typeof sortMonthKeys === 'function' 
+            ? sortMonthKeys(Object.keys(transactionData || {}), false) 
+            : Object.keys(transactionData || {});
+        sortedMonths.forEach(m => {
+            const list = (transactionData && transactionData[m]) || [];
+            list.forEach(t => allTrx.push({ ...t, _monthKey: m }));
+        });
+    } else {
+        const list = (transactionData && transactionData[monthKey]) || [];
+        list.forEach(t => allTrx.push({ ...t, _monthKey: monthKey }));
+    }
+
+    if (allTrx.length === 0) {
+        showNotification("Pemberitahuan", "Belum ada data transaksi untuk diekspor ke CSV.", "warning");
+        return;
+    }
+
+    const headers = [
+        "Tanggal",
+        "No Nota / ID",
+        "Bulan Pembukuan",
+        "Nama Pelanggan",
+        "Sumber Barang",
+        "Batch Repack",
+        "Nama Barang",
+        "Qty (Pcs)",
+        "Modal Satuan (Rp)",
+        "Harga Jual Satuan (Rp)",
+        "Total Modal HPP (Rp)",
+        "Total Penjualan (Rp)",
+        "Laba Kotor (Rp)",
+        "Biaya Tambahan / Ongkir (Rp)",
+        "Keterangan Biaya",
+        "Status Pembayaran",
+        "Catatan Pesanan"
+    ];
+
+    const rows = allTrx.map(t => {
+        const modalSatuan = isSuperAdmin ? (Number(t.buy) || Number(t.buyPrice) || 0) : 0;
+        const totalModal = isSuperAdmin ? (Number(t.totalModal) || (modalSatuan * Number(t.qty || 0))) : 0;
+        const profit = isSuperAdmin ? (Number(t.profitPerItem ? t.profitPerItem * t.qty : (t.totalSell - totalModal)) || 0) : 0;
+
+        return [
+            t.date || '',
+            t.id || '',
+            t._monthKey || '',
+            t.customer || '',
+            t.source || '',
+            t.batch || '',
+            t.itemName || '',
+            Number(t.qty) || 0,
+            modalSatuan,
+            Number(t.sellPrice) || Number(t.sell) || 0,
+            totalModal,
+            Number(t.totalSell) || 0,
+            profit,
+            Number(t.extraCost) || 0,
+            t.extraCostNote || '',
+            t.status || 'Belum Lunas',
+            t.notes || ''
+        ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.map(h => `"${h}"`).join(','), ...rows.map(toCsvRow)].join('\r\n');
+    const filename = monthKey === 'all' 
+        ? `SnackLoop_Semua_Transaksi_Pribadi_${dateFormatted}.csv`
+        : `SnackLoop_Transaksi_${monthKey}_${dateFormatted}.csv`;
+
+    downloadBlobFile(csvContent, filename, 'text/csv;charset=utf-8;');
+    logAuditActivity('DATA_EXPORT_CSV', filename, `Mengekspor data transaksi pribadi ke format CSV (${allTrx.length} baris)`);
+    showNotification("Sukses", `Data transaksi (${allTrx.length} baris) berhasil diunduh dalam format CSV Excel!`, "success");
+}
+
+function exportMasterProductsCSV() {
+    const isSuperAdmin = currentRole === 'super_admin';
+    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const list = Array.isArray(masterData) ? masterData : [];
+
+    if (list.length === 0) {
+        showNotification("Pemberitahuan", "Belum ada produk master untuk diekspor ke CSV.", "warning");
+        return;
+    }
+
+    const headers = [
+        "ID Produk",
+        "Nama Produk",
+        "Sumber Agen",
+        "Stok Tersedia (Pcs)",
+        "Harga Modal Beli (Rp)",
+        "Harga Jual (Rp)",
+        "Estimasi Margin Per Pcs (Rp)",
+        "Estimasi Total Aset Stok (Rp)"
+    ];
+
+    const rows = list.map(m => {
+        const buy = isSuperAdmin ? (Number(m.buy) || Number(m.buyPrice) || 0) : 0;
+        const sell = Number(m.sell) || Number(m.sellPrice) || 0;
+        const stock = Number(m.stock) || 0;
+        const margin = isSuperAdmin ? Math.max(0, sell - buy) : 0;
+        const totalAsset = isSuperAdmin ? (buy * stock) : 0;
+
+        return [
+            m.id || '',
+            m.name || '',
+            m.source || '',
+            stock,
+            buy,
+            sell,
+            margin,
+            totalAsset
+        ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.map(h => `"${h}"`).join(','), ...rows.map(toCsvRow)].join('\r\n');
+    const filename = `SnackLoop_Master_Produk_Stok_${dateFormatted}.csv`;
+
+    downloadBlobFile(csvContent, filename, 'text/csv;charset=utf-8;');
+    logAuditActivity('DATA_EXPORT_CSV', filename, `Mengekspor katalog master produk ke CSV (${list.length} item)`);
+    showNotification("Sukses", `Katalog ${list.length} produk master berhasil diunduh dalam format CSV!`, "success");
+}
+
+function exportFinancialSummaryCSV() {
+    const isSuperAdmin = currentRole === 'super_admin';
+    if (!isSuperAdmin) {
+        showNotification("Akses Ditolak", "Laporan keuangan ringkas CSV khusus Super Admin / Owner.", "error");
+        return;
+    }
+
+    const dateFormatted = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+    const sortedMonths = typeof sortMonthKeys === 'function' 
+        ? sortMonthKeys(Object.keys(transactionData || {}), true) 
+        : Object.keys(transactionData || {});
+
+    if (sortedMonths.length === 0) {
+        showNotification("Pemberitahuan", "Belum ada data keuangan untuk dirangkum ke CSV.", "warning");
+        return;
+    }
+
+    const headers = [
+        "Periode Bulan",
+        "Total Transaksi",
+        "Total Omzet Kas Masuk / Lunas (Rp)",
+        "Total Piutang Belum Lunas (Rp)",
+        "Total Omzet Akrual (Rp)",
+        "Total Modal HPP Terjual Lunas (Rp)",
+        "Laba Kotor Lunas (Rp)",
+        "Beban Pengeluaran Operasional (Rp)",
+        "Laba Bersih Final (Rp)"
+    ];
+
+    const rows = sortedMonths.map(m => {
+        const trxList = (transactionData && transactionData[m]) || [];
+        const expList = (expenseData || []).filter(e => e.monthKey === m);
+        const totalExpenses = expList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+        let cashIn = 0;
+        let unpaid = 0;
+        let totalHppLunas = 0;
+        let grossProfitLunas = 0;
+
+        trxList.forEach(t => {
+            const sell = Number(t.totalSell) || 0;
+            const modal = Number(t.totalModal) || (Number(t.buy || 0) * Number(t.qty || 0));
+            const profit = Number(t.profitPerItem ? t.profitPerItem * t.qty : (sell - modal)) || 0;
+
+            if (t.status === 'Lunas') {
+                cashIn += sell;
+                totalHppLunas += modal;
+                grossProfitLunas += profit;
+            } else {
+                unpaid += sell;
+            }
+        });
+
+        const netProfitFinal = grossProfitLunas - totalExpenses;
+
+        return [
+            m,
+            trxList.length,
+            cashIn,
+            unpaid,
+            cashIn + unpaid,
+            totalHppLunas,
+            grossProfitLunas,
+            totalExpenses,
+            netProfitFinal
+        ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.map(h => `"${h}"`).join(','), ...rows.map(toCsvRow)].join('\r\n');
+    const filename = `SnackLoop_Ringkasan_Keuangan_Pribadi_${dateFormatted}.csv`;
+
+    downloadBlobFile(csvContent, filename, 'text/csv;charset=utf-8;');
+    logAuditActivity('DATA_EXPORT_CSV', filename, `Mengekspor rekap ringkasan keuangan P&L ke CSV (${sortedMonths.length} bulan)`);
+    showNotification("Sukses", `Ringkasan keuangan pribadi (${sortedMonths.length} bulan) berhasil diunduh dalam format CSV!`, "success");
+}
+
+// ======================= AUTO-SYNC & ALWAYS-FRESH BACKUP DOWNLOAD ======================= //
+async function syncAndDownloadLatestBackup(format = 'json') {
+    if (currentRole !== 'super_admin') return showNotification("Akses Ditolak", "Eksklusif Super Admin.", "error");
+
+    showNotification("Auto-Sync Berjalan", "Menyinkronkan data mutakhir sebelum membuat cadangan...", "info");
+
+    try {
+        // 1. Dorong antrean outbox lokal ke cloud Supabase jika ada koneksi online
+        if (typeof processOutbox === 'function' && typeof navigator !== 'undefined' && navigator.onLine) {
+            try {
+                await processOutbox();
+            } catch (err) {
+                console.warn("[AutoSync] Outbox sync warn:", err);
+            }
+        }
+
+        // 2. Simpan seketika state memori aktif ke IndexedDB / LocalStorage
+        if (typeof saveCacheToLocal === 'function') {
+            await saveCacheToLocal(true);
+        }
+
+        // 3. Ambil snapshot harian terbaru
+        if (typeof createDailySnapshot === 'function') {
+            const todayStr = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+            await createDailySnapshot(todayStr);
+        }
+
+        // 4. Update timestamp sinkronisasi
+        const nowIso = new Date().toISOString();
+        try {
+            localStorage.setItem('snackloop_last_sync_timestamp', nowIso);
+        } catch(e) {}
+
+        if (typeof renderAutoSyncStatusUI === 'function') {
+            renderAutoSyncStatusUI();
+        }
+
+        // 5. Eksekusi pengunduhan sesuai format yang diminta
+        if (format === 'csv') {
+            exportTransactionsCSV('all');
+        } else {
+            backupDataJSON();
+        }
+
+        showNotification("Auto-Sync Selesai", "Data terbaru 100% tersinkronkan dan cadangan berhasil diunduh!", "success");
+    } catch (e) {
+        console.error("[AutoSync] Gagal:", e);
+        if (format === 'csv') {
+            exportTransactionsCSV('all');
+        } else {
+            backupDataJSON();
+        }
+    }
+}
+
+function renderAutoSyncStatusUI() {
+    const el = document.getElementById('auto-sync-status-container');
+    if (!el) return;
+
+    let rawTs = null;
+    try {
+        rawTs = localStorage.getItem('snackloop_last_sync_timestamp');
+    } catch(e) {}
+
+    let timeText = 'Baru saja';
+    if (rawTs) {
+        try {
+            const d = new Date(rawTs);
+            const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            timeText = `${dateStr}, pk ${timeStr}`;
+        } catch (e) {
+            timeText = 'Baru saja';
+        }
+    }
+
+    const totalTrx = typeof getAllTransactions === 'function' ? getAllTransactions().length : 0;
+    const totalMaster = Array.isArray(masterData) ? masterData.length : 0;
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between pb-2 border-b border-inherit">
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                </span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Auto-Sync Real-Time: ${isOnline ? 'Online (Terkoneksi Cloud)' : 'Lokal (Offline Mode)'}</span>
+            </div>
+            <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                Data Mutakhir
+            </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] pt-1 text-slate-600 dark:text-slate-300 items-center">
+            <div>
+                <span class="opacity-60 block text-[10px]">Waktu Sinkron Terakhir:</span>
+                <strong class="tabular-nums font-semibold">${timeText}</strong>
+            </div>
+            <div>
+                <span class="opacity-60 block text-[10px]">Data Ter-sync Saat Ini:</span>
+                <strong class="tabular-nums font-semibold">${totalTrx} Transaksi • ${totalMaster} Master</strong>
+            </div>
+            <div class="flex items-center gap-1.5 justify-end">
+                <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh JSON">
+                    <i class="fa-solid fa-rotate"></i> <span>Sync JSON</span>
+                </button>
+                <button type="button" onclick="syncAndDownloadLatestBackup('csv')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh CSV">
+                    <i class="fa-solid fa-file-csv"></i> <span>Sync CSV</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+if (typeof window !== 'undefined') {
+    window.backupDataJSON = backupDataJSON;
+    window.restoreDataJSON = restoreDataJSON;
+    window.exportTransactionsCSV = exportTransactionsCSV;
+    window.exportMasterProductsCSV = exportMasterProductsCSV;
+    window.exportFinancialSummaryCSV = exportFinancialSummaryCSV;
+    window.syncAndDownloadLatestBackup = syncAndDownloadLatestBackup;
+    window.renderAutoSyncStatusUI = renderAutoSyncStatusUI;
 }
 
 
@@ -4343,8 +4816,10 @@ function calculateRepack() {
         document.getElementById('res-profit').style.display = 'none';
     }
 
+    const cleanDate = (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const randEntropy = Math.random().toString(36).substring(2, 5).toUpperCase();
     currentRepackCalcResult = {
-        id: `BATCH-${Date.now().toString().slice(-5)}`,
+        id: `RPK-${cleanDate}-${Date.now().toString().slice(-4)}${randEntropy}`,
         date: getLocalDateStr(),
         name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
     };
@@ -4504,8 +4979,8 @@ function fillProductData() {
         buyInput.value = isSuperAdmin ? item.buy.toLocaleString('id-ID') : '*** (Tersimpan)';
         document.getElementById('t-sell').value = item.sell.toLocaleString('id-ID');
         document.getElementById('t-batch').value = "Reguler";
-        if (item.stock_qty !== undefined && item.stock_qty > 0) {
-            document.getElementById('t-qty').max = item.stock_qty;
+        if (item.stock_qty !== undefined) {
+            document.getElementById('t-qty').max = Math.max(0, item.stock_qty);
         } else {
             document.getElementById('t-qty').removeAttribute('max');
         }
@@ -4628,7 +5103,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     if(source === 'Repack') {
         const rItem = repackData.find(r => r.id === batchId);
         if(!rItem) return showNotification("Peringatan", "Pilih batch produk Repack dengan benar.", "warning");
-        if(qty > rItem.remaining_qty) return showNotification("Peringatan", `Stok ${rItem.name} hanya sisa ${rItem.remaining_qty}.`, "warning");
+        if(rItem.remaining_qty <= 0 || qty > rItem.remaining_qty) {
+            return showNotification("Peringatan", `Stok batch ${rItem.name} tidak mencukupi (Tersisa: ${Math.max(0, rItem.remaining_qty)} pcs).`, "warning");
+        }
         itemName = rItem.name;
         // Optimistic pengurangan stok repack di memori
         rItem.remaining_qty -= qty;
@@ -4638,8 +5115,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const mId = parseInt(pVal.split('|')[1]);
         const mItem = masterData.find(m => m.id === mId);
         if(!mItem) return showNotification("Peringatan", "Produk master tidak ditemukan.", "warning");
-        if(mItem.stock_qty !== undefined && mItem.stock_qty > 0 && qty > mItem.stock_qty) {
-            return showNotification("Peringatan", `Stok ${mItem.name} hanya tersisa ${mItem.stock_qty} pcs.`, "warning");
+        if(mItem.stock_qty !== undefined && (mItem.stock_qty <= 0 || qty > mItem.stock_qty)) {
+            return showNotification("Peringatan", `Stok produk ${mItem.name} tidak mencukupi (Tersisa: ${Math.max(0, mItem.stock_qty)} pcs).`, "warning");
         }
         itemName = mItem.name;
         // Optimistic pengurangan stok master
@@ -5751,13 +6228,21 @@ function calculateCustomerLeaderboard(period = 'all') {
             custMap[cName] = {
                 name: cName,
                 totalSpent: 0,
+                paidSpent: 0,
+                unpaidSpent: 0,
                 orderCount: 0,
                 totalQty: 0,
                 lastDate: t.date,
                 items: {}
             };
         }
-        custMap[cName].totalSpent += (t.totalSell || 0);
+        const sellAmount = (t.totalSell || 0);
+        custMap[cName].totalSpent += sellAmount;
+        if (t.status === 'Lunas') {
+            custMap[cName].paidSpent += sellAmount;
+        } else {
+            custMap[cName].unpaidSpent += sellAmount;
+        }
         custMap[cName].orderCount += 1;
         custMap[cName].totalQty += (t.qty || 0);
         if (t.date > custMap[cName].lastDate) {
@@ -5766,7 +6251,8 @@ function calculateCustomerLeaderboard(period = 'all') {
         custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
     });
 
-    return Object.values(custMap).sort((a, b) => b.totalSpent - a.totalSpent);
+    // Urutkan berdasarkan pembayaran riil (paidSpent) lalu total volume
+    return Object.values(custMap).sort((a, b) => (b.paidSpent - a.paidSpent) || (b.totalSpent - a.totalSpent));
 }
 
 function renderCustomerLeaderboard() {
@@ -5830,8 +6316,9 @@ function renderCustomerLeaderboard() {
 
                 <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-inherit">
                     <div>
-                        <span class="opacity-60 block text-[10px]">Total Belanja</span>
-                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${cust.totalSpent.toLocaleString()}</span>
+                        <span class="opacity-60 block text-[10px]">Belanja (Lunas)</span>
+                        <span class="font-bold text-slate-900 dark:text-slate-100 tabular-nums">Rp ${(cust.paidSpent || 0).toLocaleString()}</span>
+                        ${cust.unpaidSpent > 0 ? `<span class="text-[9px] text-rose-500 font-semibold block mt-0.5"><i class="fa-solid fa-clock mr-1"></i>Tempo: Rp ${cust.unpaidSpent.toLocaleString()}</span>` : ''}
                     </div>
                     <div>
                         <span class="opacity-60 block text-[10px]">Volume Produk</span>
@@ -6378,16 +6865,46 @@ function renderTransactionsForActiveSheet() {
     if(filteredList.length === 0) {
         const hasActiveFilter = currentTransactionFilter !== 'all' || Boolean(currentSearchKeyword);
         tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center">
-            <div class="flex flex-col items-center justify-center gap-2">
-                <i class="fas fa-search text-2xl opacity-30 mb-1"></i>
-                <p class="text-xs font-semibold opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau kata kunci pencarian Anda' : 'pada periode ini'}.</p>
+            <div class="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center text-xl shadow-sm">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">Belum Ada Transaksi</h4>
+                    <p class="text-xs opacity-70 mt-1">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau kata kunci pencarian Anda' : 'pada lembar bulan ini'}.</p>
+                </div>
                 ${hasActiveFilter ? `
-                    <button type="button" onclick="resetTransactionFilters()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition">
-                        <i class="fas fa-rotate-left text-[11px]"></i> Reset Filter & Pencarian
+                    <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Filter & Pencarian
                     </button>
-                ` : ''}
+                ` : `
+                    <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Tambah Transaksi Baru
+                    </button>
+                `}
             </div>
         </td></tr>`;
+
+        const mobileCards = document.getElementById('trx-mobile-cards');
+        if (mobileCards) {
+            mobileCards.innerHTML = `
+                <div class="p-6 text-center theme-card rounded-2xl border space-y-3">
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center text-xl shadow-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100">Belum Ada Transaksi</h4>
+                    <p class="text-xs opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau pencarian Anda' : 'pada lembar bulan ini'}.</p>
+                    ${hasActiveFilter ? `
+                        <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Filter
+                        </button>
+                    ` : `
+                        <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Tambah Transaksi Baru
+                        </button>
+                    `}
+                </div>`;
+        }
         renderPaginationControls(0);
         return;
     }
@@ -6450,6 +6967,78 @@ function renderTransactionsForActiveSheet() {
     }).join('');
 
     tbody.innerHTML = rowsHtml;
+
+    const mobileCards = document.getElementById('trx-mobile-cards');
+    if (mobileCards) {
+        const cardsHtml = paginatedList.map((t) => {
+            const itemProfit = t.profitPerItem * t.qty;
+            const safeCustomer = escapeHtml(t.customer);
+            const safeItemName = escapeHtml(t.itemName);
+            const safeSource = escapeHtml(t.source);
+            const safeBatch = escapeHtml(t.batch);
+            const safeNotes = escapeHtml(t.notes);
+            const safeExtraCostNote = escapeHtml(t.extraCostNote);
+            const safeDate = escapeHtml(t.date);
+
+            const isNegativeOrReturn = t.isReturn || (t.qty < 0);
+            const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
+            const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1.5 py-0.5 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1.5 py-0.5 rounded font-bold">${safeSource}</span>`;
+            const notesDisplay = t.notes && t.notes !== '-' ? `<div class="text-[10px] text-amber-500 italic mt-0.5">Catatan: ${safeNotes}</div>` : '';
+            const extraCostDisplay = t.extraCost > 0 ? `<div class="text-[10px] text-amber-500 font-semibold mt-0.5">+Ongkir/Biaya: Rp ${t.extraCost.toLocaleString()} (${safeExtraCostNote})</div>` : '';
+
+            const statusPill = t.status === 'Lunas' 
+                ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-good"><i class="fa-solid fa-check text-[10px]"></i> Lunas</span>`
+                : (canMarkPaid
+                    ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> Belum Lunas (Lunasi)</button>`
+                    : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-bad">${t.status}</span>`);
+
+            const profitDisplay = isSuperAdmin ? `<span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
+
+            return `
+                <div class="theme-card rounded-2xl border p-4 space-y-3 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 border-b border-inherit pb-2.5">
+                        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span class="text-xs font-semibold opacity-75 tabular-nums"><i class="fa-regular fa-calendar text-[10px] mr-1 opacity-60"></i>${safeDate}</span>
+                            ${srcBadge}
+                        </div>
+                        <div>${statusPill}</div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <h4 class="text-sm font-bold text-indigo-600 dark:text-indigo-400 truncate">${safeCustomer}</h4>
+                            <span class="text-xs opacity-70 shrink-0 font-medium">Qty: <strong class="text-slate-900 dark:text-white tabular-nums">${t.qty}</strong></span>
+                        </div>
+                        <p class="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1">${returBadge}${safeItemName}</p>
+                        ${notesDisplay}
+                        ${extraCostDisplay}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <span class="text-[10px] opacity-60 block leading-none">Total Penjualan</span>
+                            <span class="text-sm font-bold text-slate-900 dark:text-white tabular-nums">Rp ${t.totalSell.toLocaleString()}</span>
+                        </div>
+                        <div class="text-right">
+                            ${profitDisplay}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 pt-2 border-t border-inherit">
+                        ${!isNegativeOrReturn ? `<button type="button" onclick="openReturnModalFromTrx('${t.id}')" class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 text-xs font-semibold active:scale-95 transition" title="Retur Toko"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : ''}
+                        <button type="button" onclick="downloadPDF('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="fa-solid fa-print"></i> <span>Struk</span>
+                        </button>
+                        <button type="button" onclick="sendWhatsAppOnly('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> <span>WhatsApp</span>
+                        </button>
+                        ${isSuperAdmin ? `<button type="button" onclick="confirmDeleteTrx('${t.id}')" class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 text-xs font-semibold active:scale-95 transition" title="Hapus Transaksi"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
+        mobileCards.innerHTML = cardsHtml;
+    }
+
     renderPaginationControls(totalPages);
 }
 
@@ -6828,7 +7417,12 @@ function setDashboardTimeFilter(filterType) {
 }
 
 function updateDashboard() {
-    let Pendapatan = 0, modal = 0, KeuntunganKotor = 0, Hutang = 0, totalExpense = 0; 
+    let Pendapatan = 0;          // Omzet Kas Masuk (Penjualan Lunas)
+    let modalLunas = 0;          // HPP Barang Terjual Lunas
+    let modalPiutang = 0;        // HPP Barang Belum Lunas (Modal Tertahan)
+    let KeuntunganKotor = 0;     // Laba Kotor Penjualan Lunas
+    let Piutang = 0;             // Total Tagihan Piutang (Penjualan Tempo Belum Dibayar)
+    let totalExpense = 0;        // Beban Operasional Toko
     let unpaidList = [];
     let productSalesMap = {}; 
 
@@ -6850,18 +7444,18 @@ function updateDashboard() {
 
     for(let mk in transactionData) {
         (transactionData[mk] || []).forEach((t) => {
-            const tDateStr = t.date || '';
+            const tDateStr = (t.date || '').trim().slice(0, 10);
             if (currentDashboardTimeFilter === 'today' && tDateStr !== todayStr) return;
             if (currentDashboardTimeFilter === '7days' && (tDateStr < cutoff7Str || tDateStr > todayStr)) return;
             if (currentDashboardTimeFilter === '30days' && (tDateStr < cutoff30Str || tDateStr > todayStr)) return;
 
-            modal += (t.totalModal || 0);
-
             if(t.status === 'Lunas') {
                 Pendapatan += (t.totalSell || 0); 
+                modalLunas += (t.totalModal || 0);
                 KeuntunganKotor += ((t.profitPerItem || 0) * (t.qty || 0));
             } else { 
-                Hutang += (t.totalSell || 0); 
+                Piutang += (t.totalSell || 0); 
+                modalPiutang += (t.totalModal || 0);
                 unpaidList.push(t); 
             }
 
@@ -6874,7 +7468,7 @@ function updateDashboard() {
     }
 
     (expenseData || []).forEach(exp => {
-        const expDateStr = exp.date || '';
+        const expDateStr = (exp.date || '').trim().slice(0, 10);
         if (currentDashboardTimeFilter === 'today' && expDateStr !== todayStr) return;
         if (currentDashboardTimeFilter === '7days' && (expDateStr < cutoff7Str || expDateStr > todayStr)) return;
         if (currentDashboardTimeFilter === '30days' && (expDateStr < cutoff30Str || expDateStr > todayStr)) return;
@@ -6889,26 +7483,33 @@ function updateDashboard() {
     document.getElementById('stat-Pendapatan').innerText = 'Rp ' + Pendapatan.toLocaleString();
     document.getElementById('stat-expense').innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
     document.getElementById('stat-Keuntungan').innerText = isSuperAdmin ? ('Rp ' + NetProfitFinal.toLocaleString()) : '*** (Rahasia)';
-    document.getElementById('stat-Hutang').innerText = 'Rp ' + Hutang.toLocaleString();
+    document.getElementById('stat-Hutang').innerText = 'Rp ' + Piutang.toLocaleString();
 
-    // Sorvo Financial Split Bar calculations
-    const totalVolume = modal + Math.max(0, NetProfitFinal) + totalExpense;
-    let mPct = 0, pPct = 0, ePct = 0;
-    if (totalVolume > 0) {
-        mPct = Math.round((modal / totalVolume) * 100);
-        pPct = Math.round((Math.max(0, NetProfitFinal) / totalVolume) * 100);
-        ePct = Math.max(0, 100 - (mPct + pPct));
+    // Standar Struktur Rasio Finansial (Berbasis Pendapatan Kas Masuk 100%)
+    let mPct = 0, ePct = 0, pPct = 0;
+    if (Pendapatan > 0) {
+        mPct = Math.round((modalLunas / Pendapatan) * 100);
+        ePct = Math.round((totalExpense / Pendapatan) * 100);
+        pPct = Math.round((NetProfitFinal / Pendapatan) * 100);
     }
     const splitRatioText = document.getElementById('stat-split-ratio-text');
     if (splitRatioText) {
-        splitRatioText.textContent = `Modal ${mPct}% • Laba ${pPct}% • Biaya ${ePct}%`;
+        if (Pendapatan > 0) {
+            if (NetProfitFinal >= 0) {
+                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Laba ${pPct}%`;
+            } else {
+                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Rugi ${Math.abs(pPct)}%`;
+            }
+        } else {
+            splitRatioText.textContent = `Modal 0% • Beban 0% • Laba 0%`;
+        }
     }
     const mBar = document.getElementById('stat-split-modal-bar');
-    if (mBar) mBar.style.width = `${mPct}%`;
-    const pBar = document.getElementById('stat-split-profit-bar');
-    if (pBar) pBar.style.width = `${pPct}%`;
+    if (mBar) mBar.style.width = `${Math.min(100, Math.max(0, mPct))}%`;
     const eBar = document.getElementById('stat-split-expense-bar');
-    if (eBar) eBar.style.width = `${ePct}%`;
+    if (eBar) eBar.style.width = `${Math.min(100, Math.max(0, ePct))}%`;
+    const pBar = document.getElementById('stat-split-profit-bar');
+    if (pBar) pBar.style.width = `${Math.min(100, Math.max(0, pPct))}%`;
     
     const labelsDesc = {
         'id': { 'today': 'Hari Ini', '7days': '7 Hari Terakhir', '30days': '30 Hari Terakhir', 'all': 'Keseluruhan' },
@@ -7054,16 +7655,30 @@ function renderFinancialChart() {
     let pendapatanData = [];
     let keuntunganData = [];
 
+    // Hitung beban operasional bulanan agar laba bersih chart sinkron dengan kartu KPI
+    const expenseByMonth = {};
+    (expenseData || []).forEach(exp => {
+        const eDate = (exp.date || '').trim().slice(0, 10);
+        if (eDate) {
+            const eMonthKey = typeof getCurrentMonthKey === 'function' ? getCurrentMonthKey(new Date(eDate + 'T00:00:00')) : '';
+            if (eMonthKey) {
+                expenseByMonth[eMonthKey] = (expenseByMonth[eMonthKey] || 0) + (exp.amount || 0);
+            }
+        }
+    });
+
     months.forEach(mk => {
-        let omz = 0; let lab = 0;
+        let omz = 0; let labKotor = 0;
         (transactionData[mk] || []).forEach(t => {
             if(t.status === 'Lunas') {
-                omz += t.totalSell;
-                lab += (t.profitPerItem * t.qty);
+                omz += (t.totalSell || 0);
+                labKotor += ((t.profitPerItem || 0) * (t.qty || 0));
             }
         });
+        const expMonth = expenseByMonth[mk] || 0;
+        const labBersih = labKotor - expMonth;
         pendapatanData.push(omz);
-        keuntunganData.push(lab);
+        keuntunganData.push(labBersih);
     });
 
     const isDark = document.body.classList.contains('dark-theme');
@@ -7109,7 +7724,7 @@ function renderFinancialChart() {
                     borderSkipped: false
                 },
                 {
-                    label: 'Keuntungan Bersih',
+                    label: 'Laba Bersih Final',
                     data: kData,
                     backgroundColor: 'rgba(16, 185, 129, 0.82)',
                     borderColor: 'rgb(16, 185, 129)',
@@ -8361,15 +8976,16 @@ function exportToPdf(reportType) {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Penjualan Lunas</td><td style="padding: 6px 8px; text-align: right;">Rp ${paidRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((paidRev/totalRev)*100).toFixed(1) : 0}%</td></tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Penjualan Tempo (Belum Lunas)</td><td style="padding: 6px 8px; text-align: right;">Rp ${unpaidRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((unpaidRev/totalRev)*100).toFixed(1) : 0}%</td></tr>
-                        <tr style="background: #f1f5f9; font-weight: bold; border-bottom: 1.5px solid #cbd5e1;"><td style="padding: 6px 8px;">Total Pendapatan Bersih</td><td style="padding: 6px 8px; text-align: right; color: #4338ca;">Rp ${totalRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">100.0%</td></tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Penjualan Lunas (Arus Kas Masuk)</td><td style="padding: 6px 8px; text-align: right;">Rp ${paidRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((paidRev/totalRev)*100).toFixed(1) : 0}%</td></tr>
+                        <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Penjualan Tempo (Tagihan Piutang)</td><td style="padding: 6px 8px; text-align: right;">Rp ${unpaidRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((unpaidRev/totalRev)*100).toFixed(1) : 0}%</td></tr>
+                        <tr style="background: #f1f5f9; font-weight: bold; border-bottom: 1.5px solid #cbd5e1;"><td style="padding: 6px 8px;">Total Omzet Akrual (Lunas + Tempo)</td><td style="padding: 6px 8px; text-align: right; color: #4338ca;">Rp ${totalRev.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">100.0%</td></tr>
                         <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Harga Pokok Penjualan (HPP)</td><td style="padding: 6px 8px; text-align: right; color: #e11d48;">Rp ${totalCOGS.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((totalCOGS/totalRev)*100).toFixed(1) : 0}%</td></tr>
                         <tr style="background: #e0e7ff; font-weight: bold; border-bottom: 1.5px solid #cbd5e1;"><td style="padding: 6px 8px;">Laba Kotor (Gross Profit)</td><td style="padding: 6px 8px; text-align: right; color: #3730a3;">Rp ${grossProfit.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${grossMargin.toFixed(1)}%</td></tr>
                         <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 6px 8px;">Total Beban Operasional</td><td style="padding: 6px 8px; text-align: right; color: #e11d48;">Rp ${totalExp.toLocaleString('id-ID')}</td><td style="padding: 6px 8px; text-align: right;">${totalRev > 0 ? ((totalExp/totalRev)*100).toFixed(1) : 0}%</td></tr>
                         <tr style="background: #dcfce7; font-weight: bold; font-size: 12px; border-top: 2px solid #16a34a;"><td style="padding: 8px;">LABA BERSIH OPERASIONAL (NET PROFIT)</td><td style="padding: 8px; text-align: right; color: #15803d;">Rp ${netProfit.toLocaleString('id-ID')}</td><td style="padding: 8px; text-align: right; color: #15803d;">${netMargin.toFixed(1)}%</td></tr>
                     </tbody>
                 </table>
+                <p style="font-size: 9.5px; color: #64748b; margin-top: 6px; font-style: italic;">* Catatan: Pos 'Penjualan Lunas' mencerminkan Arus Kas Realisasi yang tampil di Dashboard utama. Pos 'Total Omzet Akrual' menyajikan analisis performa usaha menyeluruh termasuk penjualan tempo pelanggan.</p>
             </div>
         `;
     }
@@ -11022,6 +11638,7 @@ function switchSettingsTab(tabName) {
             if (p === 'backup') {
                 if (typeof renderStorageHealthUI === 'function') renderStorageHealthUI();
                 if (typeof renderSnapshotListUI === 'function') renderSnapshotListUI();
+                if (typeof renderAutoSyncStatusUI === 'function') renderAutoSyncStatusUI();
             }
         } else {
             if (panelEl) {
@@ -11698,7 +12315,15 @@ function printThermalReceipt(receiptData, format = 'thermal58') {
 }
 
 function printThermalReceiptFromTrx(targetTrx, format) {
-    const matchingTransactions = (transactionData[targetTrx.monthKey] || []).filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
+    if (!targetTrx) return;
+    const pool = (targetTrx.monthKey && transactionData[targetTrx.monthKey])
+        ? transactionData[targetTrx.monthKey]
+        : (typeof getAllTransactions === 'function' ? getAllTransactions() : []);
+
+    let matchingTransactions = pool.filter(t => t.date === targetTrx.date && t.customer === targetTrx.customer);
+    if (matchingTransactions.length === 0) {
+        matchingTransactions = [targetTrx];
+    }
     
     let items = [];
     let extraCost = 0;

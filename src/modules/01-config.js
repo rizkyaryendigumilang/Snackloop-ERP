@@ -101,6 +101,26 @@ window.SnackLoop = {
         renderMaster: () => (typeof renderMaster === 'function' && renderMaster()),
         renderReturns: () => (typeof renderReturns === 'function' && renderReturns()),
         renderInvoicesTable: () => (typeof renderInvoicesTable === 'function' && renderInvoicesTable())
+    },
+    store: {
+        getAgents: () => agentData,
+        getMaster: () => masterData,
+        getCustomers: () => customerData,
+        getRepack: () => repackData,
+        getTransactions: () => transactionData,
+        getExpenses: () => expenseData,
+        getInvoices: () => invoiceData,
+        getJastip: () => (typeof jastipData !== 'undefined' ? jastipData : []),
+        findProductById: (id) => masterData.find(m => m.id === Number(id)),
+        findBatchById: (id) => repackData.find(r => r.id === String(id)),
+        updateProductStock: (id, newStock) => {
+            const p = masterData.find(m => m.id === Number(id));
+            if (p) p.stock_qty = Math.max(0, newStock);
+        },
+        updateBatchStock: (id, newRemaining) => {
+            const b = repackData.find(r => r.id === String(id));
+            if (b) b.remaining_qty = Math.max(0, newRemaining);
+        }
     }
 };
 

@@ -201,6 +201,19 @@ async function createDailySnapshot(dateKey = null) {
     }
 }
 
+async function checkAndTriggerAutoSnapshot() {
+    try {
+        const today = typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10);
+        const lastDate = localStorage.getItem('snackloop_last_snapshot_date');
+        if (lastDate !== today) {
+            await createDailySnapshot(today);
+            console.info(`[AutoBackup] Snapshot harian otomatis (${today}) berhasil dicadangkan ke IndexedDB.`);
+        }
+    } catch(e) {
+        console.warn("[AutoBackup] Gagal membuat snapshot otomatis:", e);
+    }
+}
+
 async function pruneOldSnapshots(db) {
     try {
         const tx = db.transaction('snapshots', 'readwrite');
@@ -422,6 +435,13 @@ function _executeSaveCache(forceSync = false) {
     } else {
         setTimeout(saveToLocalStorage, 0);
     }
+
+    try {
+        localStorage.setItem('snackloop_last_sync_timestamp', new Date().toISOString());
+        if (typeof renderAutoSyncStatusUI === 'function' && typeof document !== 'undefined' && document.getElementById('auto-sync-status-container')) {
+            renderAutoSyncStatusUI();
+        }
+    } catch(e) {}
 
     return p;
 }
@@ -694,22 +714,45 @@ async function syncSingleOutboxItem(item) {
     }
 
     if (item.type === 'INSERT_TRANSACTION') {
-        if (item.payload && item.payload.repackUpdate) {
-            await supabaseClient.from('repack')
-                .update({ remaining_qty: item.payload.repackUpdate.newRemainingQty })
-                .eq('id', item.payload.repackUpdate.batchId);
-        }
         const trxRow = item.payload && (item.payload.transaction || item.payload);
+        const invPayload = item.payload && item.payload.invoice;
+        const repackUp = item.payload && item.payload.repackUpdate;
+
+        let rpcSuccess = false;
         if (trxRow) {
-            const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
-            if (trxErr) throw trxErr;
-            if (insertedTrx && insertedTrx.length > 0) {
-                reconcileOfflineTransactionIds(insertedTrx);
-            }
+            try {
+                const { data: rpcRes, error: rpcErr } = await supabaseClient.rpc('create_sale_transaction_atomic', {
+                    p_trx: trxRow,
+                    p_inv: invPayload || null,
+                    p_repack_batch_id: repackUp ? repackUp.batchId : null,
+                    p_repack_deduct_qty: repackUp ? (repackUp.deductQty || 0) : 0
+                });
+                if (!rpcErr && rpcRes && rpcRes.success) {
+                    rpcSuccess = true;
+                    if (rpcRes.new_trx_id) {
+                        reconcileOfflineTransactionIds([{ id: rpcRes.new_trx_id, ...trxRow }]);
+                    }
+                }
+            } catch(e) {}
         }
 
-        if (item.payload && item.payload.invoice) {
-            await syncInvoicePayloadToCloud(item.payload.invoice);
+        if (!rpcSuccess) {
+            // Fallback REST path jika RPC belum aktif di Supabase
+            if (repackUp) {
+                await supabaseClient.from('repack')
+                    .update({ remaining_qty: repackUp.newRemainingQty })
+                    .eq('id', repackUp.batchId);
+            }
+            if (trxRow) {
+                const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
+                if (trxErr) throw trxErr;
+                if (insertedTrx && insertedTrx.length > 0) {
+                    reconcileOfflineTransactionIds(insertedTrx);
+                }
+            }
+            if (invPayload) {
+                await syncInvoicePayloadToCloud(invPayload);
+            }
         }
     } else if (item.type === 'INSERT_BULK_TRANSACTIONS') {
         const rows = item.payload && Array.isArray(item.payload.transactions) ? item.payload.transactions : [];
@@ -731,13 +774,14 @@ async function syncSingleOutboxItem(item) {
             await supabaseClient.from('invoices').delete().in('id', idsToDelete);
         }
         const updates = (item.payload && Array.isArray(item.payload.masterInvUpdates)) ? item.payload.masterInvUpdates : [];
-        for (const up of updates) {
-            if (up.id && !String(up.id).startsWith('inv_')) {
-                await supabaseClient.from('invoices').update({
+        const validUpdates = updates.filter(up => up && up.id && !String(up.id).startsWith('inv_'));
+        if (validUpdates.length > 0) {
+            await Promise.allSettled(validUpdates.map(up => 
+                supabaseClient.from('invoices').update({
                     total_amount: up.total_amount,
                     status: up.status
-                }).eq('id', up.id);
-            }
+                }).eq('id', up.id)
+            ));
         }
     } else if (item.type === 'DELETE_TRANSACTION') {
         if (item.payload.source === 'Repack' && item.payload.batch) {

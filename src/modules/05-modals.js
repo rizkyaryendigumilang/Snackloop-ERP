@@ -287,7 +287,7 @@ function attachModalSwipeDismiss(modal) {
     // Optional drag handle insertion for mobile viewports if absent
     if (!card.querySelector('.apple-sheet-handle') && !card.classList.contains('no-sheet-handle')) {
         const handle = document.createElement('div');
-        handle.className = 'apple-sheet-handle hidden sm:hidden';
+        handle.className = 'apple-sheet-handle block sm:hidden';
         card.insertBefore(handle, card.firstChild);
     }
 
@@ -388,7 +388,26 @@ if (typeof document !== 'undefined') {
     }
 }
 
+function openMobileMenuSheet() {
+    const userRole = (typeof currentRole !== 'undefined' ? currentRole : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : '') || '';
+    const usersBtn = document.getElementById('mobile-more-users');
+    if (usersBtn) {
+        usersBtn.style.display = (userRole === 'super_admin' || userRole === 'admin') ? 'flex' : 'none';
+    }
+    const reportsBtn = document.getElementById('mobile-more-reports');
+    if (reportsBtn) {
+        reportsBtn.style.display = (userRole === 'super_admin') ? 'flex' : 'none';
+    }
+    openModalById('modal-mobile-menu');
+}
+
+function closeMobileMenuSheet() {
+    closeModalById('modal-mobile-menu');
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.attachModalSwipeDismiss = attachModalSwipeDismiss;
+    window.openMobileMenuSheet = openMobileMenuSheet;
+    window.closeMobileMenuSheet = closeMobileMenuSheet;
 }
