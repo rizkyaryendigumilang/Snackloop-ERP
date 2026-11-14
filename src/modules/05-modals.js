@@ -184,6 +184,7 @@ function toggleCompactView(forceState = null) {
     isCompact = forceState !== null ? forceState : !isCompact;
     const tables = document.querySelectorAll('table');
     const statusText = document.getElementById('compact-status');
+    const btn = document.getElementById('toggle-compact-btn');
     
     tables.forEach(table => {
         if (isCompact) table.classList.add('compact-mode');
@@ -193,6 +194,13 @@ function toggleCompactView(forceState = null) {
     if (statusText) {
         statusText.textContent = isCompact ? 'ON' : 'OFF';
         statusText.className = isCompact ? 'text-emerald-500 font-bold' : 'opacity-50';
+    }
+    if (btn) {
+        if (isCompact) {
+            btn.classList.add('border-emerald-500/50', 'bg-emerald-50/50', 'dark:bg-emerald-950/20');
+        } else {
+            btn.classList.remove('border-emerald-500/50', 'bg-emerald-50/50', 'dark:bg-emerald-950/20');
+        }
     }
     localStorage.setItem('snackloop_compact', isCompact);
 }
