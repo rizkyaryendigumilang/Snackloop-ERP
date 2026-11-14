@@ -284,11 +284,6 @@
                         <span id="current-user-label">-</span>
                     </span>
 
-                    <!-- Panduan Pintasan Keyboard Kasir (F1 / ?) - Khusus Desktop/Laptop -->
-                    <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="btn-apple-press w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border hidden sm:flex items-center justify-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0" title="Panduan Pintasan Keyboard (? / F1)" aria-label="Panduan Pintasan Keyboard">
-                        <i class="fa-solid fa-keyboard text-xs text-slate-500"></i>
-                    </button>
-
                     <!-- Tombol Bantuan / Helpdesk SSO Header -->
                     <button id="btn-header-helpdesk" type="button" onclick="openHelpdeskModal()" class="btn-apple-press w-8 h-8 md:w-9 md:h-9 rounded-lg theme-input border flex items-center justify-center transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 shrink-0" title="Bantuan & Laporkan Kendala (Tiket Helpdesk)" aria-label="Bantuan & Lapor Kendala">
                         <i class="fa-solid fa-headset text-xs md:text-sm"></i>
@@ -2810,7 +2805,29 @@
                         </div>
                     </div>
 
-                    <!-- 4. PASANG APLIKASI (PWA INSTALL) -->
+                    <!-- 4. PINTASAN KEYBOARD KASIR (DESKTOP) -->
+                    <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-2.5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0 shadow-sm border border-slate-300/60 dark:border-slate-700/60">
+                                    <i class="fa-solid fa-keyboard text-xs"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs">Pintasan Keyboard Kasir</h4>
+                                    <p class="text-[11px] opacity-70">Akselerasi operasional kasir & navigasi cepat tanpa mouse.</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0 font-mono">F1 / ?</span>
+                        </div>
+                        <div class="pt-1">
+                            <button id="btn-shortcuts-guide" type="button" onclick="openShortcutsGuideModal()" class="btn-apple-press w-full py-2 px-3 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold flex items-center justify-center gap-2 transition text-xs shadow-sm">
+                                <i class="fa-solid fa-table-list text-xs text-indigo-500"></i>
+                                <span>Lihat Panduan Pintasan Keyboard</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 5. PASANG APLIKASI (PWA INSTALL) -->
                     <div class="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2.5">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-center gap-2.5">
@@ -3080,12 +3097,12 @@
     </div>
 
     <!-- ==================== MODAL PANDUAN PINTASAN KEYBOARD KASIR ==================== -->
-    <div id="modal-shortcuts-guide" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div id="modal-shortcuts-guide" class="fixed inset-0 bg-slate-900/65 z-[100000] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target === this) closeShortcutsGuideModal()">
         <div class="theme-card border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-6 space-y-5">
             <div class="apple-sheet-handle sm:hidden"></div>
             <div class="flex justify-between items-center pb-3 border-b border-inherit">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-indigo-600/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                    <div class="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-sm border border-slate-300/60 dark:border-slate-700/60">
                         <i class="fa-solid fa-keyboard"></i>
                     </div>
                     <div>
@@ -3093,24 +3110,24 @@
                         <p class="text-[11px] opacity-70">Akselerasi operasional kasir & navigasi tanpa mouse</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeShortcutsGuideModal()" class="w-8 h-8 rounded-xl theme-input border flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup dialog" title="Tutup (Esc)">
+                <button type="button" onclick="closeShortcutsGuideModal()" class="btn-apple-press w-8 h-8 rounded-xl theme-input border flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition" aria-label="Tutup dialog" title="Tutup (Esc)">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
 
-            <div class="space-y-2.5 text-xs">
+            <div class="space-y-2 text-xs">
                 <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-xmark text-rose-500 text-sm"></i>
-                        <span>Tutup dialog / modal yang sedang terbuka</span>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-circle-xmark text-slate-400 text-sm"></i>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Tutup dialog / modal yang sedang terbuka</span>
                     </div>
                     <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Esc</kbd>
                 </div>
 
                 <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-magnifying-glass text-indigo-500 text-sm"></i>
-                        <span>Pencarian cepat / fokus kolom filter</span>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Pencarian cepat / fokus kolom filter</span>
                     </div>
                     <div class="flex items-center gap-1">
                         <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Ctrl + K</kbd>
@@ -3120,9 +3137,9 @@
                 </div>
 
                 <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-question text-amber-500 text-sm"></i>
-                        <span>Buka jendela bantuan tombol pintas ini</span>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-circle-question text-slate-400 text-sm"></i>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Buka jendela bantuan tombol pintas ini</span>
                     </div>
                     <div class="flex items-center gap-1">
                         <kbd class="px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">?</kbd>
@@ -3132,24 +3149,24 @@
                 </div>
 
                 <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-arrows-left-right text-emerald-500 text-sm"></i>
-                        <span>Pindah kolom isian form kasir berikutnya</span>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-arrows-left-right text-slate-400 text-sm"></i>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Pindah kolom isian form kasir berikutnya</span>
                     </div>
                     <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Tab</kbd>
                 </div>
 
                 <div class="flex items-center justify-between p-2.5 rounded-xl border border-inherit bg-slate-50/60 dark:bg-slate-900/40">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-floppy-disk text-indigo-500 text-sm"></i>
-                        <span>Simpan formulir transaksi / konfirmasi</span>
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-floppy-disk text-slate-400 text-sm"></i>
+                        <span class="font-medium text-slate-700 dark:text-slate-300">Simpan formulir transaksi / konfirmasi</span>
                     </div>
                     <kbd class="px-2.5 py-1 rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px] font-bold shadow-sm">Enter</kbd>
                 </div>
             </div>
 
             <div class="pt-2 border-t border-inherit flex justify-end">
-                <button type="button" onclick="closeShortcutsGuideModal()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 text-xs font-semibold rounded-xl">
+                <button type="button" onclick="closeShortcutsGuideModal()" class="btn-apple-press btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white !py-2 !px-4 text-xs font-semibold rounded-xl">
                     Mengerti (Esc)
                 </button>
             </div>
