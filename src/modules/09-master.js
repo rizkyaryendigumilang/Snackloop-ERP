@@ -82,6 +82,25 @@ async function renderMaster() {
         const safeName = escapeHtml(m.name || '');
         const safeSource = escapeHtml(m.source || '');
         const barcodeDisplay = m.barcode ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 mt-1"><i class="fa-solid fa-barcode text-[8px]"></i>${escapeHtml(m.barcode)}</span>` : '';
+        
+        let expiryBadge = '';
+        if (m.expiry_date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expDate = new Date(m.expiry_date);
+            expDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 mt-1"><i class="fa-solid fa-triangle-exclamation text-[8px]"></i>KADALUARSA (${m.expiry_date})</span>`;
+            } else if (diffDays <= 30) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 mt-1"><i class="fa-solid fa-clock text-[8px]"></i>Exp: ${diffDays} hari lagi</span>`;
+            } else if (diffDays <= 60) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 mt-1"><i class="fa-solid fa-clock text-[8px]"></i>Exp: ${diffDays} hari</span>`;
+            } else {
+                expiryBadge = `<span class="text-[9px] opacity-60 font-mono block mt-0.5">Exp: ${m.expiry_date}</span>`;
+            }
+        }
+
         const stockQty = Number(m.stock_qty !== undefined ? m.stock_qty : 0);
         const minStock = Number(m.min_stock !== undefined ? m.min_stock : 5);
         let stockBadge = `<span class="font-bold font-mono text-xs">${stockQty.toLocaleString('id-ID')}</span>`;
@@ -99,6 +118,7 @@ async function renderMaster() {
                 <td class="p-3 border border-inherit font-semibold">
                     <div>${safeName}</div>
                     ${barcodeDisplay}
+                    ${expiryBadge}
                 </td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
                 <td class="p-3 border border-inherit text-center">${stockBadge}</td>
@@ -137,6 +157,9 @@ function openEditMasterModal(id) {
     const editBoxQtyEl = document.getElementById('edit-m-box-qty');
     if (editBoxQtyEl) editBoxQtyEl.value = item.box_min_qty || 50;
 
+    const editExpiryEl = document.getElementById('edit-m-expiry');
+    if (editExpiryEl) editExpiryEl.value = item.expiry_date || '';
+
     updateAgentDropdowns();
     document.getElementById('edit-m-source').value = item.source;
     updateLiveMarkup('edit-m-buy', 'edit-m-sell', 'edit-m-markup-preview', 'edit-m-markup-text');
@@ -164,6 +187,7 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     const newWholesaleQty = parseInt(document.getElementById('edit-m-wholesale-qty')?.value, 10) || 10;
     const newBoxPrice = getCleanNumber('edit-m-box-price');
     const newBoxQty = parseInt(document.getElementById('edit-m-box-qty')?.value, 10) || 50;
+    const newExpiry = document.getElementById('edit-m-expiry')?.value || null;
 
     const oldItem = masterData.find(m => m.id === id);
     if(!oldItem) return;
@@ -193,6 +217,7 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
     oldItem.wholesale_min_qty = newWholesaleQty;
     oldItem.box_price = newBoxPrice;
     oldItem.box_min_qty = newBoxQty;
+    oldItem.expiry_date = newExpiry;
     saveCacheToLocal();
 
     logAuditActivity('PRICE_CHANGE', newName, `Ubah master ${newName}: Stok ${newStock}, Beli Rp ${newBuy.toLocaleString()}, Jual Rp ${newSell.toLocaleString()}, Grosir Rp ${newWholesalePrice.toLocaleString()}`);
@@ -206,7 +231,7 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         type: 'UPDATE_MASTER',
         payload: {
             id,
-            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock, barcode: newBarcode, wholesale_price: newWholesalePrice, wholesale_min_qty: newWholesaleQty, box_price: newBoxPrice, box_min_qty: newBoxQty },
+            updates: { name: newName, source: newSource, buy: newBuy, sell: newSell, stock_qty: newStock, barcode: newBarcode, wholesale_price: newWholesalePrice, wholesale_min_qty: newWholesaleQty, box_price: newBoxPrice, box_min_qty: newBoxQty, expiry_date: newExpiry },
             history: priceHistoryPayload
         }
     }, async () => {
@@ -214,6 +239,7 @@ document.getElementById('edit-master-form')?.addEventListener('submit', async fu
         if (newBarcode) updateObj.barcode = newBarcode;
         if (newWholesalePrice > 0) { updateObj.wholesale_price = newWholesalePrice; updateObj.wholesale_min_qty = newWholesaleQty; }
         if (newBoxPrice > 0) { updateObj.box_price = newBoxPrice; updateObj.box_min_qty = newBoxQty; }
+        if (newExpiry) updateObj.expiry_date = newExpiry;
 
         try {
             const { error } = await supabaseClient.from('master').update(updateObj).eq('id', id);
@@ -306,6 +332,7 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
     const wholesaleQty = parseInt(document.getElementById('m-wholesale-qty')?.value, 10) || 10;
     const boxPrice = getCleanNumber('m-box-price');
     const boxQty = parseInt(document.getElementById('m-box-qty')?.value, 10) || 50;
+    const expiryDate = document.getElementById('m-expiry')?.value || null;
 
     const tempMaster = {
         id: Date.now(),
@@ -319,7 +346,8 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
         wholesale_price: wholesalePrice,
         wholesale_min_qty: wholesaleQty,
         box_price: boxPrice,
-        box_min_qty: boxQty
+        box_min_qty: boxQty,
+        expiry_date: expiryDate
     };
     masterData.push(tempMaster);
     saveCacheToLocal();
@@ -331,12 +359,13 @@ document.getElementById('master-form')?.addEventListener('submit', async functio
 
     dispatchMutation({
         type: 'INSERT_MASTER',
-        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5, barcode, wholesale_price: wholesalePrice, wholesale_min_qty: wholesaleQty, box_price: boxPrice, box_min_qty: boxQty }
+        payload: { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5, barcode, wholesale_price: wholesalePrice, wholesale_min_qty: wholesaleQty, box_price: boxPrice, box_min_qty: boxQty, expiry_date: expiryDate }
     }, async () => {
         const insertObj = { name: normalizedName, source, buy, sell, stock_qty: stockQty, min_stock: 5 };
         if (barcode) insertObj.barcode = barcode;
         if (wholesalePrice > 0) { insertObj.wholesale_price = wholesalePrice; insertObj.wholesale_min_qty = wholesaleQty; }
         if (boxPrice > 0) { insertObj.box_price = boxPrice; insertObj.box_min_qty = boxQty; }
+        if (expiryDate) insertObj.expiry_date = expiryDate;
 
         try {
             const { data, error } = await supabaseClient.from('master').insert([insertObj]).select();
@@ -368,14 +397,96 @@ async function renderCustomer() {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteCustomer(${c.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
         const safeName = escapeHtml(c.name || '');
         const safePhone = escapeHtml(c.phone || '');
+
+        let unpaidTotal = 0;
+        let unpaidCount = 0;
+        if (typeof transactionData === 'object' && transactionData !== null) {
+            Object.values(transactionData).flat().forEach(t => {
+                if (t && t.customer === c.name && t.status !== 'Lunas') {
+                    unpaidTotal += Number(t.totalSell) || 0;
+                    unpaidCount++;
+                }
+            });
+        }
+
+        let debtStatusHtml = '';
+        if (unpaidTotal > 0) {
+            debtStatusHtml = `
+                <div class="space-y-1">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Rp ${unpaidTotal.toLocaleString('id-ID')} (${unpaidCount} nota)
+                    </span>
+                    <div>
+                        <button type="button" onclick="sendCustomerDebtReminder('${safeName}')" class="btn-apple-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Kirim Pengingat Tagihan via WhatsApp">
+                            <i class="fa-brands fa-whatsapp text-xs"></i> <span>Ingatkan WA</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            debtStatusHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><i class="fa-solid fa-circle-check text-[9px]"></i> Lunas</span>`;
+        }
+
         return `
             <tr class="hover:bg-slate-50/50">
                 <td class="p-3 border border-inherit font-semibold">${safeName}</td>
-                <td class="p-3 border border-inherit text-emerald-500 font-bold">+${safePhone}</td>
+                <td class="p-3 border border-inherit text-emerald-500 font-bold font-mono">+${safePhone}</td>
+                <td class="p-3 border border-inherit">${debtStatusHtml}</td>
                 <td class="p-3 border border-inherit text-center">${action}</td>
             </tr>`;
     }).join('');
     tbody.innerHTML = rows;
+}
+
+function sendCustomerDebtReminder(custName) {
+    const cust = customerData.find(c => c.name === custName);
+    if (!cust || !cust.phone) {
+        showNotification("Peringatan", "Data nomor telepon pelanggan tidak ditemukan.", "warning");
+        return;
+    }
+
+    const unpaidList = [];
+    let totalUnpaid = 0;
+    if (typeof transactionData === 'object' && transactionData !== null) {
+        Object.values(transactionData).flat().forEach(t => {
+            if (t && t.customer === custName && t.status !== 'Lunas') {
+                unpaidList.push(t);
+                totalUnpaid += Number(t.totalSell) || 0;
+            }
+        });
+    }
+
+    if (unpaidList.length === 0) {
+        showNotification("Informasi", `Pelanggan ${custName} tidak memiliki tagihan aktif.`, "info");
+        return;
+    }
+
+    const bizName = appSettings.bizName || 'SnackLoop ERP';
+    const bankName = appSettings.bankName || 'BCA';
+    const bankAccount = appSettings.bankAccount || '-';
+    const bankHolder = appSettings.bankHolder || bizName;
+
+    let msg = `Halo Kak *${custName}*,\n\n`;
+    msg += `Kami dari *${bizName}* ingin menginformasikan rincian nota/pesanan yang masih belum lunas sbb:\n\n`;
+
+    unpaidList.forEach((t, i) => {
+        const itemInfo = `${t.itemName} (${t.qty} pcs)`;
+        const dueInfo = t.dueDate ? ` [Jatuh Tempo: ${t.dueDate}]` : '';
+        msg += `${i + 1}. ${t.date} - ${itemInfo} : *Rp ${(Number(t.totalSell) || 0).toLocaleString('id-ID')}*${dueInfo}\n`;
+    });
+
+    msg += `\n*TOTAL TAGIHAN: Rp ${totalUnpaid.toLocaleString('id-ID')}*\n\n`;
+    if (bankAccount && bankAccount !== '-') {
+        msg += `Pembayaran dapat ditransfer ke:\n`;
+        msg += `Bank: *${bankName}*\n`;
+        msg += `No. Rekening: *${bankAccount}*\n`;
+        msg += `Atas Nama: *${bankHolder}*\n\n`;
+    }
+    msg += `Mohon konfirmasi jika sudah melakukan pembayaran/transfer. Terima kasih banyak atas kerjasamanya! 🙏`;
+
+    const cleanPhone = String(cust.phone).replace(/\D/g, '').replace(/^0/, '62');
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
 }
 
 function confirmDeleteCustomer(id) {

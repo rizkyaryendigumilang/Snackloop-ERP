@@ -557,6 +557,37 @@ runTest('Verify VPS Helpdesk SSO Handoff Integration (Endpoint, Direct Ticket Po
   assert.strictEqual(guestParsed.searchParams.get('new'), '1');
 });
 
+// 19. Phase 2 Enhancements (FEFO Expiry Dates, Tempo Due-Date Receivables & WA Debt Reminder)
+runTest('Verify Phase 2 Enhancements (FEFO Expiry Dates, Tempo Due-Date Receivables & WA Debt Reminder)', () => {
+  const assert = require('assert');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  const masterCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '09-master.js'), 'utf8');
+  const trxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '11-transactions.js'), 'utf8');
+  const sqlCode = fs.readFileSync(path.join(rootDir, 'database', 'phase2_expiry_and_tempo_ar.sql'), 'utf8');
+
+  // 1. Database schema migration file
+  assert.strictEqual(sqlCode.includes('expiry_date DATE'), true, 'Missing expiry_date in phase2 SQL');
+  assert.strictEqual(sqlCode.includes('due_date DATE'), true, 'Missing due_date in phase2 SQL');
+
+  // 2. HTML elements for Expiry and Tempo
+  assert.strictEqual(indexHtml.includes('id="m-expiry"'), true, 'index.html missing m-expiry');
+  assert.strictEqual(indexHtml.includes('id="edit-m-expiry"'), true, 'index.html missing edit-m-expiry');
+  assert.strictEqual(indexHtml.includes('id="t-fefo-alert"'), true, 'index.html missing t-fefo-alert');
+  assert.strictEqual(indexHtml.includes('id="t-tempo-box"'), true, 'index.html missing t-tempo-box');
+  assert.strictEqual(indexHtml.includes('id="t-due-date"'), true, 'index.html missing t-due-date');
+  assert.strictEqual(indexHtml.includes('value="Tempo"'), true, 'index.html missing Tempo status option');
+
+  // 3. Expiry & AR Debt reminder in 09-master.js
+  assert.strictEqual(masterCode.includes('expiry_date: expiryDate'), true, '09-master.js missing expiry_date in insert');
+  assert.strictEqual(masterCode.includes('sendCustomerDebtReminder'), true, '09-master.js missing sendCustomerDebtReminder');
+  assert.strictEqual(masterCode.includes('unpaidTotal'), true, '09-master.js missing unpaidTotal calculation');
+
+  // 4. FEFO Alert & Tempo tracking in 11-transactions.js
+  assert.strictEqual(trxCode.includes('REKOMENDASI FEFO'), true, '11-transactions.js missing FEFO recommendation alert');
+  assert.strictEqual(trxCode.includes("status === 'Tempo'"), true, '11-transactions.js missing Tempo status handler');
+  assert.strictEqual(trxCode.includes('dueDate'), true, '11-transactions.js missing dueDate field');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

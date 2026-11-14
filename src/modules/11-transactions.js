@@ -129,6 +129,7 @@ function fillProductData() {
     const parts = val.split('|'); const type = parts[0]; const id = parts[1];
     const isSuperAdmin = currentRole === 'super_admin';
 
+    let expDateStr = null;
     if(type === 'REPACK') {
         const item = repackData.find(r => r.id === id);
         const buyInput = document.getElementById('t-buy');
@@ -137,6 +138,7 @@ function fillProductData() {
         document.getElementById('t-sell').value = item.sell_target.toLocaleString('id-ID');
         document.getElementById('t-batch').value = item.id;
         document.getElementById('t-qty').max = item.remaining_qty;
+        expDateStr = item.expiry_date || null;
     } else {
         const item = masterData.find(m => m.id === parseInt(id));
         const buyInput = document.getElementById('t-buy');
@@ -149,7 +151,33 @@ function fillProductData() {
         } else {
             document.getElementById('t-qty').removeAttribute('max');
         }
+        expDateStr = item.expiry_date || null;
     }
+
+    const fefoBox = document.getElementById('t-fefo-alert');
+    if (fefoBox) {
+        if (expDateStr) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expDate = new Date(expDateStr);
+            expDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                fefoBox.className = "md:col-span-4 p-2.5 rounded-xl border bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2";
+                fefoBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-sm shrink-0"></i> <div><strong>PERINGATAN KADALUARSA:</strong> Produk ini SUDAH KADALUARSA (${expDateStr}). Periksa kondisi fisik sebelum transaksi dilanjutkan!</div>`;
+                fefoBox.classList.remove('hidden');
+            } else if (diffDays <= 45) {
+                fefoBox.className = "md:col-span-4 p-2.5 rounded-xl border bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2";
+                fefoBox.innerHTML = `<i class="fa-solid fa-hourglass-half text-amber-500 text-sm shrink-0"></i> <div><strong>REKOMENDASI FEFO (First-Expired First-Out):</strong> Stok ini mendekati kadaluarsa (${diffDays} hari lagi - ${expDateStr}). Prioritaskan batch ini untuk dijual lebih dahulu.</div>`;
+                fefoBox.classList.remove('hidden');
+            } else {
+                fefoBox.classList.add('hidden');
+            }
+        } else {
+            fefoBox.classList.add('hidden');
+        }
+    }
+
     updateTierPricingOnPos();
     if (typeof calculateChangeDue === 'function') calculateChangeDue();
 }
@@ -165,13 +193,30 @@ function getCashierCurrentTotal() {
 function toggleCashCalculatorVisibility() {
     const status = document.getElementById('t-status')?.value;
     const box = document.getElementById('t-cash-calculator-box');
-    if (!box) return;
-    if (status === 'Lunas') {
-        box.classList.remove('hidden');
-        updateCashierBillDisplay();
-        calculateChangeDue();
-    } else {
-        box.classList.add('hidden');
+    const tempoBox = document.getElementById('t-tempo-box');
+
+    if (box) {
+        if (status === 'Lunas') {
+            box.classList.remove('hidden');
+            updateCashierBillDisplay();
+            calculateChangeDue();
+        } else {
+            box.classList.add('hidden');
+        }
+    }
+
+    if (tempoBox) {
+        if (status === 'Tempo') {
+            tempoBox.classList.remove('hidden');
+            const dueDateInput = document.getElementById('t-due-date');
+            if (dueDateInput && !dueDateInput.value) {
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                dueDateInput.value = nextWeek.toISOString().split('T')[0];
+            }
+        } else {
+            tempoBox.classList.add('hidden');
+        }
     }
 }
 
@@ -329,10 +374,14 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         let isNewInvoice = false;
         let targetInv = null;
 
+        const dueDate = (status === 'Tempo') ? (document.getElementById('t-due-date')?.value || null) : null;
+
         if (existingInv) {
             invNumber = existingInv.invoice_number;
             existingInv.total_amount = (Number(existingInv.total_amount) || 0) + totalSellComputed;
             if (status === 'Belum Lunas') existingInv.status = 'Belum Lunas';
+            else if (status === 'Tempo' && existingInv.status !== 'Belum Lunas') existingInv.status = 'Tempo';
+            if (dueDate) existingInv.due_date = dueDate;
             targetInv = existingInv;
         } else {
             invNumber = generateInvoiceNumber(date);
@@ -344,6 +393,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
                 customer_name: customer,
                 total_amount: totalSellComputed,
                 status: status,
+                due_date: dueDate,
                 notes: notes
             };
             invoiceData.unshift(targetInv);
@@ -368,6 +418,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             sell: sell,
             totalSell: totalSellComputed,
             status: status,
+            dueDate: dueDate,
             cashTendered: cashTendered,
             changeDue: changeDue,
             profitPerItem: netProfitItem,
@@ -385,6 +436,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         updateDashboard(); 
         renderRepackWarehouse();
         if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderCustomer === 'function') renderCustomer();
         renderFinancialChart();
         renderInvoicesTable();
         renderTransactionsForActiveSheet();
@@ -395,6 +447,9 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         if (statusEl) statusEl.value = 'Belum Lunas';
         const tenderEl = document.getElementById('t-cash-tendered');
         if (tenderEl) tenderEl.value = '';
+        const dueDateInput = document.getElementById('t-due-date');
+        if (dueDateInput) dueDateInput.value = '';
+        document.getElementById('t-fefo-alert')?.classList.add('hidden');
         if (typeof toggleCashCalculatorVisibility === 'function') toggleCashCalculatorVisibility();
         document.getElementById('t-date').valueAsDate = new Date();
         document.getElementById('t-product').innerHTML = `<option value="" disabled selected>Pilih Sumber Dulu</option>`;
@@ -403,7 +458,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         const dbTrxPayload = {
             month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
             buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
-            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: newTrxData.notes
+            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: newTrxData.notes,
+            due_date: dueDate
         };
         const dbInvPayload = {
             id: targetInv ? targetInv.id : undefined,
@@ -412,6 +468,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             customer_name: customer,
             total_amount: targetInv ? targetInv.total_amount : totalSellComputed,
             status: targetInv ? targetInv.status : status,
+            due_date: dueDate,
             notes: notes,
             isNew: isNewInvoice
         };
@@ -2095,11 +2152,33 @@ function renderTransactionsForActiveSheet() {
         const safeExtraCostNote = escapeHtml(t.extraCostNote);
         const safeDate = escapeHtml(t.date);
 
+        let tempoBadge = '';
+        if (t.status === 'Tempo' || t.dueDate) {
+            if (t.dueDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const due = new Date(t.dueDate);
+                due.setHours(0, 0, 0, 0);
+                const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+                if (t.status !== 'Lunas') {
+                    if (diff < 0) {
+                        tempoBadge = `<span class="block text-[9px] font-bold text-rose-600 dark:text-rose-400 mt-0.5"><i class="fa-solid fa-triangle-exclamation text-[8px]"></i> Telat ${Math.abs(diff)} hr (${t.dueDate})</span>`;
+                    } else if (diff === 0) {
+                        tempoBadge = `<span class="block text-[9px] font-bold text-amber-600 dark:text-amber-400 mt-0.5"><i class="fa-solid fa-clock text-[8px]"></i> Jatuh tempo HARI INI</span>`;
+                    } else {
+                        tempoBadge = `<span class="block text-[9px] font-medium text-amber-600 dark:text-amber-400 mt-0.5"><i class="fa-solid fa-clock text-[8px]"></i> Tempo: ${diff} hr (${t.dueDate})</span>`;
+                    }
+                }
+            } else if (t.status === 'Tempo') {
+                tempoBadge = `<span class="block text-[9px] font-medium text-amber-600 dark:text-amber-400 mt-0.5">Tempo</span>`;
+            }
+        }
+
         const statusDropdown = isSuperAdmin ? 
-            `<select onchange="updateTrxStatus('${t.id}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded-lg border cursor-pointer outline-none transition ${t.status === 'Lunas' ? 'badge-soft-good' : 'badge-soft-bad'}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>` :
+            `<select onchange="updateTrxStatus('${t.id}', this.value)" class="text-[11px] font-bold px-2 py-1 rounded-lg border cursor-pointer outline-none transition ${t.status === 'Lunas' ? 'badge-soft-good' : (t.status === 'Tempo' ? 'badge-soft-warn' : 'badge-soft-bad')}"><option value="Lunas" ${t.status === 'Lunas' ? 'selected' : ''}>Lunas</option><option value="Tempo" ${t.status === 'Tempo' ? 'selected' : ''}>Tempo</option><option value="Belum Lunas" ${t.status === 'Belum Lunas' ? 'selected' : ''}>Belum Lunas</option></select>${tempoBadge}` :
             (canMarkPaid && t.status !== 'Lunas' ?
-                `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="badge-soft-warn hover:opacity-80 transition text-xs font-bold" title="Klik untuk tandai Lunas">Belum Lunas (Lunasi)</button>` :
-                `<span class="${t.status === 'Lunas' ? 'badge-soft-good' : 'badge-soft-bad'} text-xs">${t.status}</span>`);
+                `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="badge-soft-warn hover:opacity-80 transition text-xs font-bold" title="Klik untuk tandai Lunas">${t.status} (Lunasi)</button>${tempoBadge}` :
+                `<span class="${t.status === 'Lunas' ? 'badge-soft-good' : (t.status === 'Tempo' ? 'badge-soft-warn' : 'badge-soft-bad')} text-xs">${t.status}</span>${tempoBadge}`);
 
         const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1 rounded font-bold">${safeSource}</span>`;
         const notesDisplay = t.notes && t.notes !== '-' ? `<span class="block text-[10px] text-amber-500 italic">Notes: ${safeNotes}</span>` : '';
@@ -2154,12 +2233,13 @@ function renderTransactionsForActiveSheet() {
             const srcBadge = t.source === 'Repack' ? `<span class="text-[9px] bg-indigo-500/20 text-indigo-500 px-1.5 py-0.5 rounded font-bold">${safeBatch}</span>` : `<span class="text-[9px] theme-input border px-1.5 py-0.5 rounded font-bold">${safeSource}</span>`;
             const notesDisplay = t.notes && t.notes !== '-' ? `<div class="text-[10px] text-amber-500 italic mt-0.5">Catatan: ${safeNotes}</div>` : '';
             const extraCostDisplay = t.extraCost > 0 ? `<div class="text-[10px] text-amber-500 font-semibold mt-0.5">+Ongkir/Biaya: Rp ${t.extraCost.toLocaleString()} (${safeExtraCostNote})</div>` : '';
+            const tempoDisplay = (t.dueDate && t.status !== 'Lunas') ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5"><i class="fa-regular fa-calendar-check text-[9px] mr-1"></i>Jatuh Tempo: ${t.dueDate}</div>` : '';
 
             const statusPill = t.status === 'Lunas' 
                 ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-good"><i class="fa-solid fa-check text-[10px]"></i> Lunas</span>`
                 : (canMarkPaid
-                    ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> Belum Lunas (Lunasi)</button>`
-                    : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full badge-soft-bad">${t.status}</span>`);
+                    ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${t.status} (Lunasi)</button>`
+                    : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${t.status === 'Tempo' ? 'badge-soft-warn' : 'badge-soft-bad'}">${t.status}</span>`);
 
             const profitDisplay = isSuperAdmin ? `<span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
 
@@ -2181,6 +2261,7 @@ function renderTransactionsForActiveSheet() {
                         <p class="text-xs font-medium text-slate-800 dark:text-slate-200 mt-1">${returBadge}${safeItemName}</p>
                         ${notesDisplay}
                         ${extraCostDisplay}
+                        ${tempoDisplay}
                     </div>
 
                     <div class="flex items-center justify-between pt-1">

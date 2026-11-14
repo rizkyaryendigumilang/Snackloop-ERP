@@ -512,6 +512,7 @@
                                 </div>
                                 <select id="t-product" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="fillProductData()" required><option value="" disabled selected> Pilih Sumber Dulu </option></select>
                             </div>
+                            <div id="t-fefo-alert" class="md:col-span-4 hidden"></div>
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Qty <span class="text-rose-500">*</span></label><input type="number" inputmode="numeric" id="t-qty" value="1" min="1" required class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             
                             <div>
@@ -535,8 +536,13 @@
                                 <label class="block text-[11px] font-bold opacity-70 mb-1">Status Pembayaran</label>
                                 <select id="t-status" class="theme-input w-full border rounded-xl p-2.5 outline-none" onchange="toggleCashCalculatorVisibility()">
                                     <option value="Belum Lunas" selected>Belum Lunas</option>
+                                    <option value="Tempo">Tempo (Jatuh Tempo)</option>
                                     <option value="Lunas">Lunas</option>
                                 </select>
+                            </div>
+                            <div id="t-tempo-box" class="hidden">
+                                <label class="block text-[11px] font-bold opacity-70 mb-1 text-amber-600 dark:text-amber-400">Jatuh Tempo <span class="text-rose-500">*</span></label>
+                                <input type="date" id="t-due-date" class="theme-input w-full border rounded-xl p-2.5 outline-none font-bold text-amber-600 dark:text-amber-400">
                             </div>
                             <div id="t-cash-calculator-box" class="md:col-span-4 p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/40 space-y-2 hidden transition-all">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -1376,7 +1382,7 @@
                                     </span>
                                     <span class="text-[10px] opacity-65 font-medium">Otomatis berubah harga saat pembelian grosir</span>
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
                                     <div>
                                         <label class="block text-[11px] font-bold opacity-70 mb-1">Barcode Produk</label>
                                         <div class="flex items-center gap-1.5">
@@ -1401,6 +1407,10 @@
                                     <div>
                                         <label class="block text-[11px] font-bold opacity-70 mb-1">Min. Dus (Pcs)</label>
                                         <input type="number" inputmode="numeric" id="m-box-qty" value="50" min="1" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold opacity-70 mb-1">Tgl Kadaluarsa (Exp)</label>
+                                        <input type="date" id="m-expiry" class="theme-input w-full border rounded-xl p-2 text-xs outline-none">
                                     </div>
                                 </div>
                             </div>
@@ -1442,7 +1452,7 @@
                         <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Pelanggan</th><th class="p-3 border border-inherit">No. WhatsApp</th><th class="p-3 border border-inherit">Status Piutang &amp; Tagihan</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="cust-table-body"></tbody>
                             </table>
@@ -1700,6 +1710,10 @@
                                 <i class="fa-solid fa-camera text-xs"></i>
                             </button>
                         </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-70">Tgl Kadaluarsa (Exp Date)</label>
+                        <input type="date" id="edit-m-expiry" class="w-full px-2.5 py-1.5 theme-input border rounded-xl outline-none font-mono text-xs">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
