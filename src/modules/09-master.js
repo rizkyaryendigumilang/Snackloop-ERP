@@ -397,6 +397,7 @@ async function renderCustomer() {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteCustomer(${c.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
         const safeName = escapeHtml(c.name || '');
         const safePhone = escapeHtml(c.phone || '');
+        const safeCustParam = encodeURIComponent(c.name || '').replace(/'/g, "%27");
 
         let unpaidTotal = 0;
         let unpaidCount = 0;
@@ -417,7 +418,7 @@ async function renderCustomer() {
                         <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Rp ${unpaidTotal.toLocaleString('id-ID')} (${unpaidCount} nota)
                     </span>
                     <div>
-                        <button type="button" onclick="sendCustomerDebtReminder('${safeName}')" class="btn-apple-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Kirim Pengingat Tagihan via WhatsApp">
+                        <button type="button" onclick="sendCustomerDebtReminder('${safeCustParam}')" class="btn-apple-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Kirim Pengingat Tagihan via WhatsApp">
                             <i class="fa-brands fa-whatsapp text-xs"></i> <span>Ingatkan WA</span>
                         </button>
                     </div>
@@ -438,18 +439,24 @@ async function renderCustomer() {
     tbody.innerHTML = rows;
 }
 
-function sendCustomerDebtReminder(custName) {
-    const cust = customerData.find(c => c.name === custName);
+function sendCustomerDebtReminder(custParam) {
+    let custName = custParam;
+    try {
+        custName = decodeURIComponent(custParam);
+    } catch(e) {}
+    const trimmedTarget = String(custName || '').trim().toLowerCase();
+    const cust = customerData.find(c => (c.name || '').trim().toLowerCase() === trimmedTarget);
     if (!cust || !cust.phone) {
         showNotification("Peringatan", "Data nomor telepon pelanggan tidak ditemukan.", "warning");
         return;
     }
 
+    const canonicalCustName = cust.name || custName;
     const unpaidList = [];
     let totalUnpaid = 0;
     if (typeof transactionData === 'object' && transactionData !== null) {
         Object.values(transactionData).flat().forEach(t => {
-            if (t && t.customer === custName && t.status !== 'Lunas') {
+            if (t && String(t.customer || '').trim().toLowerCase() === trimmedTarget && t.status !== 'Lunas') {
                 unpaidList.push(t);
                 totalUnpaid += Number(t.totalSell) || 0;
             }
@@ -457,7 +464,7 @@ function sendCustomerDebtReminder(custName) {
     }
 
     if (unpaidList.length === 0) {
-        showNotification("Informasi", `Pelanggan ${custName} tidak memiliki tagihan aktif.`, "info");
+        showNotification("Informasi", `Pelanggan ${canonicalCustName} tidak memiliki tagihan aktif.`, "info");
         return;
     }
 
@@ -466,7 +473,7 @@ function sendCustomerDebtReminder(custName) {
     const bankAccount = appSettings.bankAccount || '-';
     const bankHolder = appSettings.bankHolder || bizName;
 
-    let msg = `Halo Kak *${custName}*,\n\n`;
+    let msg = `Halo Kak *${canonicalCustName}*,\n\n`;
     msg += `Kami dari *${bizName}* ingin menginformasikan rincian nota/pesanan yang masih belum lunas sbb:\n\n`;
 
     unpaidList.forEach((t, i) => {

@@ -1619,6 +1619,7 @@ async function syncSingleOutboxItem(item) {
         const trxRow = item.payload && (item.payload.transaction || item.payload);
         const invPayload = item.payload && item.payload.invoice;
         const repackUp = item.payload && item.payload.repackUpdate;
+        const masterUp = item.payload && item.payload.masterUpdate;
 
         let rpcSuccess = false;
         if (trxRow) {
@@ -1644,6 +1645,11 @@ async function syncSingleOutboxItem(item) {
                 await supabaseClient.from('repack')
                     .update({ remaining_qty: repackUp.newRemainingQty })
                     .eq('id', repackUp.batchId);
+            }
+            if (masterUp && masterUp.id) {
+                await supabaseClient.from('master')
+                    .update({ stock_qty: masterUp.newStockQty })
+                    .eq('id', masterUp.id);
             }
             if (trxRow) {
                 const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
@@ -1693,6 +1699,11 @@ async function syncSingleOutboxItem(item) {
                     .update({ remaining_qty: rItem.remaining_qty })
                     .eq('id', item.payload.batch);
             }
+        }
+        if (item.payload.masterRestore && item.payload.masterRestore.id) {
+            await supabaseClient.from('master')
+                .update({ stock_qty: item.payload.masterRestore.stock_qty })
+                .eq('id', item.payload.masterRestore.id);
         }
         if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
             const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);
@@ -5095,6 +5106,7 @@ async function renderCustomer() {
         const action = isSuperAdmin ? `<button onclick="confirmDeleteCustomer(${c.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '-';
         const safeName = escapeHtml(c.name || '');
         const safePhone = escapeHtml(c.phone || '');
+        const safeCustParam = encodeURIComponent(c.name || '').replace(/'/g, "%27");
 
         let unpaidTotal = 0;
         let unpaidCount = 0;
@@ -5115,7 +5127,7 @@ async function renderCustomer() {
                         <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Rp ${unpaidTotal.toLocaleString('id-ID')} (${unpaidCount} nota)
                     </span>
                     <div>
-                        <button type="button" onclick="sendCustomerDebtReminder('${safeName}')" class="btn-apple-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Kirim Pengingat Tagihan via WhatsApp">
+                        <button type="button" onclick="sendCustomerDebtReminder('${safeCustParam}')" class="btn-apple-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Kirim Pengingat Tagihan via WhatsApp">
                             <i class="fa-brands fa-whatsapp text-xs"></i> <span>Ingatkan WA</span>
                         </button>
                     </div>
@@ -5136,18 +5148,24 @@ async function renderCustomer() {
     tbody.innerHTML = rows;
 }
 
-function sendCustomerDebtReminder(custName) {
-    const cust = customerData.find(c => c.name === custName);
+function sendCustomerDebtReminder(custParam) {
+    let custName = custParam;
+    try {
+        custName = decodeURIComponent(custParam);
+    } catch(e) {}
+    const trimmedTarget = String(custName || '').trim().toLowerCase();
+    const cust = customerData.find(c => (c.name || '').trim().toLowerCase() === trimmedTarget);
     if (!cust || !cust.phone) {
         showNotification("Peringatan", "Data nomor telepon pelanggan tidak ditemukan.", "warning");
         return;
     }
 
+    const canonicalCustName = cust.name || custName;
     const unpaidList = [];
     let totalUnpaid = 0;
     if (typeof transactionData === 'object' && transactionData !== null) {
         Object.values(transactionData).flat().forEach(t => {
-            if (t && t.customer === custName && t.status !== 'Lunas') {
+            if (t && String(t.customer || '').trim().toLowerCase() === trimmedTarget && t.status !== 'Lunas') {
                 unpaidList.push(t);
                 totalUnpaid += Number(t.totalSell) || 0;
             }
@@ -5155,7 +5173,7 @@ function sendCustomerDebtReminder(custName) {
     }
 
     if (unpaidList.length === 0) {
-        showNotification("Informasi", `Pelanggan ${custName} tidak memiliki tagihan aktif.`, "info");
+        showNotification("Informasi", `Pelanggan ${canonicalCustName} tidak memiliki tagihan aktif.`, "info");
         return;
     }
 
@@ -5164,7 +5182,7 @@ function sendCustomerDebtReminder(custName) {
     const bankAccount = appSettings.bankAccount || '-';
     const bankHolder = appSettings.bankHolder || bizName;
 
-    let msg = `Halo Kak *${custName}*,\n\n`;
+    let msg = `Halo Kak *${canonicalCustName}*,\n\n`;
     msg += `Kami dari *${bizName}* ingin menginformasikan rincian nota/pesanan yang masih belum lunas sbb:\n\n`;
 
     unpaidList.forEach((t, i) => {
@@ -5269,10 +5287,13 @@ function calculateRepack() {
 
     const cleanDate = (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const randEntropy = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const expiryEl = document.getElementById('c-expiry');
+    const expiryDate = expiryEl ? (expiryEl.value || null) : null;
     currentRepackCalcResult = {
         id: `RPK-${cleanDate}-${Date.now().toString().slice(-4)}${randEntropy}`,
         date: getLocalDateStr(),
-        name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
+        name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty,
+        expiry_date: expiryDate
     };
     if (currentRole === 'super_admin' || currentRole === 'staff_rekap') {
         document.getElementById('btn-save-repack').classList.remove('hidden');
@@ -5293,7 +5314,10 @@ async function saveToRepackWarehouse() {
     currentRepackCalcResult = null;
     document.getElementById('btn-save-repack').classList.add('hidden');
     document.getElementById('calc-res').classList.add('hidden');
-    ['c-name', 'c-price', 'c-disc', 'c-fee', 'c-qty', 'c-plastic', 'c-sell'].forEach(id => document.getElementById(id).value = '');
+    ['c-name', 'c-price', 'c-disc', 'c-fee', 'c-qty', 'c-plastic', 'c-sell', 'c-expiry'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
 
     dispatchMutation({
         type: 'INSERT_REPACK',
@@ -5318,10 +5342,27 @@ function renderRepackWarehouse() {
         const safeId = escapeHtml(r.id || '');
         const safeDate = escapeHtml(r.date || '');
         const safeName = escapeHtml(r.name || '');
+
+        let expiryBadge = '';
+        if (r.expiry_date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expDate = new Date(r.expiry_date);
+            expDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 mt-1"><i class="fa-solid fa-triangle-exclamation text-[8px]"></i>KADALUARSA (${escapeHtml(r.expiry_date)})</span>`;
+            } else if (diffDays <= 30) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 mt-1"><i class="fa-solid fa-clock text-[8px]"></i>Exp: ${diffDays} hari (${escapeHtml(r.expiry_date)})</span>`;
+            } else {
+                expiryBadge = `<span class="text-[9px] opacity-60 font-mono block mt-0.5">Exp: ${escapeHtml(r.expiry_date)}</span>`;
+            }
+        }
+
         return `
             <tr class="${bgClass}">
                 <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${safeId} <br><span class="text-[9px] opacity-60">${safeDate}</span></td>
-                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName} ${expiryBadge}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${r.sell_target.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${r.initial_qty}</td>
@@ -7739,6 +7780,8 @@ function confirmDeleteTrx(id) {
         renderFinancialChart();
         renderRepackWarehouse();
         if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderCustomer === 'function') renderCustomer();
+        if (typeof renderArAgingTableOnly === 'function') renderArAgingTableOnly();
 
         logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Transaksi berhasil dihapus", "success");
@@ -7777,6 +7820,8 @@ async function updateTrxStatus(id, newStatus) {
         renderInvoicesTable();
         updateDashboard();
         renderFinancialChart();
+        if (typeof renderCustomer === 'function') renderCustomer();
+        if (typeof renderArAgingTableOnly === 'function') renderArAgingTableOnly();
 
         logAuditActivity('TRANSACTION_STATUS_CHANGE', `TRX #${id}`, `Mengubah status transaksi ${trx.customer} (${trx.itemName}) dari "${oldStatus}" menjadi "${newStatus}"`);
     }
@@ -8354,6 +8399,7 @@ function renderArAgingTableOnly() {
         const safeDate = escapeHtml(t.date || '');
         const safeMonthKey = escapeHtml(t.monthKey || '');
         const safeCustomer = escapeHtml(t.customer || '');
+        const safeCustParam = encodeURIComponent(t.customer || '').replace(/'/g, "%27");
         const safeItemName = escapeHtml(t.itemName || '');
 
         return `
@@ -8364,7 +8410,7 @@ function renderArAgingTableOnly() {
                 </td>
                 <td class="p-2.5 border border-inherit">
                     <span class="font-bold text-indigo-600 dark:text-indigo-400 block">${safeCustomer}</span>
-                    <button type="button" onclick="sendCustomerDebtReminder('${safeCustomer}')" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5" title="Kirim rekap seluruh nota belum lunas milik pelanggan ini via WhatsApp">
+                    <button type="button" onclick="sendCustomerDebtReminder('${safeCustParam}')" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5" title="Kirim rekap seluruh nota belum lunas milik pelanggan ini via WhatsApp">
                         <i class="fa-brands fa-whatsapp text-[11px]"></i> Rekap Nota
                     </button>
                 </td>

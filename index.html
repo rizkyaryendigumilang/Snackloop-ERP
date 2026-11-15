@@ -1437,7 +1437,8 @@
                             <div><label class="block text-[11px] font-bold opacity-70 mb-1">Plastik /Bungkus (Rp)</label><input type="text" inputmode="numeric" id="c-plastic" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
                             <div class="md:col-span-3 border-t border-inherit mt-1 pt-3"></div>
                             <div><label class="block text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mb-1">Rencana Harga Jual /Bungkus <span class="text-rose-500">*</span></label><input type="text" inputmode="numeric" id="c-sell" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
-                            <div class="md:col-span-2 flex items-end justify-end space-x-3">
+                            <div><label class="block text-[11px] font-bold opacity-70 mb-1">Tgl Kedaluwarsa (FEFO Opsional)</label><input type="date" id="c-expiry" class="theme-input w-full border rounded-xl p-2.5 outline-none"></div>
+                            <div class="flex items-end justify-end space-x-3">
                                 <button type="button" onclick="calculateRepack()" class="px-5 py-2.5 theme-btn-filter font-bold rounded-xl text-xs transition">Hitung Modal</button>
                                 <button type="button" onclick="saveToRepackWarehouse()" id="btn-save-repack" class="btn-magnetic hidden flex items-center gap-1.5"><i class="fa-solid fa-box-archive"></i> Simpan Batch</button>
                             </div>

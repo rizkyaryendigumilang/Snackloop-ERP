@@ -25,10 +25,13 @@ function calculateRepack() {
 
     const cleanDate = (typeof getLocalDateStr === 'function' ? getLocalDateStr() : new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const randEntropy = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const expiryEl = document.getElementById('c-expiry');
+    const expiryDate = expiryEl ? (expiryEl.value || null) : null;
     currentRepackCalcResult = {
         id: `RPK-${cleanDate}-${Date.now().toString().slice(-4)}${randEntropy}`,
         date: getLocalDateStr(),
-        name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty
+        name, modal_per_pcs: finalModal, sell_target: sellTarget, initial_qty: qty, remaining_qty: qty,
+        expiry_date: expiryDate
     };
     if (currentRole === 'super_admin' || currentRole === 'staff_rekap') {
         document.getElementById('btn-save-repack').classList.remove('hidden');
@@ -49,7 +52,10 @@ async function saveToRepackWarehouse() {
     currentRepackCalcResult = null;
     document.getElementById('btn-save-repack').classList.add('hidden');
     document.getElementById('calc-res').classList.add('hidden');
-    ['c-name', 'c-price', 'c-disc', 'c-fee', 'c-qty', 'c-plastic', 'c-sell'].forEach(id => document.getElementById(id).value = '');
+    ['c-name', 'c-price', 'c-disc', 'c-fee', 'c-qty', 'c-plastic', 'c-sell', 'c-expiry'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
 
     dispatchMutation({
         type: 'INSERT_REPACK',
@@ -74,10 +80,27 @@ function renderRepackWarehouse() {
         const safeId = escapeHtml(r.id || '');
         const safeDate = escapeHtml(r.date || '');
         const safeName = escapeHtml(r.name || '');
+
+        let expiryBadge = '';
+        if (r.expiry_date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const expDate = new Date(r.expiry_date);
+            expDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 mt-1"><i class="fa-solid fa-triangle-exclamation text-[8px]"></i>KADALUARSA (${escapeHtml(r.expiry_date)})</span>`;
+            } else if (diffDays <= 30) {
+                expiryBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 mt-1"><i class="fa-solid fa-clock text-[8px]"></i>Exp: ${diffDays} hari (${escapeHtml(r.expiry_date)})</span>`;
+            } else {
+                expiryBadge = `<span class="text-[9px] opacity-60 font-mono block mt-0.5">Exp: ${escapeHtml(r.expiry_date)}</span>`;
+            }
+        }
+
         return `
             <tr class="${bgClass}">
                 <td class="p-3 border border-inherit font-mono text-indigo-500 font-bold">${safeId} <br><span class="text-[9px] opacity-60">${safeDate}</span></td>
-                <td class="p-3 border border-inherit font-semibold">${safeName}</td>
+                <td class="p-3 border border-inherit font-semibold">${safeName} ${expiryBadge}</td>
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-500">Rp ${r.sell_target.toLocaleString()}</td>
                 <td class="p-3 border border-inherit text-center">${r.initial_qty}</td>

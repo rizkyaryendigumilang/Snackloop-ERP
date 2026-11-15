@@ -2381,6 +2381,8 @@ function confirmDeleteTrx(id) {
         renderFinancialChart();
         renderRepackWarehouse();
         if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderCustomer === 'function') renderCustomer();
+        if (typeof renderArAgingTableOnly === 'function') renderArAgingTableOnly();
 
         logAuditActivity('TRANSACTION_DELETE', `TRX #${id}`, `Menghapus transaksi ${trx.qty}x ${trx.itemName} (${trx.customer}) senilai Rp ${(trx.totalSell || 0).toLocaleString()}`);
         showNotification("Sukses", "Transaksi berhasil dihapus", "success");
@@ -2419,6 +2421,8 @@ async function updateTrxStatus(id, newStatus) {
         renderInvoicesTable();
         updateDashboard();
         renderFinancialChart();
+        if (typeof renderCustomer === 'function') renderCustomer();
+        if (typeof renderArAgingTableOnly === 'function') renderArAgingTableOnly();
 
         logAuditActivity('TRANSACTION_STATUS_CHANGE', `TRX #${id}`, `Mengubah status transaksi ${trx.customer} (${trx.itemName}) dari "${oldStatus}" menjadi "${newStatus}"`);
     }
@@ -2996,6 +3000,7 @@ function renderArAgingTableOnly() {
         const safeDate = escapeHtml(t.date || '');
         const safeMonthKey = escapeHtml(t.monthKey || '');
         const safeCustomer = escapeHtml(t.customer || '');
+        const safeCustParam = encodeURIComponent(t.customer || '').replace(/'/g, "%27");
         const safeItemName = escapeHtml(t.itemName || '');
 
         return `
@@ -3006,7 +3011,7 @@ function renderArAgingTableOnly() {
                 </td>
                 <td class="p-2.5 border border-inherit">
                     <span class="font-bold text-indigo-600 dark:text-indigo-400 block">${safeCustomer}</span>
-                    <button type="button" onclick="sendCustomerDebtReminder('${safeCustomer}')" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5" title="Kirim rekap seluruh nota belum lunas milik pelanggan ini via WhatsApp">
+                    <button type="button" onclick="sendCustomerDebtReminder('${safeCustParam}')" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5" title="Kirim rekap seluruh nota belum lunas milik pelanggan ini via WhatsApp">
                         <i class="fa-brands fa-whatsapp text-[11px]"></i> Rekap Nota
                     </button>
                 </td>

@@ -717,6 +717,7 @@ async function syncSingleOutboxItem(item) {
         const trxRow = item.payload && (item.payload.transaction || item.payload);
         const invPayload = item.payload && item.payload.invoice;
         const repackUp = item.payload && item.payload.repackUpdate;
+        const masterUp = item.payload && item.payload.masterUpdate;
 
         let rpcSuccess = false;
         if (trxRow) {
@@ -742,6 +743,11 @@ async function syncSingleOutboxItem(item) {
                 await supabaseClient.from('repack')
                     .update({ remaining_qty: repackUp.newRemainingQty })
                     .eq('id', repackUp.batchId);
+            }
+            if (masterUp && masterUp.id) {
+                await supabaseClient.from('master')
+                    .update({ stock_qty: masterUp.newStockQty })
+                    .eq('id', masterUp.id);
             }
             if (trxRow) {
                 const { data: insertedTrx, error: trxErr } = await supabaseClient.from('transactions').insert([trxRow]).select();
@@ -791,6 +797,11 @@ async function syncSingleOutboxItem(item) {
                     .update({ remaining_qty: rItem.remaining_qty })
                     .eq('id', item.payload.batch);
             }
+        }
+        if (item.payload.masterRestore && item.payload.masterRestore.id) {
+            await supabaseClient.from('master')
+                .update({ stock_qty: item.payload.masterRestore.stock_qty })
+                .eq('id', item.payload.masterRestore.id);
         }
         if (item.payload.id && !String(item.payload.id).startsWith('trx_')) {
             const { error } = await supabaseClient.from('transactions').delete().eq('id', item.payload.id);

@@ -596,6 +596,33 @@ runTest('Verify Phase 2 Enhancements (FEFO Expiry Dates, Tempo Due-Date Receivab
   assert.strictEqual(trxCode.includes('function filterArAgingCategory'), true, '11-transactions.js missing filterArAgingCategory');
 });
 
+// 20. Outbox Stock Synchronization, Customer Reactivity, Safe WA Reminder & Repack Expiry
+runTest('Verify Outbox Stock Sync, Customer Reactivity, Safe WA Reminder & Repack Expiry', () => {
+  const assert = require('assert');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  const outboxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '04-outbox.js'), 'utf8');
+  const masterCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '09-master.js'), 'utf8');
+  const repackCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '10-repack.js'), 'utf8');
+  const trxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '11-transactions.js'), 'utf8');
+
+  // 1. Outbox: Master stock deduction on INSERT_TRANSACTION fallback & restoration on DELETE_TRANSACTION
+  assert.strictEqual(outboxCode.includes('masterUp && masterUp.id'), true, '04-outbox.js missing masterUpdate deduction in fallback path');
+  assert.strictEqual(outboxCode.includes('item.payload.masterRestore && item.payload.masterRestore.id'), true, '04-outbox.js missing masterRestore in DELETE_TRANSACTION');
+
+  // 2. Customer Table Reactivity on Trx Delete and Status Change
+  assert.strictEqual(trxCode.includes("if (typeof renderCustomer === 'function') renderCustomer();"), true, '11-transactions.js missing renderCustomer reactivity');
+
+  // 3. Safe URL encoding for WA Debt Reminder against apostrophes/quotes
+  assert.strictEqual(masterCode.includes("safeCustParam"), true, '09-master.js missing safeCustParam');
+  assert.strictEqual(masterCode.includes("decodeURIComponent(custParam)"), true, '09-master.js missing decodeURIComponent in sendCustomerDebtReminder');
+  assert.strictEqual(trxCode.includes("safeCustParam"), true, '11-transactions.js missing safeCustParam in AR aging');
+
+  // 4. Repack Expiry Date in Calculator & Warehouse
+  assert.strictEqual(indexHtml.includes('id="c-expiry"'), true, 'index.html missing c-expiry in repack form');
+  assert.strictEqual(repackCode.includes("document.getElementById('c-expiry')"), true, '10-repack.js missing c-expiry input handling');
+  assert.strictEqual(repackCode.includes('expiryBadge'), true, '10-repack.js missing expiryBadge in renderRepackWarehouse');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');
