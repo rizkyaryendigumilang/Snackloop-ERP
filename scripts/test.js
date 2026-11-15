@@ -586,6 +586,14 @@ runTest('Verify Phase 2 Enhancements (FEFO Expiry Dates, Tempo Due-Date Receivab
   assert.strictEqual(trxCode.includes('REKOMENDASI FEFO'), true, '11-transactions.js missing FEFO recommendation alert');
   assert.strictEqual(trxCode.includes("status === 'Tempo'"), true, '11-transactions.js missing Tempo status handler');
   assert.strictEqual(trxCode.includes('dueDate'), true, '11-transactions.js missing dueDate field');
+
+  // 5. Matriks Penuaan Piutang (AR Aging Matrix Widget)
+  assert.strictEqual(indexHtml.includes('id="widget-ar-aging"'), true, 'index.html missing widget-ar-aging');
+  assert.strictEqual(indexHtml.includes('id="ar-total-outstanding"'), true, 'index.html missing ar-total-outstanding');
+  assert.strictEqual(indexHtml.includes('id="ar-tier-1-total"'), true, 'index.html missing ar-tier-1-total');
+  assert.strictEqual(indexHtml.includes('id="ar-bar-tier1"'), true, 'index.html missing ar-bar-tier1');
+  assert.strictEqual(trxCode.includes('function renderArAgingMatrixWidget'), true, '11-transactions.js missing renderArAgingMatrixWidget');
+  assert.strictEqual(trxCode.includes('function filterArAgingCategory'), true, '11-transactions.js missing filterArAgingCategory');
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);

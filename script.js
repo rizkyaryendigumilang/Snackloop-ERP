@@ -8134,60 +8134,257 @@ function updateDashboard() {
     const uBody = document.getElementById('dashboard-unpaid-body');
     const unpaidBadge = document.getElementById('unpaid-badge');
     if (unpaidBadge) unpaidBadge.innerText = `${unpaidList.length} Item`;
-    if(uBody) {
-        if(unpaidList.length === 0) {
-            uBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center opacity-60">Tidak ada Piutang aktif. Mantap!</td></tr>`;
-        } else {
-            // O(1) Customer phone lookup dictionary
-            const custMap = new Map((customerData || []).map(c => [c.name, c.phone || '']));
-            const defaultPhone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
-            const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
+    renderArAgingMatrixWidget();
+}
 
-            const uRows = unpaidList.map(t => {
-                const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="bg-indigo-500/25 text-indigo-500 px-2.5 py-1 rounded text-[11px] font-bold">Lunasi</button>` : '-';
-                const phone = (typeof normalizeWaPhone === 'function'
-                    ? normalizeWaPhone(custMap.get(t.customer), defaultPhone)
-                    : String(custMap.get(t.customer) || defaultPhone).replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
+let currentArAgingFilter = 'all';
+let cachedArAgingList = [];
 
-                // Hitung umur piutang via timestamp math tanpa overhead alokasi Date
-                const todayUtcMs = _getTodayMidnightMs();
+function renderArAgingMatrixWidget() {
+    const todayUtcMs = _getTodayMidnightMs();
+    let totalArOutstanding = 0;
+    
+    const arBuckets = {
+        tier1: { total: 0, count: 0 },
+        tier2: { total: 0, count: 0 },
+        tier3: { total: 0, count: 0 },
+        tier4: { total: 0, count: 0 }
+    };
+
+    const allUnpaidItems = [];
+
+    // Kumpulkan seluruh transaksi yang belum lunas di seluruh lembar bulan
+    for (let mk in transactionData) {
+        (transactionData[mk] || []).forEach(t => {
+            if (t && t.status !== 'Lunas') {
+                const totalSell = Number(t.totalSell) || 0;
+                totalArOutstanding += totalSell;
+
                 const tUtcMs = _parseIsoDateUtcMs(t.date) || todayUtcMs;
                 const diffDays = Math.max(0, Math.floor((todayUtcMs - tUtcMs) / 86400000));
-                
-                let agingBadge = '';
-                if (diffDays <= 7) {
-                    agingBadge = `<span class="badge-soft-good text-[10px]">${diffDays}h (Lancar)</span>`;
-                } else if (diffDays <= 14) {
-                    agingBadge = `<span class="badge-soft-warn text-[10px]">${diffDays}h (Perhatian)</span>`;
-                } else {
-                    agingBadge = `<span class="badge-soft-bad text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1 inline-block"></span>${diffDays}h (Jatuh Tempo)</span>`;
+
+                let isOverdue = false;
+                let overdueDays = 0;
+                let daysLeft = null;
+
+                if (t.dueDate) {
+                    const dueUtcMs = _parseIsoDateUtcMs(t.dueDate) || tUtcMs;
+                    const dueDiff = Math.floor((todayUtcMs - dueUtcMs) / 86400000);
+                    if (dueDiff > 0) {
+                        isOverdue = true;
+                        overdueDays = dueDiff;
+                    } else {
+                        daysLeft = Math.abs(dueDiff);
+                    }
                 }
 
-                const waText = `Halo Kak ${t.customer}, salam dari SnackLoop. Mengonfirmasi tagihan pesanan ${t.itemName} sebesar Rp ${t.totalSell.toLocaleString()} (sudah berjalan ${diffDays} hari). Pembayaran dapat ditransfer ke ${bank}. Terima kasih banyak!`;
-                const safeWaParam = encodeURIComponent(waText).replace(/'/g, "%27");
-                const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${safeWaParam}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm flex items-center gap-1 mx-auto"><i class="fa-brands fa-whatsapp"></i> Tagih</button>`;
-                
-                const safeDate = escapeHtml(t.date || '');
-                const safeMonthKey = escapeHtml(t.monthKey || '');
-                const safeCustomer = escapeHtml(t.customer || '');
-                const safeItemName = escapeHtml(t.itemName || '');
+                // Klasifikasi 4 Tingkat Penuaan Piutang (AR Aging Buckets):
+                // Tier 1 (Lancar): 0 - 7 hari & belum lewat jatuh tempo
+                // Tier 2 (Perhatian): 8 - 14 hari atau jatuh tempo <= 3 hari
+                // Tier 3 (Jatuh Tempo): 15 - 30 hari atau lewat tempo 1 - 15 hari
+                // Tier 4 (Macet / Kritis): > 30 hari atau lewat tempo > 15 hari
+                let tierKey = 'tier1';
+                if (diffDays > 30 || overdueDays > 15) {
+                    tierKey = 'tier4';
+                } else if (diffDays >= 15 || overdueDays > 0) {
+                    tierKey = 'tier3';
+                } else if (diffDays >= 8 || (daysLeft !== null && daysLeft <= 3)) {
+                    tierKey = 'tier2';
+                } else {
+                    tierKey = 'tier1';
+                }
 
-                return `
-                    <tr class="hover:bg-slate-50/50 transition">
-                        <td class="p-2.5 border border-inherit">${safeDate} <br><span class="text-[9px] opacity-60">${safeMonthKey}</span></td>
-                        <td class="p-2.5 border border-inherit">
-                            <span class="font-bold text-indigo-500 block">${safeCustomer}</span>
-                            ${agingBadge}
-                        </td>
-                        <td class="p-2.5 border border-inherit font-medium">${safeItemName} (${t.qty}x)</td>
-                        <td class="p-2.5 border border-inherit font-bold text-rose-500">Rp ${t.totalSell.toLocaleString()}</td>
-                        <td class="p-2.5 border border-inherit text-center">${waBtn}</td>
-                        <td class="p-2.5 border border-inherit text-center">${btnLunasi}</td>
-                    </tr>`;
-            }).join('');
-            uBody.innerHTML = uRows;
-        }
+                arBuckets[tierKey].total += totalSell;
+                arBuckets[tierKey].count += 1;
+
+                allUnpaidItems.push({
+                    ...t,
+                    diffDays,
+                    isOverdue,
+                    overdueDays,
+                    daysLeft,
+                    tierKey
+                });
+            }
+        });
     }
+
+    // Urutkan prioritas: Tier 4 (Macet) & Tier 3 (Jatuh Tempo) paling atas, lalu hari tertua
+    allUnpaidItems.sort((a, b) => {
+        const priorityScore = { tier4: 4, tier3: 3, tier2: 2, tier1: 1 };
+        const scoreDiff = (priorityScore[b.tierKey] || 0) - (priorityScore[a.tierKey] || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return (b.diffDays || 0) - (a.diffDays || 0);
+    });
+
+    cachedArAgingList = allUnpaidItems;
+
+    // 1. Update Header Total & Badge
+    const unpaidBadge = document.getElementById('unpaid-badge');
+    if (unpaidBadge) unpaidBadge.innerText = `${allUnpaidItems.length} Nota`;
+
+    const totalArEl = document.getElementById('ar-total-outstanding');
+    if (totalArEl) totalArEl.innerText = 'Rp ' + totalArOutstanding.toLocaleString('id-ID');
+
+    // 2. Update 4 Kuadran Bento Cards
+    const t1Tot = document.getElementById('ar-tier-1-total');
+    if (t1Tot) t1Tot.innerText = 'Rp ' + arBuckets.tier1.total.toLocaleString('id-ID');
+    const t1Cnt = document.getElementById('ar-tier-1-count');
+    if (t1Cnt) t1Cnt.innerText = `${arBuckets.tier1.count} Nota`;
+
+    const t2Tot = document.getElementById('ar-tier-2-total');
+    if (t2Tot) t2Tot.innerText = 'Rp ' + arBuckets.tier2.total.toLocaleString('id-ID');
+    const t2Cnt = document.getElementById('ar-tier-2-count');
+    if (t2Cnt) t2Cnt.innerText = `${arBuckets.tier2.count} Nota`;
+
+    const t3Tot = document.getElementById('ar-tier-3-total');
+    if (t3Tot) t3Tot.innerText = 'Rp ' + arBuckets.tier3.total.toLocaleString('id-ID');
+    const t3Cnt = document.getElementById('ar-tier-3-count');
+    if (t3Cnt) t3Cnt.innerText = `${arBuckets.tier3.count} Nota`;
+
+    const t4Tot = document.getElementById('ar-tier-4-total');
+    if (t4Tot) t4Tot.innerText = 'Rp ' + arBuckets.tier4.total.toLocaleString('id-ID');
+    const t4Cnt = document.getElementById('ar-tier-4-count');
+    if (t4Cnt) t4Cnt.innerText = `${arBuckets.tier4.count} Nota`;
+
+    // 3. Update Progress Bar Distribusi Penuaan
+    let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+    if (totalArOutstanding > 0) {
+        p1 = Math.round((arBuckets.tier1.total / totalArOutstanding) * 100);
+        p2 = Math.round((arBuckets.tier2.total / totalArOutstanding) * 100);
+        p3 = Math.round((arBuckets.tier3.total / totalArOutstanding) * 100);
+        p4 = Math.max(0, 100 - (p1 + p2 + p3));
+    }
+    const distText = document.getElementById('ar-distribution-text');
+    if (distText) {
+        distText.textContent = totalArOutstanding > 0
+            ? `Lancar ${p1}% • Perhatian ${p2}% • Tempo ${p3}% • Macet ${p4}%`
+            : `Lancar 0% • Perhatian 0% • Tempo 0% • Macet 0%`;
+    }
+    const b1 = document.getElementById('ar-bar-tier1');
+    if (b1) b1.style.width = `${p1}%`;
+    const b2 = document.getElementById('ar-bar-tier2');
+    if (b2) b2.style.width = `${p2}%`;
+    const b3 = document.getElementById('ar-bar-tier3');
+    if (b3) b3.style.width = `${p3}%`;
+    const b4 = document.getElementById('ar-bar-tier4');
+    if (b4) b4.style.width = `${p4}%`;
+
+    // 4. Render Tabel
+    renderArAgingTableOnly();
+}
+
+function filterArAgingCategory(cat) {
+    currentArAgingFilter = cat;
+    const btns = ['all', 'tier1', 'tier2', 'tier3', 'tier4'];
+    btns.forEach(b => {
+        const btnEl = document.getElementById(`btn-ar-${b}`);
+        if (btnEl) {
+            if (b === cat) btnEl.classList.add('is-active');
+            else btnEl.classList.remove('is-active');
+        }
+    });
+    renderArAgingTableOnly();
+}
+
+function renderArAgingTableOnly() {
+    const uBody = document.getElementById('dashboard-unpaid-body');
+    if (!uBody) return;
+
+    let filtered = cachedArAgingList;
+    if (currentArAgingFilter !== 'all') {
+        filtered = cachedArAgingList.filter(item => item.tierKey === currentArAgingFilter);
+    }
+
+    const filterLabels = {
+        'all': 'Menampilkan seluruh tagihan aktif',
+        'tier1': 'Menampilkan piutang 0 - 7 hari (Lancar)',
+        'tier2': 'Menampilkan piutang 8 - 14 hari (Perhatian)',
+        'tier3': 'Menampilkan piutang 15 - 30 hari (Jatuh Tempo)',
+        'tier4': 'Menampilkan piutang > 30 hari (Macet / Kritis)'
+    };
+    const countLabelEl = document.getElementById('ar-filtered-count-label');
+    if (countLabelEl) {
+        countLabelEl.innerText = `${filterLabels[currentArAgingFilter] || 'Tagihan'} (${filtered.length} nota)`;
+    }
+
+    if (filtered.length === 0) {
+        const emptyMsg = currentArAgingFilter === 'all'
+            ? 'Tidak ada Piutang aktif saat ini. Arus kas toko 100% prima!'
+            : 'Tidak ada tagihan dalam kategori penuaan ini.';
+        uBody.innerHTML = `<tr><td colspan="7" class="p-8 text-center">
+            <div class="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto text-slate-500">
+                <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <p class="text-xs font-semibold">${emptyMsg}</p>
+            </div>
+        </td></tr>`;
+        return;
+    }
+
+    const custMap = new Map((customerData || []).map(c => [c.name, c.phone || '']));
+    const defaultPhone = (appSettings && appSettings.whatsappPhone) ? appSettings.whatsappPhone : '628123456789';
+    const bank = (appSettings && appSettings.bankAccount) ? appSettings.bankAccount : 'BCA 12345678 a/n SnackLoop';
+    const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
+
+    const uRows = filtered.map(t => {
+        const btnLunasi = canMarkPaid ? `<button onclick="updateTrxStatus('${t.id}', 'Lunas')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm transition">Lunasi</button>` : '-';
+        const phone = (typeof normalizeWaPhone === 'function'
+            ? normalizeWaPhone(custMap.get(t.customer), defaultPhone)
+            : String(custMap.get(t.customer) || defaultPhone).replace(/\D/g, '').replace(/^0/, '62')) || '628123456789';
+
+        let agingBadge = '';
+        if (t.tierKey === 'tier1') {
+            agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"><i class="fa-solid fa-circle-check text-[9px]"></i> ${t.diffDays}h (Lancar)</span>`;
+        } else if (t.tierKey === 'tier2') {
+            agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><i class="fa-solid fa-clock text-[9px]"></i> ${t.diffDays}h (Perhatian)</span>`;
+        } else if (t.tierKey === 'tier3') {
+            agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"><i class="fa-solid fa-triangle-exclamation text-[9px]"></i> ${t.isOverdue ? `Telat ${t.overdueDays} hr` : `${t.diffDays}h (Tempo)`}</span>`;
+        } else {
+            agingBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800"><i class="fa-solid fa-circle-radiation text-[9px]"></i> ${t.diffDays}h (Macet)</span>`;
+        }
+
+        const dueInfo = t.dueDate ? `<span class="text-[9px] opacity-70 block font-mono mt-0.5"><i class="fa-regular fa-calendar-check text-[8px] mr-1"></i>Tempo: ${escapeHtml(t.dueDate)}</span>` : '';
+
+        const waText = `Halo Kak ${t.customer}, salam dari ${appSettings.bizName || 'SnackLoop'}.\n\nKami mengonfirmasi tagihan pesanan ${t.itemName} (${t.qty} pcs) sebesar Rp ${(Number(t.totalSell) || 0).toLocaleString('id-ID')} yang tercatat pada tanggal ${t.date} (${t.diffDays} hari lalu)${t.dueDate ? `, dengan jatuh tempo: ${t.dueDate}` : ''}.\n\nPembayaran dapat ditransfer ke:\n${bank}\n\nMohon konfirmasi jika sudah ditransfer. Terima kasih banyak atas kerjasamanya! 🙏`;
+        const safeWaParam = encodeURIComponent(waText).replace(/'/g, "%27");
+        const waBtn = `<button onclick="window.open('https://wa.me/${phone}?text=${safeWaParam}', '_blank')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm flex items-center justify-center gap-1 mx-auto transition"><i class="fa-brands fa-whatsapp text-xs"></i> Tagih</button>`;
+
+        const safeDate = escapeHtml(t.date || '');
+        const safeMonthKey = escapeHtml(t.monthKey || '');
+        const safeCustomer = escapeHtml(t.customer || '');
+        const safeItemName = escapeHtml(t.itemName || '');
+
+        return `
+            <tr class="hover:bg-slate-50/50 transition">
+                <td class="p-2.5 border border-inherit">
+                    <span class="font-semibold block">${safeDate}</span>
+                    <span class="text-[9px] opacity-60 font-mono">${safeMonthKey}</span>
+                </td>
+                <td class="p-2.5 border border-inherit">
+                    <span class="font-bold text-indigo-600 dark:text-indigo-400 block">${safeCustomer}</span>
+                    <button type="button" onclick="sendCustomerDebtReminder('${safeCustomer}')" class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold mt-0.5" title="Kirim rekap seluruh nota belum lunas milik pelanggan ini via WhatsApp">
+                        <i class="fa-brands fa-whatsapp text-[11px]"></i> Rekap Nota
+                    </button>
+                </td>
+                <td class="p-2.5 border border-inherit">
+                    <div class="font-medium text-slate-800 dark:text-slate-200">${safeItemName}</div>
+                    <span class="text-[10px] opacity-70 font-semibold font-mono">${t.qty} pcs</span>
+                </td>
+                <td class="p-2.5 border border-inherit font-bold font-mono text-rose-600 dark:text-rose-400">
+                    Rp ${(Number(t.totalSell) || 0).toLocaleString('id-ID')}
+                </td>
+                <td class="p-2.5 border border-inherit">
+                    ${agingBadge}
+                    ${dueInfo}
+                </td>
+                <td class="p-2.5 border border-inherit text-center">${waBtn}</td>
+                <td class="p-2.5 border border-inherit text-center">${btnLunasi}</td>
+            </tr>`;
+    }).join('');
+
+    uBody.innerHTML = uRows;
 }
 
 function renderDashboardHistory() {

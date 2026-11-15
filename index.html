@@ -449,23 +449,123 @@
                         </div>
                     </div>
 
-                    <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-4">
-                        <div class="flex justify-between items-center border-b border-inherit pb-3">
-                            <h3 class="font-bold text-base flex items-center gap-2">
-                                <i class="fa-solid fa-clock text-slate-400"></i>
-                                <span>Daftar Piutang Berjalan</span>
-                            </h3>
-                            <span id="unpaid-badge" class="border border-inherit px-2.5 py-0.5 rounded-full text-xs font-semibold opacity-80">0 Item</span>
+                    <!-- WIDGET MATRIKS PENUAAN PIUTANG (ACCOUNTS RECEIVABLE AGING) -->
+                    <div class="theme-card p-6 rounded-2xl border shadow-sm space-y-5" id="widget-ar-aging">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-inherit pb-4">
+                            <div>
+                                <h3 class="font-bold text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-hourglass-half text-amber-500"></i>
+                                    <span>Matriks Penuaan Piutang (AR Aging)</span>
+                                </h3>
+                                <p class="text-xs opacity-60">Analisis risiko pelunasan, jadwal jatuh tempo & percepatan penagihan kas</p>
+                            </div>
+                            <div class="flex items-center gap-2.5 flex-wrap">
+                                <span class="text-xs font-semibold px-3 py-1 theme-input border rounded-xl flex items-center gap-1.5">
+                                    <span class="opacity-70">Total Piutang:</span>
+                                    <strong id="ar-total-outstanding" class="text-rose-600 dark:text-rose-400 font-mono">Rp 0</strong>
+                                </span>
+                                <span id="unpaid-badge" class="border border-inherit px-2.5 py-1 rounded-xl text-xs font-semibold opacity-80">0 Item</span>
+                            </div>
                         </div>
-                        <div class="overflow-x-auto max-h-[300px]">
+
+                        <!-- 4 Bento Tiles: Kuadran Penuaan Piutang (0-7h, 8-14h, 15-30h, >30h) -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <!-- Tier 1: Lancar -->
+                            <div class="p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-950/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-1 cursor-pointer hover:border-emerald-400 transition" onclick="filterArAgingCategory('tier1')">
+                                <div class="flex items-center justify-between text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                    <span>0 - 7 Hari (Lancar)</span>
+                                    <i class="fa-solid fa-circle-check text-xs"></i>
+                                </div>
+                                <h4 id="ar-tier-1-total" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tabular-nums">Rp 0</h4>
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span id="ar-tier-1-count">0 Nota</span>
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-semibold">Toleransi Aman</span>
+                                </div>
+                            </div>
+
+                            <!-- Tier 2: Perhatian -->
+                            <div class="p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-950/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-1 cursor-pointer hover:border-amber-400 transition" onclick="filterArAgingCategory('tier2')">
+                                <div class="flex items-center justify-between text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                    <span>8 - 14 Hari (Perhatian)</span>
+                                    <i class="fa-solid fa-clock text-xs"></i>
+                                </div>
+                                <h4 id="ar-tier-2-total" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tabular-nums">Rp 0</h4>
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span id="ar-tier-2-count">0 Nota</span>
+                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">Menjelang Tempo</span>
+                                </div>
+                            </div>
+
+                            <!-- Tier 3: Jatuh Tempo -->
+                            <div class="p-3.5 rounded-xl border border-rose-200/80 dark:border-rose-950/60 bg-rose-50/40 dark:bg-rose-950/20 space-y-1 cursor-pointer hover:border-rose-400 transition" onclick="filterArAgingCategory('tier3')">
+                                <div class="flex items-center justify-between text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                                    <span>15 - 30 Hari (Jatuh Tempo)</span>
+                                    <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                                </div>
+                                <h4 id="ar-tier-3-total" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tabular-nums">Rp 0</h4>
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span id="ar-tier-3-count">0 Nota</span>
+                                    <span class="text-rose-600 dark:text-rose-400 font-semibold">Prioritas Tagih</span>
+                                </div>
+                            </div>
+
+                            <!-- Tier 4: Kritis / Macet -->
+                            <div class="p-3.5 rounded-xl border border-purple-200/80 dark:border-purple-950/60 bg-purple-50/40 dark:bg-purple-950/20 space-y-1 cursor-pointer hover:border-purple-400 transition" onclick="filterArAgingCategory('tier4')">
+                                <div class="flex items-center justify-between text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                                    <span>> 30 Hari (Macet/Kritis)</span>
+                                    <i class="fa-solid fa-circle-exclamation text-xs"></i>
+                                </div>
+                                <h4 id="ar-tier-4-total" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-mono tabular-nums">Rp 0</h4>
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span id="ar-tier-4-count">0 Nota</span>
+                                    <span class="text-purple-600 dark:text-purple-400 font-semibold">Tindakan Tegas</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar Distribusi Penuaan Piutang -->
+                        <div class="space-y-1.5 pt-1">
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="font-bold opacity-75">Struktur Distribusi Penuaan Piutang</span>
+                                <span id="ar-distribution-text" class="tabular-nums font-semibold opacity-70">Lancar 0% • Perhatian 0% • Jatuh Tempo 0% • Macet 0%</span>
+                            </div>
+                            <div class="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800 border border-inherit">
+                                <div id="ar-bar-tier1" class="h-full bg-emerald-500" style="width: 0%; transition: width 300ms ease;" title="0-7 Hari (Lancar)"></div>
+                                <div id="ar-bar-tier2" class="h-full bg-amber-500" style="width: 0%; transition: width 300ms ease;" title="8-14 Hari (Perhatian)"></div>
+                                <div id="ar-bar-tier3" class="h-full bg-rose-500" style="width: 0%; transition: width 300ms ease;" title="15-30 Hari (Jatuh Tempo)"></div>
+                                <div id="ar-bar-tier4" class="h-full bg-purple-600" style="width: 0%; transition: width 300ms ease;" title=">30 Hari (Macet)"></div>
+                            </div>
+                            <div class="flex items-center gap-4 text-[10px] opacity-70 flex-wrap pt-0.5">
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> 0-7 Hari (Lancar)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 8-14 Hari (Perhatian)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> 15-30 Hari (Jatuh Tempo)</span>
+                                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-purple-600"></span> > 30 Hari (Macet)</span>
+                            </div>
+                        </div>
+
+                        <!-- Segmented Filter Bar -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-inherit">
+                            <div class="seg-control" id="ar-aging-filters">
+                                <button type="button" onclick="filterArAgingCategory('all')" id="btn-ar-all" class="seg-btn is-active">Semua Piutang</button>
+                                <button type="button" onclick="filterArAgingCategory('tier1')" id="btn-ar-tier1" class="seg-btn">0-7h (Lancar)</button>
+                                <button type="button" onclick="filterArAgingCategory('tier2')" id="btn-ar-tier2" class="seg-btn">8-14h (Perhatian)</button>
+                                <button type="button" onclick="filterArAgingCategory('tier3')" id="btn-ar-tier3" class="seg-btn">15-30h (Tempo)</button>
+                                <button type="button" onclick="filterArAgingCategory('tier4')" id="btn-ar-tier4" class="seg-btn">>30h (Macet)</button>
+                            </div>
+                            <span id="ar-filtered-count-label" class="text-xs opacity-65 font-medium">Menampilkan seluruh tagihan</span>
+                        </div>
+
+                        <!-- Tabel Rincian Piutang -->
+                        <div class="overflow-x-auto max-h-[340px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
                                     <tr>
-                                        <th class="p-2.5 border border-inherit">Tanggal</th>
+                                        <th class="p-2.5 border border-inherit">Tanggal &amp; Nota</th>
                                         <th class="p-2.5 border border-inherit">Pelanggan</th>
-                                        <th class="p-2.5 border border-inherit">Barang</th>
-                                        <th class="p-2.5 border border-inherit">Tagihan</th>
-                                        <th class="p-2.5 border border-inherit text-center">WhatsApp Penagihan</th>
+                                        <th class="p-2.5 border border-inherit">Barang Pesanan</th>
+                                        <th class="p-2.5 border border-inherit">Nominal Tagihan</th>
+                                        <th class="p-2.5 border border-inherit">Status Umur &amp; Jatuh Tempo</th>
+                                        <th class="p-2.5 border border-inherit text-center">Penagihan WhatsApp</th>
                                         <th class="p-2.5 border border-inherit text-center" data-i18n="th_action">Aksi</th>
                                     </tr>
                                 </thead>
