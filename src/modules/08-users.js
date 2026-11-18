@@ -110,7 +110,7 @@ function backupDataJSON() {
     const backupObj = {
         meta: {
             system: "SnackLoop ERP",
-            version: "2.5-Enterprise",
+            version: "2.6.0-Enterprise",
             exportDate: timestamp,
             exportedBy: currentUser || 'super_admin'
         },

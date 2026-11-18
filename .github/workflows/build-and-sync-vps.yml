@@ -12,6 +12,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'capacitor.config.json'
+      - 'src/**'
+      - 'vendor/**'
       - 'scripts/**'
       - 'android/**'
       - 'ios/**'
@@ -21,7 +23,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   # ==========================================
@@ -81,15 +83,17 @@ jobs:
 
       - name: Prepare APK Output
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk snackloop-android-debug.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk app-latest.apk
-          echo "Android Debug APK ready: snackloop-android-debug.apk"
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p build-output
+          cp android/app/build/outputs/apk/debug/app-debug.apk build-output/snackloop-v${VERSION}-android.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk build-output/snackloop-android-latest.apk
+          echo "Android Debug APK ready: build-output/snackloop-v${VERSION}-android.apk"
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: snackloop-android-debug-apk
-          path: snackloop-android-debug.apk
+          name: snackloop-android-apk
+          path: build-output/*.apk
           retention-days: 14
 
       - name: Mobile Artifact Summary
@@ -97,7 +101,7 @@ jobs:
           echo "### Android APK Build Status :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "- **Package Name / App ID**: com.snackloop.erp" >> $GITHUB_STEP_SUMMARY
           echo "- **Build Type**: Debug APK (ready to sideload and test on Android devices)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifact Name**: \`snackloop-android-debug-apk\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Name**: \`snackloop-android-apk\`" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================
   # Job 2: Build iOS IPA
@@ -115,7 +119,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
@@ -145,20 +148,22 @@ jobs:
 
       - name: Package Payload into unsigned IPA
         run: |
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p build-output
           cd ios/App
           rm -rf Payload
           mkdir -p Payload
           cp -R build/App.xcarchive/Products/Applications/App.app Payload/
-          zip -r -y ../../snackloop-ios-unsigned.ipa Payload
-          cp ../../snackloop-ios-unsigned.ipa ../../app-latest.ipa
+          zip -r -y ../../build-output/snackloop-v${VERSION}-ios.ipa Payload
+          cp ../../build-output/snackloop-v${VERSION}-ios.ipa ../../build-output/snackloop-ios-latest.ipa
           cd ../..
-          echo "iOS IPA created successfully: snackloop-ios-unsigned.ipa"
+          echo "iOS IPA created successfully: build-output/snackloop-v${VERSION}-ios.ipa"
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: snackloop-ios-unsigned-ipa
-          path: snackloop-ios-unsigned.ipa
+          name: snackloop-ios-ipa
+          path: build-output/*.ipa
           retention-days: 14
 
       - name: Mobile Artifact Summary
@@ -166,5 +171,118 @@ jobs:
           echo "### iOS IPA Build Status :apple:" >> $GITHUB_STEP_SUMMARY
           echo "- **Bundle Identifier**: com.snackloop.erp" >> $GITHUB_STEP_SUMMARY
           echo "- **Signing Status**: Unsigned archive (packaged for sideload testing with AltStore / Sideloadly)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifact Name**: \`snackloop-ios-unsigned-ipa\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Name**: \`snackloop-ios-ipa\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Prerequisites for TestFlight / Enterprise distribution**: Apple Developer Program account, distribution certificate (.p12), and mobile provisioning profile." >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================
+  # Job 3: Publish GitHub Release (Auto Release with APK & IPA)
+  # ==========================================
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+    if: always() && needs.build-android.result == 'success'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create Release Directory
+        run: mkdir -p release-assets
+
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: snackloop-android-apk
+          path: release-assets/
+
+      - name: Download iOS Artifacts (if available)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: snackloop-ios-ipa
+          path: release-assets/
+
+      - name: Prepare Release Notes & Changelog
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG_NAME="v${VERSION}-b${GITHUB_RUN_NUMBER}"
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
+          # Ambil commit pesan terakhir & ringkasan 10 commit terkini
+          COMMIT_MSG=$(git log -1 --pretty=format:"%B")
+          RECENT_LOGS=$(git log -10 --pretty=format:"* %s (%h - %an)")
+
+          cat << 'EOF' > release_body.md
+          ## 📱 SnackLoop ERP vVERSION_PLACEHOLDER (Build #RUN_PLACEHOLDER)
+
+          Sistem Informasi Penjualan, Kasir POS & Manajemen Stok Multi-Gudang.
+
+          ### 📦 Unduh Aplikasi (Download Installers)
+
+          | Platform | Berkas | Ukuran | Deskripsi |
+          | :--- | :--- | :--- | :--- |
+          EOF
+
+          # Ganti placeholder dengan versi dan nomor build
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" release_body.md
+          sed -i "s/RUN_PLACEHOLDER/${GITHUB_RUN_NUMBER}/g" release_body.md
+
+          for f in release-assets/*; do
+            if [ -f "$f" ]; then
+              FNAME=$(basename "$f")
+              FSIZE=$(ls -lh "$f" | awk '{print $5}')
+              if [[ "$FNAME" == *.apk ]]; then
+                echo "| 🤖 **Android** | \`$FNAME\` | \`$FSIZE\` | Debug APK (Direct Sideload HP Android) |" >> release_body.md
+              elif [[ "$FNAME" == *.ipa ]]; then
+                echo "| 🍎 **iOS** | \`$FNAME\` | \`$FSIZE\` | Unsigned IPA (AltStore / Sideloadly) |" >> release_body.md
+              fi
+            fi
+          done
+
+          cat << 'EOF' >> release_body.md
+
+          ---
+
+          ### 🛠️ Keterangan Perbaikan & Perubahan Terbaru (Changelog)
+          EOF
+
+          echo "" >> release_body.md
+          echo "**Pembaruan Terkini (Current Commit):**" >> release_body.md
+          echo '```text' >> release_body.md
+          echo "$COMMIT_MSG" >> release_body.md
+          echo '```' >> release_body.md
+          echo "" >> release_body.md
+          echo "**Riwayat Perubahan Terkini:**" >> release_body.md
+          echo "$RECENT_LOGS" >> release_body.md
+
+          cat << 'EOF' >> release_body.md
+
+          ---
+
+          ### 📲 Petunjuk Pemasangan
+          * **Android:** Unduh file `.apk` ke ponsel Android Anda. Buka file tersebut lalu izinkan instalasi dari sumber tidak dikenal (*Install Unknown Apps*).
+          * **iOS:** Unduh file `.ipa` lalu pasang ke iPhone/iPad menggunakan aplikasi sideloading seperti **AltStore**, **Sideloadly**, atau **TrollStore**.
+          EOF
+
+      - name: Publish Release to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Publishing release: $TAG_NAME..."
+          gh release create "$TAG_NAME" \
+            release-assets/* \
+            --title "SnackLoop ERP v${VERSION} (Build #${GITHUB_RUN_NUMBER})" \
+            --notes-file release_body.md \
+            --generate-notes
