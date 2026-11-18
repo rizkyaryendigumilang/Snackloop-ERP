@@ -26,7 +26,13 @@ const EXCLUDED = new Set([
   '.vercelignore',
   'Customer',
   'Data Penjualan',
-  'database'
+  'database',
+  'docs',
+  'icons',
+  'GLOSSARY.md',
+  'SnackLoop_import.xlsx',
+  'SnackLoop_Backup_Migrasi.json',
+  'SnackLoop_Backup_Lengkap_Unified.json'
 ]);
 
 function build() {

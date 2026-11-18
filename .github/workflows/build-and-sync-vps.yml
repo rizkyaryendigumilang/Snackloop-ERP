@@ -15,7 +15,6 @@ on:
       - 'scripts/**'
       - 'android/**'
       - 'ios/**'
-      - 'icons/**'
       - '*.png'
       - '*.svg'
       - '.github/workflows/build-and-sync-vps.yml'
