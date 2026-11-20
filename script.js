@@ -4887,7 +4887,10 @@ function exportFinancialSummaryCSV() {
 
     const rows = sortedMonths.map(m => {
         const trxList = (transactionData && transactionData[m]) || [];
-        const expList = (expenseData || []).filter(e => e.monthKey === m);
+        const expList = (expenseData || []).filter(e => {
+            const expMonth = e.monthKey || (e.date && typeof getCurrentMonthKey === 'function' ? getCurrentMonthKey(new Date(e.date.trim().slice(0, 10) + 'T00:00:00')) : '');
+            return expMonth === m;
+        });
         const totalExpenses = expList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
         let cashIn = 0;
@@ -7240,12 +7243,16 @@ function calculateCustomerLeaderboard(period = 'all') {
         } else {
             custMap[cName].unpaidSpent += sellAmount;
         }
-        custMap[cName].orderCount += 1;
+        if (!t.isReturn && (Number(t.qty) || 0) > 0) {
+            custMap[cName].orderCount += 1;
+        }
         custMap[cName].totalQty += (t.qty || 0);
-        if (t.date > custMap[cName].lastDate) {
+        if (t.date && (!custMap[cName].lastDate || t.date > custMap[cName].lastDate)) {
             custMap[cName].lastDate = t.date;
         }
-        custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
+        if (t.itemName) {
+            custMap[cName].items[t.itemName] = (custMap[cName].items[t.itemName] || 0) + (t.qty || 0);
+        }
     });
 
     // Urutkan berdasarkan pembayaran riil (paidSpent) lalu total volume
@@ -8579,7 +8586,8 @@ async function saveExpense() {
 
     if(!description || !amount) return showNotification("Peringatan", "Isi keterangan dan nominal biaya!", "warning");
 
-    const tempExp = { id: 'exp_' + Date.now(), date, description, amount };
+    const eMonth = typeof getCurrentMonthKey === 'function' ? getCurrentMonthKey(new Date(date + 'T00:00:00')) : '';
+    const tempExp = { id: 'exp_' + Date.now(), date, description, amount, monthKey: eMonth };
     expenseData.unshift(tempExp);
     saveCacheToLocal();
 
@@ -8706,11 +8714,14 @@ function updateDashboard() {
                 unpaidList.push(t); 
             }
 
-            if(!productSalesMap[t.itemName]) {
-                productSalesMap[t.itemName] = { qty: 0, revenue: 0 };
+            const itm = (t.itemName || '').trim();
+            if (itm) {
+                if(!productSalesMap[itm]) {
+                    productSalesMap[itm] = { qty: 0, revenue: 0 };
+                }
+                productSalesMap[itm].qty += (t.qty || 0);
+                productSalesMap[itm].revenue += (t.totalSell || 0);
             }
-            productSalesMap[t.itemName].qty += (t.qty || 0);
-            productSalesMap[t.itemName].revenue += (t.totalSell || 0);
         });
     }
 
@@ -8727,10 +8738,22 @@ function updateDashboard() {
     const isSuperAdmin = currentRole === 'super_admin';
     const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
 
-    document.getElementById('stat-Pendapatan').innerText = 'Rp ' + Pendapatan.toLocaleString();
-    document.getElementById('stat-expense').innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
-    document.getElementById('stat-Keuntungan').innerText = isSuperAdmin ? ('Rp ' + NetProfitFinal.toLocaleString()) : '*** (Rahasia)';
-    document.getElementById('stat-Hutang').innerText = 'Rp ' + Piutang.toLocaleString();
+    const pEl = document.getElementById('stat-Pendapatan');
+    if (pEl) pEl.innerText = 'Rp ' + Pendapatan.toLocaleString();
+    const expEl = document.getElementById('stat-expense');
+    if (expEl) expEl.innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
+    const kEl = document.getElementById('stat-Keuntungan');
+    if (kEl) {
+        if (isSuperAdmin) {
+            kEl.innerText = (NetProfitFinal < 0 ? '-Rp ' : 'Rp ') + Math.abs(NetProfitFinal).toLocaleString();
+            kEl.className = `text-lg sm:text-xl font-bold tracking-tight mt-1 tabular-nums ${NetProfitFinal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
+        } else {
+            kEl.innerText = '*** (Rahasia)';
+            kEl.className = 'text-lg sm:text-xl font-bold tracking-tight mt-1 tabular-nums text-slate-500';
+        }
+    }
+    const hEl = document.getElementById('stat-Hutang');
+    if (hEl) hEl.innerText = 'Rp ' + Piutang.toLocaleString();
 
     // Standar Struktur Rasio Finansial (Berbasis Pendapatan Kas Masuk 100%)
     let mPct = 0, ePct = 0, pPct = 0;
@@ -8743,20 +8766,20 @@ function updateDashboard() {
     if (splitRatioText) {
         if (Pendapatan > 0) {
             if (NetProfitFinal >= 0) {
-                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Laba ${pPct}%`;
+                splitRatioText.textContent = `Modal ${mPct}% • Laba ${pPct}% • Beban ${ePct}%`;
             } else {
-                splitRatioText.textContent = `Modal ${mPct}% • Beban ${ePct}% • Rugi ${Math.abs(pPct)}%`;
+                splitRatioText.textContent = `Modal ${mPct}% • Rugi ${Math.abs(pPct)}% • Beban ${ePct}%`;
             }
         } else {
-            splitRatioText.textContent = `Modal 0% • Beban 0% • Laba 0%`;
+            splitRatioText.textContent = `Modal 0% • Laba 0% • Beban 0%`;
         }
     }
     const mBar = document.getElementById('stat-split-modal-bar');
     if (mBar) mBar.style.width = `${Math.min(100, Math.max(0, mPct))}%`;
-    const eBar = document.getElementById('stat-split-expense-bar');
-    if (eBar) eBar.style.width = `${Math.min(100, Math.max(0, ePct))}%`;
     const pBar = document.getElementById('stat-split-profit-bar');
     if (pBar) pBar.style.width = `${Math.min(100, Math.max(0, pPct))}%`;
+    const eBar = document.getElementById('stat-split-expense-bar');
+    if (eBar) eBar.style.width = `${Math.min(100, Math.max(0, ePct))}%`;
     
     const labelsDesc = {
         'id': { 'today': 'Hari Ini', '7days': '7 Hari Terakhir', '30days': '30 Hari Terakhir', 'all': 'Keseluruhan' },
@@ -8764,7 +8787,17 @@ function updateDashboard() {
     };
     const activeDesc = labelsDesc[currentLanguage] || labelsDesc['id'];
     const pDesc = document.getElementById('stat-Pendapatan-desc');
-    if (pDesc) pDesc.innerText = activeDesc[currentDashboardTimeFilter] || activeDesc['all'];
+    if (pDesc) {
+        const timeLabel = activeDesc[currentDashboardTimeFilter] || activeDesc['all'];
+        if (Piutang > 0) {
+            const totalOmzet = Pendapatan + Piutang;
+            pDesc.innerText = `${timeLabel} • Kas Masuk (Omzet: Rp ${totalOmzet.toLocaleString()})`;
+            pDesc.title = `Total Penjualan Akrual: Rp ${totalOmzet.toLocaleString()} (Kas: Rp ${Pendapatan.toLocaleString()} + Piutang: Rp ${Piutang.toLocaleString()})`;
+        } else {
+            pDesc.innerText = `${timeLabel} • 100% Lunas`;
+            pDesc.title = 'Seluruh penjualan pada periode ini telah lunas.';
+        }
+    }
 
     renderTopProducts(productSalesMap);
     renderCustomerLeaderboard();
@@ -9070,7 +9103,7 @@ function renderTopProducts(salesMap) {
         name,
         qty: salesMap[name].qty,
         revenue: salesMap[name].revenue
-    })).sort((a, b) => b.qty - a.qty).slice(0, 4);
+    })).filter(p => p.qty > 0).sort((a, b) => b.qty - a.qty).slice(0, 4);
 
     if(sortedProducts.length === 0) {
         container.innerHTML = `<div class="col-span-full p-4 text-center opacity-60 text-xs">Belum ada data penjualan pada periode ini.</div>`;

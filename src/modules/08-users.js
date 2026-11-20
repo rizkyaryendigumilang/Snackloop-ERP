@@ -346,7 +346,10 @@ function exportFinancialSummaryCSV() {
 
     const rows = sortedMonths.map(m => {
         const trxList = (transactionData && transactionData[m]) || [];
-        const expList = (expenseData || []).filter(e => e.monthKey === m);
+        const expList = (expenseData || []).filter(e => {
+            const expMonth = e.monthKey || (e.date && typeof getCurrentMonthKey === 'function' ? getCurrentMonthKey(new Date(e.date.trim().slice(0, 10) + 'T00:00:00')) : '');
+            return expMonth === m;
+        });
         const totalExpenses = expList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
         let cashIn = 0;

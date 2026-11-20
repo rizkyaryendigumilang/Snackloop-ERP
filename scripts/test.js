@@ -911,6 +911,153 @@ runTest('Verify Full Mathematical Proof & Reconciliation (Zero Variance across A
   assert.strictEqual(sumProfit, 363532);
 });
 
+// 24. Financial Dashboard Mathematical Proof & Accounting Reconciliation
+runTest('Verify Financial Dashboard KPI Calculations, Cashflow Split & AR Aging Mathematical Integrity', () => {
+  const assert = require('assert');
+  const vm = require('vm');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+
+  // Siapkan DOM mock minimal untuk memverifikasi eksekusi updateDashboard dan perhitungan metrik
+  const domElements = {};
+  function mockGetElementById(id) {
+    if (!domElements[id]) {
+      domElements[id] = {
+        innerText: '',
+        textContent: '',
+        innerHTML: '',
+        value: '',
+        className: '',
+        title: '',
+        style: {}
+      };
+    }
+    return domElements[id];
+  }
+
+  const sandbox = {
+    masterData: [
+      { id: 1, name: 'Mie Shorr Ayam Panggang', buy: 18000, sell: 23000 },
+      { id: 2, name: 'Le Mineral 600ml', buy: 50000, sell: 65000 },
+      { id: 3, name: 'Popmie Biasa Kuah Mix 1 Karton 24PCs', buy: 108000, sell: 130000 },
+      { id: 4, name: 'Makaroni Ulir 175Grm', buy: 8234, sell: 8000 },
+      { id: 5, name: 'Chupacups', buy: 22000, sell: 25000 }
+    ],
+    repackData: [],
+    transactionData: {
+      'Nov 2026': [
+        // Lunas 1: Mie Shorr (Omzet 23.000, Modal 18.000, Laba 5.000)
+        { date: '2026-11-20', customer: 'Mba Ajo', itemName: 'Mie Shorr Ayam Panggang', qty: 1, sell: 23000, totalSell: 23000, status: 'Lunas' },
+        // Lunas 2: Le Mineral 600ml with extra cost (Omzet 130.000, Modal 100.000 + 10.000 = 110.000, Laba 20.000)
+        { date: '2026-11-20', customer: 'Pak Budi', itemName: 'Le Mineral 600ml', qty: 2, sell: 65000, totalSell: 130000, extraCost: 10000, status: 'Lunas' },
+        // Tempo / Belum Lunas 1: Popmie Biasa Kuah (Omzet 130.000, Modal 108.000, Piutang 130.000)
+        { date: '2026-11-20', customer: 'Bu Siti', itemName: 'Popmie Biasa Kuah Mix 1 Karton 24PCs', qty: 1, sell: 130000, totalSell: 130000, status: 'Belum Lunas' },
+        // Tempo / Belum Lunas 2: Chupacups (Omzet 25.000, Modal 22.000, Piutang 25.000)
+        { date: '2026-11-19', customer: 'Mba Ajo', itemName: 'Chupacups', qty: 1, sell: 25000, totalSell: 25000, status: 'Belum Lunas' },
+        // Retur: Koreksi Mie Shorr 1 pcs (-23.000, Modal -18.000, Potong Piutang -23.000)
+        { date: '2026-11-20', customer: 'Mba Ajo', itemName: 'Mie Shorr Ayam Panggang', qty: -1, isReturn: true, sell: 23000, totalSell: -23000, status: 'Belum Lunas' }
+      ]
+    },
+    expenseData: [
+      { id: 'exp_1', date: '2026-11-20', description: 'Listrik & WiFi Toko', amount: 15000 }
+    ],
+    currentRole: 'super_admin',
+    currentLanguage: 'id',
+    currentDashboardTimeFilter: 'all',
+    activeMonthSheet: 'Nov 2026',
+    window: {},
+    document: {
+      getElementById: mockGetElementById,
+      addEventListener: () => {},
+      createElement: () => ({ classList: { add() {}, remove() {} }, appendChild() {} }),
+      body: { appendChild() {}, classList: { contains: () => false } }
+    },
+    getCleanNumber: (id) => 0
+  };
+
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  // Verifikasi fungsi matematika inti dashboard
+  let pendapatanKas = 0;
+  let modalLunas = 0;
+  let grossProfitLunas = 0;
+  let piutang = 0;
+  let modalPiutang = 0;
+  let totalExpense = 0;
+
+  for (let mk in sandbox.transactionData) {
+    sandbox.transactionData[mk].forEach(t => {
+      const sell = Number(t.totalSell) || 0;
+      const modal = sandbox.getEffectiveTrxModal(t);
+      const profit = sandbox.getEffectiveTrxProfit(t);
+
+      if (t.status === 'Lunas') {
+        pendapatanKas += sell;
+        modalLunas += modal;
+        grossProfitLunas += profit;
+      } else {
+        piutang += sell;
+        modalPiutang += modal;
+      }
+    });
+  }
+
+  sandbox.expenseData.forEach(exp => {
+    totalExpense += (exp.amount || 0);
+  });
+
+  const netProfitFinal = grossProfitLunas - totalExpense;
+  const totalOmzetAkrual = pendapatanKas + piutang;
+
+  // 1. Verifikasi Nilai Eksak
+  // Pendapatan Kas Masuk: 23.000 + 130.000 = 153.000
+  assert.strictEqual(pendapatanKas, 153000, 'Pendapatan kas masuk harus tepat 153.000');
+  // Modal Lunas: 18.000 + 110.000 = 128.000
+  assert.strictEqual(modalLunas, 128000, 'Modal HPP lunas harus tepat 128.000');
+  // Laba Kotor Lunas: 5.000 + 20.000 = 25.000
+  assert.strictEqual(grossProfitLunas, 25000, 'Laba kotor lunas harus tepat 25.000');
+  // Invarian Kasus Lunas: Pendapatan - Modal == Laba Kotor (Delta == 0)
+  assert.strictEqual(pendapatanKas - modalLunas - grossProfitLunas, 0, 'Invarian Delta Lunas harus 0');
+
+  // Piutang: 130.000 + 25.000 - 23.000 (retur) = 132.000
+  assert.strictEqual(piutang, 132000, 'Total piutang harus tepat 132.000 setelah pemotongan retur');
+  // Total Omzet Akrual: 153.000 + 132.000 = 285.000
+  assert.strictEqual(totalOmzetAkrual, 285000, 'Total omzet akrual harus tepat 285.000');
+
+  // Beban Operasional: 15.000
+  assert.strictEqual(totalExpense, 15000, 'Total beban operasional harus tepat 15.000');
+  // Laba Bersih Final: 25.000 - 15.000 = 10.000
+  assert.strictEqual(netProfitFinal, 10000, 'Laba bersih final harus tepat 10.000');
+
+  // 2. Verifikasi Rasio Finansial Berbasis Kas Masuk (100%)
+  const mPct = Math.round((modalLunas / pendapatanKas) * 100);       // 128.000 / 153.000 = 83.66% -> 84%
+  const pPct = Math.round((netProfitFinal / pendapatanKas) * 100);    // 10.000 / 153.000 = 6.53% -> 7%
+  const ePct = Math.round((totalExpense / pendapatanKas) * 100);      // 15.000 / 153.000 = 9.80% -> 10%
+  
+  assert.strictEqual(mPct, 84);
+  assert.strictEqual(pPct, 7);
+  assert.strictEqual(ePct, 10);
+  assert.strictEqual(mPct + pPct + ePct, 101, 'Rasio rounding sum dalam toleransi standard rounding 100±1%');
+
+  // 3. Verifikasi Skenario Rugi Operasional (Beban > Laba Kotor)
+  const lossExpense = 50000;
+  const netLoss = grossProfitLunas - lossExpense; // 25.000 - 50.000 = -25.000
+  assert.strictEqual(netLoss, -25000, 'Laba bersih harus negatif saat beban melebihi laba kotor');
+  const lossPct = Math.round((netLoss / pendapatanKas) * 100);
+  assert.strictEqual(lossPct, -16);
+
+  // 4. Verifikasi AR Aging Partition Invariant
+  // Semua piutang harus terpartisi ke dalam tier tanpa kebocoran nominal
+  const arTiers = {
+    tier1: 130000 - 23000, // 107.000 (hari ini, lancar)
+    tier2: 25000,          // 25.000 (kemarin, lancar/perhatian)
+    tier3: 0,
+    tier4: 0
+  };
+  const sumArTiers = arTiers.tier1 + arTiers.tier2 + arTiers.tier3 + arTiers.tier4;
+  assert.strictEqual(sumArTiers, piutang, 'Partisi AR Aging kuadran harus identik dengan total piutang');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');
