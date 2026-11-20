@@ -242,7 +242,9 @@ function renderJastip() {
     const tbody = document.getElementById('jastip-table-body');
     if (!tbody) return;
 
-    let filtered = jastipData.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    let filtered = typeof jastipData.toSorted === 'function'
+        ? jastipData.toSorted((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        : jastipData.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     if (currentJastipFilter !== 'all') {
         filtered = filtered.filter(item => item.status === currentJastipFilter);
@@ -1152,12 +1154,13 @@ function renderJastipChecklist() {
     }
 
     // Kelompokkan berdasarkan mata uang / negara asal
-    const grouped = {};
-    shoppingList.forEach(item => {
-        const curr = item.currency || 'IDR';
-        if (!grouped[curr]) grouped[curr] = [];
-        grouped[curr].push(item);
-    });
+    const grouped = (typeof Object.groupBy === 'function')
+        ? Object.groupBy(shoppingList, item => item.currency || 'IDR')
+        : shoppingList.reduce((acc, item) => {
+            const curr = item.currency || 'IDR';
+            (acc[curr] = acc[curr] || []).push(item);
+            return acc;
+        }, {});
 
     container.innerHTML = Object.keys(grouped).map(curr => {
         const rateInfo = DEFAULT_EXCHANGE_RATES[curr] || DEFAULT_EXCHANGE_RATES.IDR;

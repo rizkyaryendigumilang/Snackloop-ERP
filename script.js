@@ -385,12 +385,15 @@ function updateThemeButtonsUI() {
 }
 
 function setAppTheme(theme) {
+    const metaTheme = document.querySelector('meta[name="color-scheme"]');
     if (theme === 'dark') {
         document.body.classList.add('dark-theme');
         localStorage.setItem('snackloop_theme', 'dark');
+        if (metaTheme) metaTheme.content = 'dark';
     } else {
         document.body.classList.remove('dark-theme');
         localStorage.setItem('snackloop_theme', 'light');
+        if (metaTheme) metaTheme.content = 'light';
     }
 
     const icon = document.getElementById('dark-mode-icon');
@@ -498,6 +501,12 @@ function parseMonthKey(mk) {
 
 function sortMonthKeys(keys, asc = true) {
     if (!Array.isArray(keys)) return [];
+    if (typeof keys.toSorted === 'function') {
+        return keys.toSorted((a, b) => {
+            const diff = parseMonthKey(a) - parseMonthKey(b);
+            return asc ? diff : -diff;
+        });
+    }
     return [...keys].sort((a, b) => {
         const diff = parseMonthKey(a) - parseMonthKey(b);
         return asc ? diff : -diff;
@@ -706,10 +715,13 @@ document.addEventListener("DOMContentLoaded", async function() {
     if (savedNavCollapsed) toggleNavbarCollapse(true);
 
     const savedTheme = localStorage.getItem('snackloop_theme');
+    const metaTheme = document.querySelector('meta[name="color-scheme"]');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
+        if (metaTheme) metaTheme.content = 'dark';
     } else {
         document.body.classList.remove('dark-theme');
+        if (metaTheme) metaTheme.content = 'light';
     }
     updateThemeButtonsUI();
 
@@ -3430,7 +3442,7 @@ function openForgotPasswordModal(e) {
     const feedback = document.getElementById('forgot-password-feedback');
     if (feedback) {
         feedback.classList.add('hidden');
-        feedback.innerHTML = '';
+        feedback.replaceChildren();
     }
 }
 
@@ -4971,7 +4983,7 @@ function openHistoryModal(masterId) {
 
     document.getElementById('history-product-title').innerText = item.name;
     const tbody = document.getElementById('history-table-body');
-    tbody.innerHTML = '';
+    tbody.replaceChildren();
 
     const histories = priceHistoryData.filter(h => h.master_id === masterId).sort((a,b) => new Date(b.changed_at) - new Date(a.changed_at));
 
@@ -5508,14 +5520,14 @@ function updateTierPricingOnPos() {
                     badgeEl.classList.remove('hidden');
                 } else {
                     badgeEl.classList.add('hidden');
-                    badgeEl.innerHTML = '';
+                    badgeEl.replaceChildren();
                 }
             }
         }
     } else {
         if (badgeEl) {
             badgeEl.classList.add('hidden');
-            badgeEl.innerHTML = '';
+            badgeEl.replaceChildren();
         }
     }
     if (typeof updateCashierBillDisplay === 'function') updateCashierBillDisplay();
@@ -6491,7 +6503,7 @@ async function renderInvoicesTable() {
             `;
         } else {
             alertBanner.className = "hidden";
-            alertBanner.innerHTML = "";
+            alertBanner.replaceChildren();
         }
     }
 
@@ -7051,7 +7063,7 @@ function updateInvoicePDFStatus(status) {
     const metaStatusWrap = document.getElementById('pdf-meta-status-wrap');
 
     if (!status) {
-        if (badgeEl) badgeEl.innerHTML = '';
+        if (badgeEl) badgeEl.replaceChildren();
         if (metaStatusWrap) metaStatusWrap.style.display = 'none';
         return;
     }
@@ -7702,7 +7714,7 @@ function renderPaginationControls(totalPages) {
     }
 
     if(totalPages <= 1) {
-        paginationContainer.innerHTML = '';
+        paginationContainer.replaceChildren();
         return;
     }
 
@@ -8437,7 +8449,9 @@ function renderDashboardHistory() {
     const tbody = document.getElementById('dashboard-history-body');
     if(!tbody) return;
 
-    const sortedHistory = [...priceHistoryData].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at)).slice(0, 5);
+    const sortedHistory = (typeof priceHistoryData.toSorted === 'function'
+        ? priceHistoryData.toSorted((a, b) => new Date(b.changed_at) - new Date(a.changed_at))
+        : [...priceHistoryData].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at))).slice(0, 5);
 
     if(sortedHistory.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center opacity-60">Belum ada riwayat kenaikan harga modal tercatat.</td></tr>`;
@@ -9021,14 +9035,15 @@ async function saveBulkTransactions() {
 
 // ======================= KONSOLIDASI INVOICE HARIAN ======================= //
 async function consolidateDailyInvoices() {
-    const groupMap = {};
-    invoiceData.forEach(inv => {
-        const key = `${inv.customer_name}__${inv.date}`;
-        if (!groupMap[key]) groupMap[key] = [];
-        groupMap[key].push(inv);
-    });
+    const groupMap = (typeof Object.groupBy === 'function')
+        ? Object.groupBy(invoiceData, inv => `${inv.customer_name}__${inv.date}`)
+        : invoiceData.reduce((acc, inv) => {
+            const key = `${inv.customer_name}__${inv.date}`;
+            (acc[key] = acc[key] || []).push(inv);
+            return acc;
+        }, {});
 
-    const duplicateGroups = Object.entries(groupMap).filter(([k, list]) => list.length > 1);
+    const duplicateGroups = Object.entries(groupMap).filter(([k, list]) => list && list.length > 1);
 
     if (duplicateGroups.length === 0) {
         return showNotification("Info", "Seluruh invoice harian sudah rapi (1 invoice per pelanggan per hari). Tidak ada invoice terpisah yang perlu digabung.", "info");
@@ -11007,7 +11022,9 @@ function renderJastip() {
     const tbody = document.getElementById('jastip-table-body');
     if (!tbody) return;
 
-    let filtered = jastipData.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    let filtered = typeof jastipData.toSorted === 'function'
+        ? jastipData.toSorted((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        : jastipData.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     if (currentJastipFilter !== 'all') {
         filtered = filtered.filter(item => item.status === currentJastipFilter);
@@ -11917,12 +11934,13 @@ function renderJastipChecklist() {
     }
 
     // Kelompokkan berdasarkan mata uang / negara asal
-    const grouped = {};
-    shoppingList.forEach(item => {
-        const curr = item.currency || 'IDR';
-        if (!grouped[curr]) grouped[curr] = [];
-        grouped[curr].push(item);
-    });
+    const grouped = (typeof Object.groupBy === 'function')
+        ? Object.groupBy(shoppingList, item => item.currency || 'IDR')
+        : shoppingList.reduce((acc, item) => {
+            const curr = item.currency || 'IDR';
+            (acc[curr] = acc[curr] || []).push(item);
+            return acc;
+        }, {});
 
     container.innerHTML = Object.keys(grouped).map(curr => {
         const rateInfo = DEFAULT_EXCHANGE_RATES[curr] || DEFAULT_EXCHANGE_RATES.IDR;

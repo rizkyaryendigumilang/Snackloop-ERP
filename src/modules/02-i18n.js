@@ -251,12 +251,15 @@ function updateThemeButtonsUI() {
 }
 
 function setAppTheme(theme) {
+    const metaTheme = document.querySelector('meta[name="color-scheme"]');
     if (theme === 'dark') {
         document.body.classList.add('dark-theme');
         localStorage.setItem('snackloop_theme', 'dark');
+        if (metaTheme) metaTheme.content = 'dark';
     } else {
         document.body.classList.remove('dark-theme');
         localStorage.setItem('snackloop_theme', 'light');
+        if (metaTheme) metaTheme.content = 'light';
     }
 
     const icon = document.getElementById('dark-mode-icon');

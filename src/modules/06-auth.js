@@ -119,7 +119,7 @@ function openForgotPasswordModal(e) {
     const feedback = document.getElementById('forgot-password-feedback');
     if (feedback) {
         feedback.classList.add('hidden');
-        feedback.innerHTML = '';
+        feedback.replaceChildren();
     }
 }
 

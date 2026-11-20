@@ -51,7 +51,7 @@ function extractLocalAssets(baseDir) {
         }
       }
     } catch (err) {
-      throw new Error(`Invalid manifest.json: ${err.message}`);
+      throw new Error(`Invalid manifest.json: ${err.message}`, { cause: err });
     }
   }
 

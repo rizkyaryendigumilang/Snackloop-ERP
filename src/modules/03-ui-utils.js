@@ -88,6 +88,12 @@ function parseMonthKey(mk) {
 
 function sortMonthKeys(keys, asc = true) {
     if (!Array.isArray(keys)) return [];
+    if (typeof keys.toSorted === 'function') {
+        return keys.toSorted((a, b) => {
+            const diff = parseMonthKey(a) - parseMonthKey(b);
+            return asc ? diff : -diff;
+        });
+    }
     return [...keys].sort((a, b) => {
         const diff = parseMonthKey(a) - parseMonthKey(b);
         return asc ? diff : -diff;
@@ -296,10 +302,13 @@ document.addEventListener("DOMContentLoaded", async function() {
     if (savedNavCollapsed) toggleNavbarCollapse(true);
 
     const savedTheme = localStorage.getItem('snackloop_theme');
+    const metaTheme = document.querySelector('meta[name="color-scheme"]');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-theme');
+        if (metaTheme) metaTheme.content = 'dark';
     } else {
         document.body.classList.remove('dark-theme');
+        if (metaTheme) metaTheme.content = 'light';
     }
     updateThemeButtonsUI();
 

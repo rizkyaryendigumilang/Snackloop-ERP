@@ -262,7 +262,7 @@ function openHistoryModal(masterId) {
 
     document.getElementById('history-product-title').innerText = item.name;
     const tbody = document.getElementById('history-table-body');
-    tbody.innerHTML = '';
+    tbody.replaceChildren();
 
     const histories = priceHistoryData.filter(h => h.master_id === masterId).sort((a,b) => new Date(b.changed_at) - new Date(a.changed_at));
 

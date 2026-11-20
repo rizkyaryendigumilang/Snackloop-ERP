@@ -8,6 +8,7 @@
 }
 
 :root {
+  color-scheme: light dark;
   --main-bg-start: #f8fafc;
   --main-bg-end: #f8fafc;
   --card-bg: #ffffff;
@@ -46,6 +47,7 @@
 }
 
 body.dark-theme {
+  color-scheme: dark;
   --main-bg-start: #090d16;
   --main-bg-end: #090d16;
   --card-bg: #0f172a;
@@ -771,8 +773,13 @@ header {
     transform: rotate(90deg) !important;
   }
 
-  .navbar__menu::-webkit-scrollbar {
-    display: none;
+  .navbar__menu {
+    scrollbar-width: none;
+  }
+  @supports not (scrollbar-width: none) {
+    .navbar__menu::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   /* HIG 5-Pillar Bottom Navigation Bar */
