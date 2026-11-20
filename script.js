@@ -5192,7 +5192,6 @@ async function renderMaster() {
                     ${expiryBadge}
                 </td>
                 <td class="p-3 border border-inherit"><span class="px-2 py-0.5 theme-input border rounded text-[10px] font-bold">${safeSource}</span></td>
-                <td class="p-3 border border-inherit text-center">${stockBadge}</td>
                 <td class="p-3 border border-inherit font-mono">${buyPriceDisplay}</td>
                 <td class="p-3 border border-inherit font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                     <div>Rp ${sellPrice.toLocaleString('id-ID')}</div>
