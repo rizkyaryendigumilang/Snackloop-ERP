@@ -256,7 +256,7 @@ function renderReportSales(data) {
         }
         productMap[key].qty += (t.qty || 0);
         productMap[key].omzet += (t.totalSell || 0);
-        productMap[key].modal += (t.totalModal || 0);
+        productMap[key].modal += (typeof getEffectiveTrxModal === 'function' ? getEffectiveTrxModal(t) : (t.totalModal || 0));
     });
 
     const products = Object.values(productMap).sort((a, b) => b.qty - a.qty);

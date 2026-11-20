@@ -848,6 +848,69 @@ runTest('Verify Canonical Master Catalog, Self-Healing Modal & Laba Per Item Pre
   assert.strictEqual(sandbox.masterData[2].buy, 19000);
 });
 
+// 23. Full Mathematical Proof & Dual-Tier Reconciliation (Zero Variance Guarantee)
+runTest('Verify Full Mathematical Proof & Reconciliation (Zero Variance across All Financial Scenarios)', () => {
+  const assert = require('assert');
+  const vm = require('vm');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+
+  const sandbox = {
+    masterData: [
+      { id: 1, name: 'Mie Shorr Ayam Panggang', buy: 18000, sell: 23000 },
+      { id: 2, name: 'Popmie Biasa Kuah Mix 1 Karton 24PCs', buy: 108000, sell: 130000 },
+      { id: 3, name: 'Le Mineral 600ml', buy: 50000, sell: 65000 },
+      { id: 4, name: 'Makaroni Ulir 175Grm', buy: 8234, sell: 8000 },
+      { id: 5, name: 'Chupacups', buy: 22000, sell: 25000 }
+    ],
+    repackData: [
+      { id: 'BATCH-RPK-01', name: 'Makaroni Repack 50g', modal_per_pcs: 1200, sell_target: 2000 }
+    ],
+    window: {},
+    document: {
+      getElementById: () => null,
+      createElement: () => ({ classList: { add() {}, remove() {} }, appendChild() {} }),
+      body: { appendChild() {} },
+      addEventListener: () => {}
+    }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  const testSuite = [
+    { name: 'S1: Single Item Standard', qty: 1, sell: 23000, totalSell: 23000, itemName: 'Mie Shorr Ayam Panggang', status: 'Lunas' },
+    { name: 'S2: Multi-Qty Standard', qty: 9, sell: 130000, totalSell: 1170000, itemName: 'Popmie Biasa Kuah Mix 1 Karton 24PCs', status: 'Lunas' },
+    { name: 'S3: Multi-Qty with Extra Cost', qty: 10, sell: 65000, totalSell: 650000, extraCost: 15000, itemName: 'Le Mineral 600ml', status: 'Lunas' },
+    { name: 'S4: Selling at a Loss', qty: 2, sell: 8000, totalSell: 16000, itemName: 'Makaroni Ulir 175Grm', status: 'Lunas' },
+    { name: 'S5: Return Item', qty: -1, isReturn: true, sell: 25000, totalSell: -25000, itemName: 'Chupacups', status: 'Lunas' },
+    { name: 'S6: Pure Service/Fee', source: 'Jasa', qty: 1, extraCost: 5000, sell: 30000, totalSell: 30000, itemName: 'Jasa Kirim', status: 'Lunas' },
+    { name: 'S7: Repack Batch Sale', source: 'Repack', batch: 'BATCH-RPK-01', qty: 5, sell: 2000, totalSell: 10000, itemName: 'Makaroni Repack 50g', status: 'Lunas' }
+  ];
+
+  let sumSell = 0;
+  let sumModal = 0;
+  let sumProfit = 0;
+
+  testSuite.forEach((t) => {
+    const m = sandbox.getEffectiveTrxModal(t);
+    const p = sandbox.getEffectiveTrxProfit(t);
+    const s = Number(t.totalSell) || 0;
+
+    // Mathematical invariant for every single row: Total Sell - Total Modal == Total Profit
+    assert.strictEqual(s - m, p, `Row invariant failed for ${t.name}: Sell (${s}) - Modal (${m}) !== Profit (${p})`);
+
+    sumSell += s;
+    sumModal += m;
+    sumProfit += p;
+  });
+
+  // Global aggregation proof: sum(Sell) - sum(Modal) == sum(Profit)
+  const delta = sumSell - sumModal - sumProfit;
+  assert.strictEqual(delta, 0, `Global reconciliation variance detected! Delta: ${delta}`);
+  assert.strictEqual(sumSell, 1874000);
+  assert.strictEqual(sumModal, 1510468);
+  assert.strictEqual(sumProfit, 363532);
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

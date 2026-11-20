@@ -1043,45 +1043,48 @@ function selfHealMasterDataPrices() {
 // =========================================================================
 function getEffectiveTrxModal(t) {
     if (!t) return 0;
+    const isNegative = (Number(t.qty) < 0) || Boolean(t.isReturn);
     const qty = Math.abs(Number(t.qty) || 0);
-    const extraCost = Number(t.extraCost) || 0;
+    const extraCost = Math.abs(Number(t.extraCost) || 0);
 
-    // 1. Jika totalModal sudah tercatat valid dan > 0
+    // 1. Jika totalModal sudah tercatat valid dan != 0
     const recordedModal = Number(t.totalModal);
-    if (!isNaN(recordedModal) && recordedModal > 0) {
-        return recordedModal;
+    if (!isNaN(recordedModal) && recordedModal !== 0) {
+        return isNegative ? -Math.abs(recordedModal) : Math.abs(recordedModal);
     }
 
-    // 2. Jika harga beli per item (buy / buy_price) tercatat > 0
-    const unitBuy = Number(t.buy || t.buy_price || 0);
-    if (unitBuy > 0) {
-        return (unitBuy * (qty || 1)) + extraCost;
-    }
+    // 2. Tentukan harga beli satuan (unitBuy)
+    let unitBuy = Number(t.buy || t.buy_price || 0);
 
     // 3. Fallback: Lookup ke repackData jika transaksi berasal dari batch Repack
-    if (t.source === 'Repack' && t.batch && typeof repackData !== 'undefined' && Array.isArray(repackData)) {
+    if (unitBuy <= 0 && t.source === 'Repack' && t.batch && typeof repackData !== 'undefined' && Array.isArray(repackData)) {
         const rItem = repackData.find(r => String(r.id) === String(t.batch));
         if (rItem && Number(rItem.modal_per_pcs) > 0) {
-            return (Number(rItem.modal_per_pcs) * (qty || 1)) + extraCost;
+            unitBuy = Number(rItem.modal_per_pcs);
         }
     }
 
     // 4. Fallback: Lookup ke masterData berdasarkan nama item & sumber
-    if (t.itemName && typeof masterData !== 'undefined' && Array.isArray(masterData)) {
+    if (unitBuy <= 0 && t.itemName && typeof masterData !== 'undefined' && Array.isArray(masterData)) {
         const cleanName = String(t.itemName).trim().toLowerCase();
         const mItem = masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName && (!t.source || m.source === t.source))
                    || masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName);
         if (mItem && Number(mItem.buy) > 0) {
-            return (Number(mItem.buy) * (qty || 1)) + extraCost;
+            unitBuy = Number(mItem.buy);
         }
     }
 
     // 5. Fallback ke CANONICAL_MASTER_CATALOG resmi spreadsheet
-    if (t.itemName) {
+    if (unitBuy <= 0 && t.itemName) {
         const canonical = getCanonicalMasterPrice(t.itemName);
         if (canonical && canonical.buy > 0) {
-            return (canonical.buy * (qty || 1)) + extraCost;
+            unitBuy = canonical.buy;
         }
+    }
+
+    if (unitBuy > 0 || extraCost > 0) {
+        const base = (unitBuy * (qty || 1)) + extraCost;
+        return isNegative ? -base : base;
     }
 
     return 0;
@@ -1130,7 +1133,7 @@ function getEffectiveTrxProfit(t) {
     if (!t) return 0;
     const qty = Math.abs(Number(t.qty) || 0) || 1;
     const isNegative = (Number(t.qty) < 0) || Boolean(t.isReturn);
-    const extraCost = Number(t.extraCost) || 0;
+    const extraCost = Math.abs(Number(t.extraCost) || 0);
 
     // 1. Jika profit per item teridentifikasi
     const unitProfit = getEffectiveTrxUnitProfit(t);
@@ -1139,18 +1142,18 @@ function getEffectiveTrxProfit(t) {
         return isNegative ? -Math.abs(raw) : raw;
     }
 
-    // 2. Hitung dari effective modal
+    // 2. Hitung dari effective modal dan totalSell
     const effModal = getEffectiveTrxModal(t);
-    const totalSell = Math.abs(Number(t.totalSell) || ((Number(t.sell || t.sell_price || 0)) * qty));
-    if (effModal > 0 && totalSell > 0) {
+    const totalSell = Number(t.totalSell) || ((Number(t.sell || t.sell_price || 0)) * (Number(t.qty) || 1));
+    if (effModal !== 0 && totalSell !== 0) {
         const diff = totalSell - effModal;
-        return isNegative ? -diff : diff;
+        return diff;
     }
 
     // 3. Khusus jasa murni / fee ongkir tanpa modal fisik (source: Jasa / nama mengandung Jasa)
     const isPureService = t.source === 'Jasa' || (t.itemName && /jasa|titip|ongkir|fee|service/i.test(t.itemName));
-    if (isPureService && t.status === 'Lunas' && totalSell > 0) {
-        const netRevenue = Math.max(0, totalSell - extraCost);
+    if (isPureService && t.status === 'Lunas' && totalSell !== 0) {
+        const netRevenue = Math.abs(totalSell) - extraCost;
         return isNegative ? -netRevenue : netRevenue;
     }
 
@@ -9968,7 +9971,7 @@ function renderReportSales(data) {
         }
         productMap[key].qty += (t.qty || 0);
         productMap[key].omzet += (t.totalSell || 0);
-        productMap[key].modal += (t.totalModal || 0);
+        productMap[key].modal += (typeof getEffectiveTrxModal === 'function' ? getEffectiveTrxModal(t) : (t.totalModal || 0));
     });
 
     const products = Object.values(productMap).sort((a, b) => b.qty - a.qty);
