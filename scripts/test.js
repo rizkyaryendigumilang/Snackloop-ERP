@@ -716,6 +716,38 @@ runTest('Verify Dynamic Profit Resolution, Daily Profit Column & Monthly Accumul
   const profitService = sandbox.getEffectiveTrxProfit(testTrxService);
   assert.strictEqual(profitService, 45000, 'Service profit should resolve to totalSell - extraCost = 45000');
 
+  // Test Case D: Selling at a loss (profitPerItem < 0)
+  const testTrxLoss = {
+    date: '2026-11-03',
+    customer: 'Pelanggan Promo',
+    itemName: 'Barang Obral',
+    qty: 2,
+    sell: 15000,
+    totalSell: 30000,
+    buy: 20000,
+    totalModal: 40000,
+    profitPerItem: -5000,
+    status: 'Lunas'
+  };
+  const profitLoss = sandbox.getEffectiveTrxProfit(testTrxLoss);
+  assert.strictEqual(profitLoss, -10000, 'Loss transaction should return negative profit (-10000)');
+
+  // Test Case E: Return transaction (qty < 0 or isReturn: true)
+  const testTrxReturn = {
+    date: '2026-11-03',
+    customer: 'Pelanggan Retur',
+    itemName: 'Chupacups',
+    source: 'Toko Agen Tegal Parang Diah',
+    qty: -1,
+    isReturn: true,
+    sell: 25000,
+    totalSell: -25000,
+    profitPerItem: 3000,
+    status: 'Lunas'
+  };
+  const profitReturn = sandbox.getEffectiveTrxProfit(testTrxReturn);
+  assert.strictEqual(profitReturn, -3000, 'Return transaction should reverse profit (-3000)');
+
   // 4. Verify 11-transactions.js rendering and footer logic
   assert.strictEqual(trxCode.includes('dailyProfitMap'), true, '11-transactions.js missing dailyProfitMap');
   assert.strictEqual(trxCode.includes('dailyProfitDisplay'), true, '11-transactions.js missing dailyProfitDisplay');

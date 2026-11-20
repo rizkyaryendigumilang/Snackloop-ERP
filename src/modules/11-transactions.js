@@ -2290,7 +2290,9 @@ function renderTransactionsForActiveSheet() {
     let monthTotalQty = 0;
     let monthTotalExtraCost = 0;
     let monthTotalModal = 0;
+    let monthTotalModalLunas = 0;
     let monthTotalSell = 0;
+    let monthTotalSellLunas = 0;
     let monthTotalProfit = 0;
     let monthTotalProfitLunas = 0;
     let monthLunasCount = 0;
@@ -2310,6 +2312,8 @@ function renderTransactionsForActiveSheet() {
         monthTotalProfit += profit;
 
         if (t.status === 'Lunas') {
+            monthTotalSellLunas += sell;
+            monthTotalModalLunas += modal;
             monthTotalProfitLunas += profit;
             monthLunasCount++;
         } else {
@@ -2338,14 +2342,21 @@ function renderTransactionsForActiveSheet() {
                     </td>
                     <td class="p-3.5 border border-inherit text-center tabular-nums font-black">${monthTotalQty.toLocaleString()}</td>
                     <td class="p-3.5 border border-inherit text-center tabular-nums font-bold">${monthTotalExtraCost > 0 ? 'Rp ' + monthTotalExtraCost.toLocaleString() : '-'}</td>
-                    <td class="p-3.5 border border-inherit opacity-85 tabular-nums font-bold">${modalDisplayFoot}</td>
-                    <td class="p-3.5 border border-inherit font-black text-indigo-700 dark:text-indigo-300 tabular-nums">Rp ${monthTotalSell.toLocaleString()}</td>
+                    <td class="p-3.5 border border-inherit opacity-85 tabular-nums font-bold">
+                        ${modalDisplayFoot}
+                        ${(isSuperAdmin && monthUnpaidCount > 0) ? `<span class="block text-[9px] font-normal text-slate-500">Lunas: Rp ${monthTotalModalLunas.toLocaleString()}</span>` : ''}
+                    </td>
+                    <td class="p-3.5 border border-inherit font-black text-indigo-700 dark:text-indigo-300 tabular-nums">
+                        Rp ${monthTotalSell.toLocaleString()}
+                        ${monthUnpaidCount > 0 ? `<span class="block text-[9px] font-normal text-emerald-600 dark:text-emerald-400">Lunas: Rp ${monthTotalSellLunas.toLocaleString()}</span>` : ''}
+                    </td>
                     <td class="p-3.5 border border-inherit text-center whitespace-nowrap">
                         <span class="inline-block text-[10px] px-2 py-0.5 rounded-full badge-soft-good font-bold">${monthLunasCount} Lunas</span>
                         ${monthUnpaidCount > 0 ? `<span class="inline-block text-[10px] px-2 py-0.5 rounded-full badge-soft-warn font-bold ml-1">${monthUnpaidCount} Tempo</span>` : ''}
                     </td>
                     <td class="p-3.5 border border-inherit text-emerald-600 dark:text-emerald-400 font-black tabular-nums text-sm">
                         ${profitDisplayFoot}
+                        ${(isSuperAdmin && monthUnpaidCount > 0) ? `<span class="block text-[9px] font-normal text-amber-500" title="Estimasi total jika semua lunas">(Est: Rp ${monthTotalProfit.toLocaleString()})</span>` : ''}
                     </td>
                     <td class="p-3.5 border border-inherit text-center text-slate-400 text-xs">-</td>
                     <td class="p-3.5 border border-inherit text-center font-black text-emerald-600 dark:text-emerald-400 tabular-nums text-sm bg-emerald-50/50 dark:bg-emerald-950/20">

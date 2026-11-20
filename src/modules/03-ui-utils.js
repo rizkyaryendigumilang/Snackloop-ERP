@@ -540,8 +540,8 @@ function getEffectiveTrxProfit(t) {
     // 1. Jika profitPerItem sudah tercatat valid dan bukan 0
     const recordedProfit = Number(t.profitPerItem);
     if (!isNaN(recordedProfit) && recordedProfit !== 0) {
-        const res = Math.abs(recordedProfit * qty);
-        return isNegative ? -res : res;
+        const raw = recordedProfit * qty;
+        return isNegative ? -Math.abs(raw) : raw;
     }
 
     // 2. Hitung dari effective modal
@@ -554,7 +554,7 @@ function getEffectiveTrxProfit(t) {
     // 3. Jika totalModal tercatat di objek transaksi tapi effModal 0
     const recordedTotalModal = Number(t.totalModal) || 0;
     if (recordedTotalModal > 0 && totalSell > 0) {
-        const diff = totalSell - recordedTotalModal - extraCost;
+        const diff = totalSell - recordedTotalModal;
         return isNegative ? -diff : diff;
     }
 
