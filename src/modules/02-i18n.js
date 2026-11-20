@@ -65,6 +65,7 @@ const I18N = {
         th_totalsell: "Total Jual",
         th_status: "Status",
         th_profit: "Keuntungan",
+        th_daily_profit: "Profit Harian",
         th_action: "Aksi",
 
         // Modal Pengaturan
@@ -139,6 +140,7 @@ const I18N = {
         th_totalsell: "Total Sales",
         th_status: "Status",
         th_profit: "Profit",
+        th_daily_profit: "Daily Profit",
         th_action: "Action",
 
         // Modal Pengaturan

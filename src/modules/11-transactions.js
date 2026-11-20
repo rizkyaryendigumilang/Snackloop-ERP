@@ -2090,7 +2090,9 @@ function renderTransactionsForActiveSheet() {
 
     if(filteredList.length === 0) {
         const hasActiveFilter = currentTransactionFilter !== 'all' || Boolean(currentSearchKeyword);
-        tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center">
+        const tfoot = document.getElementById('trx-table-foot');
+        if (tfoot) tfoot.innerHTML = '';
+        tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center">
             <div class="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
                 <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center text-xl shadow-sm">
                     <i class="fa-solid fa-receipt"></i>
@@ -2135,6 +2137,20 @@ function renderTransactionsForActiveSheet() {
         return;
     }
 
+    const activeList = transactionData[activeMonthSheet] || [];
+    const dailyProfitMap = {};
+    const dailyProfitLunasMap = {};
+
+    activeList.forEach(t => {
+        const d = (t.date || '').trim();
+        if (!d) return;
+        const profit = getEffectiveTrxProfit(t);
+        dailyProfitMap[d] = (dailyProfitMap[d] || 0) + profit;
+        if (t.status === 'Lunas') {
+            dailyProfitLunasMap[d] = (dailyProfitLunasMap[d] || 0) + profit;
+        }
+    });
+
     const totalPages = Math.ceil(filteredList.length / rowsPerPage);
     if(currentTransactionPage > totalPages) currentTransactionPage = totalPages || 1;
     const startIndex = (currentTransactionPage - 1) * rowsPerPage;
@@ -2143,7 +2159,8 @@ function renderTransactionsForActiveSheet() {
     const isSuperAdmin = currentRole === 'super_admin';
     const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
     const rowsHtml = paginatedList.map((t) => {
-        const itemProfit = t.profitPerItem * t.qty;
+        const itemProfit = getEffectiveTrxProfit(t);
+        const itemModal = getEffectiveTrxModal(t);
         const safeCustomer = escapeHtml(t.customer);
         const safeItemName = escapeHtml(t.itemName);
         const safeSource = escapeHtml(t.source);
@@ -2196,8 +2213,46 @@ function renderTransactionsForActiveSheet() {
             <button onclick="sendWhatsAppOnly('${t.id}')" title="Kirim WA" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-brands fa-whatsapp"></i></button>
             ${deleteBtn}`;
 
-        const modalDisplay = isSuperAdmin ? `Rp ${t.totalModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
-        const profitDisplay = isSuperAdmin ? `Rp ${itemProfit.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+        const modalDisplay = isSuperAdmin ? `Rp ${itemModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+        const profitColor = itemProfit < 0 ? 'text-rose-500' : 'text-emerald-500';
+        const profitDisplay = isSuperAdmin ? `<span class="${profitColor}">Rp ${itemProfit.toLocaleString()}</span>` : `<span class="opacity-40 italic">-</span>`;
+
+        // Kolom Profit Harian (sebelah Action)
+        const tDate = (t.date || '').trim();
+        const dProfitLunas = dailyProfitLunasMap[tDate] || 0;
+        const dProfitTotal = dailyProfitMap[tDate] || 0;
+
+        let dailyProfitDisplay = `<span class="opacity-40 italic">-</span>`;
+        if (isSuperAdmin) {
+            const shortDateStr = tDate.length >= 10 ? tDate.slice(8, 10) + '/' + tDate.slice(5, 7) : tDate;
+            if (dProfitLunas > 0 && dProfitTotal > dProfitLunas) {
+                dailyProfitDisplay = `
+                    <div class="inline-flex flex-col items-center">
+                        <span class="text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums">Rp ${dProfitLunas.toLocaleString()}</span>
+                        <span class="text-[9px] text-amber-500 font-semibold" title="Total jika semua lunas: Rp ${dProfitTotal.toLocaleString()}">(Est: Rp ${dProfitTotal.toLocaleString()})</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Tgl ${shortDateStr}</span>
+                    </div>`;
+            } else if (dProfitLunas > 0) {
+                dailyProfitDisplay = `
+                    <div class="inline-flex flex-col items-center">
+                        <span class="text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums">Rp ${dProfitLunas.toLocaleString()}</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Tgl ${shortDateStr}</span>
+                    </div>`;
+            } else if (dProfitTotal > 0) {
+                dailyProfitDisplay = `
+                    <div class="inline-flex flex-col items-center">
+                        <span class="text-xs font-bold text-amber-500 tabular-nums">Rp 0</span>
+                        <span class="text-[9px] text-amber-500/80 italic">Belum Lunas</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Tgl ${shortDateStr}</span>
+                    </div>`;
+            } else {
+                dailyProfitDisplay = `
+                    <div class="inline-flex flex-col items-center">
+                        <span class="text-xs font-bold text-slate-400 tabular-nums">Rp 0</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Tgl ${shortDateStr}</span>
+                    </div>`;
+            }
+        }
 
         return `
             <tr class="hover:bg-slate-50/50">
@@ -2209,17 +2264,87 @@ function renderTransactionsForActiveSheet() {
                 <td class="p-3 border border-inherit opacity-70">${modalDisplay}</td>
                 <td class="p-3 border border-inherit font-bold">Rp ${t.totalSell.toLocaleString()}</td>
                 <td class="p-3 border border-inherit">${statusDropdown}</td>
-                <td class="p-3 border border-inherit text-emerald-500 font-bold">${profitDisplay}</td>
+                <td class="p-3 border border-inherit font-bold">${profitDisplay}</td>
                 <td class="p-3 border border-inherit text-center space-x-1">${actionBtn}</td>
+                <td class="p-3 border border-inherit text-center font-bold">${dailyProfitDisplay}</td>
             </tr>`;
     }).join('');
 
     tbody.innerHTML = rowsHtml;
 
+    // Hitung Total Bulanan untuk Table Footer (tfoot)
+    let monthTotalQty = 0;
+    let monthTotalExtraCost = 0;
+    let monthTotalModal = 0;
+    let monthTotalSell = 0;
+    let monthTotalProfit = 0;
+    let monthTotalProfitLunas = 0;
+    let monthLunasCount = 0;
+    let monthUnpaidCount = 0;
+
+    activeList.forEach(t => {
+        const qty = Number(t.qty) || 0;
+        const extraCost = Number(t.extraCost) || 0;
+        const modal = getEffectiveTrxModal(t);
+        const sell = Number(t.totalSell) || 0;
+        const profit = getEffectiveTrxProfit(t);
+
+        monthTotalQty += qty;
+        monthTotalExtraCost += extraCost;
+        monthTotalModal += modal;
+        monthTotalSell += sell;
+        monthTotalProfit += profit;
+
+        if (t.status === 'Lunas') {
+            monthTotalProfitLunas += profit;
+            monthLunasCount++;
+        } else {
+            monthUnpaidCount++;
+        }
+    });
+
+    const tfoot = document.getElementById('trx-table-foot');
+    if (tfoot) {
+        if (activeList.length === 0) {
+            tfoot.innerHTML = '';
+        } else {
+            const modalDisplayFoot = isSuperAdmin ? `Rp ${monthTotalModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+            const profitDisplayFoot = isSuperAdmin ? `Rp ${monthTotalProfitLunas.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+
+            tfoot.innerHTML = `
+                <tr class="bg-indigo-50/80 dark:bg-slate-800/90 font-bold border-t-2 border-indigo-500 text-xs text-slate-900 dark:text-slate-100 shadow-sm">
+                    <td class="p-3.5 border border-inherit" colspan="3">
+                        <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-extrabold text-xs">
+                            <i class="fa-solid fa-chart-pie text-sm text-indigo-500"></i>
+                            <span>TOTAL KESELURUHAN SEBULAN (${escapeHtml(activeMonthSheet)})</span>
+                        </div>
+                    </td>
+                    <td class="p-3.5 border border-inherit text-center tabular-nums font-black">${monthTotalQty.toLocaleString()}</td>
+                    <td class="p-3.5 border border-inherit text-center tabular-nums font-bold">${monthTotalExtraCost > 0 ? 'Rp ' + monthTotalExtraCost.toLocaleString() : '-'}</td>
+                    <td class="p-3.5 border border-inherit opacity-85 tabular-nums font-bold">${modalDisplayFoot}</td>
+                    <td class="p-3.5 border border-inherit font-black text-indigo-700 dark:text-indigo-300 tabular-nums">Rp ${monthTotalSell.toLocaleString()}</td>
+                    <td class="p-3.5 border border-inherit text-center whitespace-nowrap">
+                        <span class="inline-block text-[10px] px-2 py-0.5 rounded-full badge-soft-good font-bold">${monthLunasCount} Lunas</span>
+                        ${monthUnpaidCount > 0 ? `<span class="inline-block text-[10px] px-2 py-0.5 rounded-full badge-soft-warn font-bold ml-1">${monthUnpaidCount} Tempo</span>` : ''}
+                    </td>
+                    <td class="p-3.5 border border-inherit text-emerald-600 dark:text-emerald-400 font-black tabular-nums text-sm">
+                        ${profitDisplayFoot}
+                    </td>
+                    <td class="p-3.5 border border-inherit text-center text-slate-400 text-xs">-</td>
+                    <td class="p-3.5 border border-inherit text-center font-black text-emerald-600 dark:text-emerald-400 tabular-nums text-sm bg-emerald-50/50 dark:bg-emerald-950/20">
+                        ${profitDisplayFoot}
+                        <span class="block text-[9px] font-medium text-slate-500 dark:text-slate-400">Total Profit Sebulan</span>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
     const mobileCards = document.getElementById('trx-mobile-cards');
     if (mobileCards) {
         const cardsHtml = paginatedList.map((t) => {
-            const itemProfit = t.profitPerItem * t.qty;
+            const itemProfit = getEffectiveTrxProfit(t);
+            const itemModal = getEffectiveTrxModal(t);
             const safeCustomer = escapeHtml(t.customer);
             const safeItemName = escapeHtml(t.itemName);
             const safeSource = escapeHtml(t.source);
@@ -2241,7 +2366,16 @@ function renderTransactionsForActiveSheet() {
                     ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${t.status} (Lunasi)</button>`
                     : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${t.status === 'Tempo' ? 'badge-soft-warn' : 'badge-soft-bad'}">${t.status}</span>`);
 
-            const profitDisplay = isSuperAdmin ? `<span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
+            const profitColor = itemProfit < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400';
+            const profitDisplay = isSuperAdmin ? `<span class="text-xs ${profitColor} font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
+
+            const tDate = (t.date || '').trim();
+            const dProfitLunas = dailyProfitLunasMap[tDate] || 0;
+            const dailyDisplayMobile = isSuperAdmin ? `
+                <div class="flex items-center justify-between text-xs pt-1.5 border-t border-inherit/40">
+                    <span class="text-[11px] opacity-75 font-medium"><i class="fa-solid fa-calendar-day text-[10px] mr-1 text-emerald-500"></i>Profit Harian (${safeDate}):</span>
+                    <span class="font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums text-xs">Rp ${dProfitLunas.toLocaleString()}</span>
+                </div>` : '';
 
             return `
                 <div class="theme-card rounded-2xl border p-4 space-y-3 shadow-sm">
@@ -2274,6 +2408,8 @@ function renderTransactionsForActiveSheet() {
                         </div>
                     </div>
 
+                    ${dailyDisplayMobile}
+
                     <div class="flex items-center gap-1.5 pt-2 border-t border-inherit">
                         ${!isNegativeOrReturn ? `<button type="button" onclick="openReturnModalFromTrx('${t.id}')" class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 text-xs font-semibold active:scale-95 transition" title="Retur Toko"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : ''}
                         <button type="button" onclick="downloadPDF('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
@@ -2286,7 +2422,32 @@ function renderTransactionsForActiveSheet() {
                     </div>
                 </div>`;
         }).join('');
-        mobileCards.innerHTML = cardsHtml;
+
+        const mobileSummaryHtml = (isSuperAdmin && activeList.length > 0) ? `
+            <div class="theme-card rounded-2xl border-2 border-indigo-500/40 p-4 space-y-2.5 bg-gradient-to-br from-indigo-500/5 to-emerald-500/5 shadow-md">
+                <div class="flex items-center justify-between border-b border-inherit pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-calculator"></i> Total Sebulan (${escapeHtml(activeMonthSheet)})
+                    </span>
+                    <span class="text-[11px] font-bold badge-soft-good px-2 py-0.5 rounded-full">${monthLunasCount} Lunas</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div>
+                        <span class="text-[10px] opacity-70 block">Total Omzet:</span>
+                        <strong class="text-indigo-600 dark:text-indigo-400 tabular-nums font-bold">Rp ${monthTotalSell.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] opacity-70 block">Total Modal (HPP):</span>
+                        <strong class="opacity-80 tabular-nums font-bold">Rp ${monthTotalModal.toLocaleString()}</strong>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-inherit">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Total Profit Sebulan:</span>
+                    <span class="text-sm font-black text-emerald-600 dark:text-emerald-400 tabular-nums">Rp ${monthTotalProfitLunas.toLocaleString()}</span>
+                </div>
+            </div>` : '';
+
+        mobileCards.innerHTML = cardsHtml + mobileSummaryHtml;
     }
 
     renderPaginationControls(totalPages);
@@ -2415,6 +2576,20 @@ async function updateTrxStatus(id, newStatus) {
     if(trx) {
         oldStatus = trx.status;
         trx.status = newStatus;
+
+        // Auto-heal modal & profit jika status menjadi Lunas atau jika profit masih 0
+        if (newStatus === 'Lunas' || !trx.profitPerItem || trx.profitPerItem === 0) {
+            const effModal = getEffectiveTrxModal(trx);
+            const effProfit = getEffectiveTrxProfit(trx);
+            if ((!trx.totalModal || Number(trx.totalModal) === 0) && effModal > 0) {
+                trx.totalModal = effModal;
+            }
+            if (effProfit !== 0) {
+                const qty = Math.abs(Number(trx.qty) || 1) || 1;
+                trx.profitPerItem = Math.round(effProfit / qty);
+            }
+        }
+
         invSync = syncDailyInvoiceForCustomerDate(trx.customer, trx.date);
         saveCacheToLocal();
         renderTransactionsForActiveSheet();
@@ -2430,11 +2605,25 @@ async function updateTrxStatus(id, newStatus) {
 
     dispatchMutation({
         type: 'UPDATE_TRANSACTION_STATUS',
-        payload: { id, status: newStatus, invSync }
+        payload: { 
+            id, 
+            status: newStatus, 
+            invSync,
+            totalModal: trx ? trx.totalModal : 0,
+            profitPerItem: trx ? trx.profitPerItem : 0
+        }
     }, async () => {
         if (!String(id).startsWith('trx_')) {
-            const { error } = await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
-            if(error) throw error;
+            const updatePayload = { 
+                status: newStatus,
+                total_modal: trx ? trx.totalModal : 0,
+                profit: trx ? (trx.profitPerItem * (Number(trx.qty) || 1)) : 0,
+                profit_per_item: trx ? trx.profitPerItem : 0
+            };
+            const { error } = await supabaseClient.from('transactions').update(updatePayload).eq('id', id);
+            if(error) {
+                await supabaseClient.from('transactions').update({ status: newStatus }).eq('id', id);
+            }
         }
         await syncDailyInvoiceCloud(invSync);
     });
@@ -2501,9 +2690,10 @@ async function printMonthlyRecapPDF() {
     let tbody = document.getElementById('inv-cart-body');
 
     const rows = list.map((t, index) => {
-        const itemProfit = (t.profitPerItem * t.qty);
-        totalPendapatan += t.totalSell;
-        totalModal += t.totalModal;
+        const itemProfit = getEffectiveTrxProfit(t);
+        const itemModal = getEffectiveTrxModal(t);
+        totalPendapatan += (t.totalSell || 0);
+        totalModal += itemModal;
         if(t.status === 'Lunas') totalKeuntungan += itemProfit;
 
         const safeCustomer = escapeHtml(t.customer || '');
@@ -2515,8 +2705,8 @@ async function printMonthlyRecapPDF() {
             <tr class="border-b border-slate-200 text-xs">
                 <td class="py-2.5 pr-2">${index + 1}. ${safeDate} - <b>${safeCustomer}</b><br><span class="opacity-70">${safeItemName} (${t.qty}x)</span></td>
                 <td class="py-2.5 px-2 text-center">${safeStatus}</td>
-                <td class="py-2.5 px-2 text-right">Rp ${t.totalModal.toLocaleString()}</td>
-                <td class="py-2.5 pl-2 text-right font-bold">Rp ${t.totalSell.toLocaleString()}</td>
+                <td class="py-2.5 px-2 text-right">Rp ${itemModal.toLocaleString()}</td>
+                <td class="py-2.5 pl-2 text-right font-bold">Rp ${(t.totalSell || 0).toLocaleString()}</td>
             </tr>`;
     }).join('');
     if(tbody) tbody.innerHTML = rows;
@@ -2705,11 +2895,11 @@ function updateDashboard() {
 
             if(t.status === 'Lunas') {
                 Pendapatan += (t.totalSell || 0); 
-                modalLunas += (t.totalModal || 0);
-                KeuntunganKotor += ((t.profitPerItem || 0) * (t.qty || 0));
+                modalLunas += getEffectiveTrxModal(t);
+                KeuntunganKotor += getEffectiveTrxProfit(t);
             } else { 
                 Piutang += (t.totalSell || 0); 
-                modalPiutang += (t.totalModal || 0);
+                modalPiutang += getEffectiveTrxModal(t);
                 unpaidList.push(t); 
             }
 
@@ -3126,7 +3316,7 @@ function renderFinancialChart() {
         (transactionData[mk] || []).forEach(t => {
             if(t.status === 'Lunas') {
                 omz += (t.totalSell || 0);
-                labKotor += ((t.profitPerItem || 0) * (t.qty || 0));
+                labKotor += getEffectiveTrxProfit(t);
             }
         });
         const expMonth = expenseByMonth[mk] || 0;
@@ -3221,7 +3411,7 @@ async function exportActiveSheetToExcelLocal() {
     if (list.length === 0) return showNotification("Peringatan", "Sheet kosong.", "warning");
     const rows = list.map((t, idx) => ({
         "No": idx + 1, "Tanggal": t.date, "Pelanggan": t.customer, "Nama Barang": t.itemName, "Sumber/Batch": t.source === 'Repack' ? `Repack: ${t.batch}` : t.source,
-        "Qty": t.qty, "Biaya Ops (Ongkir)": t.extraCost, "Keterangan Biaya (Note)": t.extraCostNote, "Total Modal": t.totalModal, "Harga Jual /Pcs": t.sell, "Total Jual": t.totalSell, "Status": t.status, "Keuntungan": t.profitPerItem * t.qty, "Notes Transaksi": t.notes
+        "Qty": t.qty, "Biaya Ops (Ongkir)": t.extraCost, "Keterangan Biaya (Note)": t.extraCostNote, "Total Modal": getEffectiveTrxModal(t), "Harga Jual /Pcs": t.sell, "Total Jual": t.totalSell, "Status": t.status, "Keuntungan": getEffectiveTrxProfit(t), "Notes Transaksi": t.notes
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, activeMonthSheet);

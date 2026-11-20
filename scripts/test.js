@@ -623,6 +623,106 @@ runTest('Verify Outbox Stock Sync, Customer Reactivity, Safe WA Reminder & Repac
   assert.strictEqual(repackCode.includes('expiryBadge'), true, '10-repack.js missing expiryBadge in renderRepackWarehouse');
 });
 
+// 21. Dynamic Profit Resolution, Daily Profit Column & Monthly Accumulation Footer
+runTest('Verify Dynamic Profit Resolution, Daily Profit Column & Monthly Accumulation Footer', () => {
+  const assert = require('assert');
+  const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+  const trxCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '11-transactions.js'), 'utf8');
+
+  // 1. Check HTML structure for new column & footer
+  assert.strictEqual(indexHtml.includes('data-i18n="th_daily_profit"'), true, 'index.html missing th_daily_profit header');
+  assert.strictEqual(indexHtml.includes('id="trx-table-foot"'), true, 'index.html missing trx-table-foot');
+
+  // 2. Check getEffectiveTrxModal & getEffectiveTrxProfit functions
+  assert.strictEqual(uiUtilsCode.includes('function getEffectiveTrxModal'), true, '03-ui-utils.js missing getEffectiveTrxModal');
+  assert.strictEqual(uiUtilsCode.includes('function getEffectiveTrxProfit'), true, '03-ui-utils.js missing getEffectiveTrxProfit');
+
+  // 3. Test mathematical profit calculation logic in sandbox
+  const vm = require('vm');
+  const sandbox = {
+    masterData: [
+      { name: 'Popmie Biasa Kuah Mix 1 Karton 24PCs', source: 'Toko Grosir Tegal Parang', buy: 108000, sell: 130000 },
+      { name: 'Chupacups', source: 'Toko Agen Tegal Parang Diah', buy: 22000, sell: 25000 },
+      { name: 'Better', source: 'Toko Agen Tegal Parang Diah', buy: 18000, sell: 20000 }
+    ],
+    repackData: [],
+    window: {
+      addEventListener: () => {}
+    },
+    document: {
+      getElementById: () => null,
+      createElement: () => ({ classList: { add() {}, remove() {} }, appendChild() {} }),
+      body: { appendChild() {} },
+      addEventListener: () => {}
+    }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  // Test Case A: Trx with 0 modal and 0 profitPerItem from screenshot (Popmie, 9 pcs, Lunas)
+  const testTrxPopmie = {
+    date: '2026-09-10',
+    customer: 'Pelanggan Retail (Kasir)',
+    itemName: 'Popmie Biasa Kuah Mix 1 Karton 24PCs',
+    source: 'Toko Grosir Tegal Parang',
+    qty: 9,
+    buy: 0,
+    totalModal: 0,
+    sell: 130000,
+    totalSell: 1170000,
+    profitPerItem: 0,
+    status: 'Lunas'
+  };
+  const modalPopmie = sandbox.getEffectiveTrxModal(testTrxPopmie);
+  const profitPopmie = sandbox.getEffectiveTrxProfit(testTrxPopmie);
+  assert.strictEqual(modalPopmie, 972000, 'Popmie modal should resolve to 9 * 108000 = 972000');
+  assert.strictEqual(profitPopmie, 198000, 'Popmie profit should resolve to 1170000 - 972000 = 198000');
+
+  // Test Case B: Trx with 0 modal (Chupacups, 1 pcs, Lunas)
+  const testTrxChupa = {
+    date: '2026-11-03',
+    customer: 'Mba Ajo',
+    itemName: 'Chupacups',
+    source: 'Toko Agen Tegal Parang Diah',
+    qty: 1,
+    buy: 0,
+    totalModal: 0,
+    sell: 25000,
+    totalSell: 25000,
+    profitPerItem: 0,
+    status: 'Lunas'
+  };
+  const modalChupa = sandbox.getEffectiveTrxModal(testTrxChupa);
+  const profitChupa = sandbox.getEffectiveTrxProfit(testTrxChupa);
+  assert.strictEqual(modalChupa, 22000, 'Chupacups modal should resolve to 22000');
+  assert.strictEqual(profitChupa, 3000, 'Chupacups profit should resolve to 3000');
+
+  // Test Case C: Pure service/fee with unknown product and 0 modal when Lunas
+  const testTrxService = {
+    date: '2026-11-03',
+    customer: 'Pelanggan Umum',
+    itemName: 'Biaya Titip/Jasa',
+    source: 'Jasa',
+    qty: 1,
+    buy: 0,
+    totalModal: 0,
+    sell: 50000,
+    totalSell: 50000,
+    profitPerItem: 0,
+    extraCost: 5000,
+    status: 'Lunas'
+  };
+  const profitService = sandbox.getEffectiveTrxProfit(testTrxService);
+  assert.strictEqual(profitService, 45000, 'Service profit should resolve to totalSell - extraCost = 45000');
+
+  // 4. Verify 11-transactions.js rendering and footer logic
+  assert.strictEqual(trxCode.includes('dailyProfitMap'), true, '11-transactions.js missing dailyProfitMap');
+  assert.strictEqual(trxCode.includes('dailyProfitDisplay'), true, '11-transactions.js missing dailyProfitDisplay');
+  assert.strictEqual(trxCode.includes('TOTAL KESELURUHAN SEBULAN'), true, '11-transactions.js missing monthly total footer');
+  assert.strictEqual(trxCode.includes('monthTotalProfitLunas'), true, '11-transactions.js missing monthTotalProfitLunas');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

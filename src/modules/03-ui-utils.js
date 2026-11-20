@@ -489,9 +489,90 @@ const AppleMotion = {
     }
 };
 
+// =========================================================================
+// SMART PROFIT & COST RESOLUTION (FINANCIAL RECOGNITION ENGINE)
+// =========================================================================
+function getEffectiveTrxModal(t) {
+    if (!t) return 0;
+    const qty = Math.abs(Number(t.qty) || 0);
+    const extraCost = Number(t.extraCost) || 0;
+
+    // 1. Jika totalModal sudah tercatat valid dan > 0
+    const recordedModal = Number(t.totalModal);
+    if (!isNaN(recordedModal) && recordedModal > 0) {
+        return recordedModal;
+    }
+
+    // 2. Jika harga beli per item (buy / buy_price) tercatat > 0
+    const unitBuy = Number(t.buy || t.buy_price || 0);
+    if (unitBuy > 0) {
+        return (unitBuy * (qty || 1)) + extraCost;
+    }
+
+    // 3. Fallback: Lookup ke repackData jika transaksi berasal dari batch Repack
+    if (t.source === 'Repack' && t.batch && typeof repackData !== 'undefined' && Array.isArray(repackData)) {
+        const rItem = repackData.find(r => String(r.id) === String(t.batch));
+        if (rItem && Number(rItem.modal_per_pcs) > 0) {
+            return (Number(rItem.modal_per_pcs) * (qty || 1)) + extraCost;
+        }
+    }
+
+    // 4. Fallback: Lookup ke masterData berdasarkan nama item & sumber
+    if (t.itemName && typeof masterData !== 'undefined' && Array.isArray(masterData)) {
+        const cleanName = String(t.itemName).trim().toLowerCase();
+        const mItem = masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName && (!t.source || m.source === t.source))
+                   || masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName);
+        if (mItem && Number(mItem.buy) > 0) {
+            return (Number(mItem.buy) * (qty || 1)) + extraCost;
+        }
+    }
+
+    return 0;
+}
+
+function getEffectiveTrxProfit(t) {
+    if (!t) return 0;
+    const qty = Math.abs(Number(t.qty) || 0) || 1;
+    const isNegative = (Number(t.qty) < 0) || Boolean(t.isReturn);
+    const totalSell = Math.abs(Number(t.totalSell) || ((Number(t.sell || t.sell_price || 0)) * qty));
+    const extraCost = Number(t.extraCost) || 0;
+
+    // 1. Jika profitPerItem sudah tercatat valid dan bukan 0
+    const recordedProfit = Number(t.profitPerItem);
+    if (!isNaN(recordedProfit) && recordedProfit !== 0) {
+        const res = Math.abs(recordedProfit * qty);
+        return isNegative ? -res : res;
+    }
+
+    // 2. Hitung dari effective modal
+    const effModal = getEffectiveTrxModal(t);
+    if (effModal > 0 && totalSell > 0) {
+        const diff = totalSell - effModal;
+        return isNegative ? -diff : diff;
+    }
+
+    // 3. Jika totalModal tercatat di objek transaksi tapi effModal 0
+    const recordedTotalModal = Number(t.totalModal) || 0;
+    if (recordedTotalModal > 0 && totalSell > 0) {
+        const diff = totalSell - recordedTotalModal - extraCost;
+        return isNegative ? -diff : diff;
+    }
+
+    // 4. Jika transaksi berstatus Lunas tapi modal 0 / tidak ditemukan (misal biaya jasa, ongkir murni, margin fee)
+    // Seluruh hasil penjualan bersih diakui sebagai keuntungan nominal
+    if (t.status === 'Lunas' && totalSell > 0) {
+        const netRevenue = Math.max(0, totalSell - extraCost);
+        return isNegative ? -netRevenue : netRevenue;
+    }
+
+    return 0;
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.AppleMotion = AppleMotion;
+    window.SnackLoop.getEffectiveTrxModal = getEffectiveTrxModal;
+    window.SnackLoop.getEffectiveTrxProfit = getEffectiveTrxProfit;
     if (typeof validateSessionTTL !== 'undefined') {
         window.SnackLoop.validateSessionTTL = validateSessionTTL;
     }

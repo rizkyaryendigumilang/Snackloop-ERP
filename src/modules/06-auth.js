@@ -480,16 +480,24 @@ async function loadDataFromCloud() {
                 const formatted = {
                     id: t.id, monthKey: t.month_key, date: t.date, customer: t.customer,
                     itemName: t.item_name, source: t.source, qty: Number(t.qty) || 0, batch: t.batch,
-                    buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+                    buy: isSuperAdmin ? (Number(t.buy ?? t.buy_price) || 0) : 0,
                     extraCost: Number(t.extra_cost) || 0,
                     extraCostNote: t.extra_cost_note || '-',
                     totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
-                    sell: Number(t.sell) || 0,
+                    sell: Number(t.sell ?? t.sell_price) || 0,
                     totalSell: Number(t.total_sell) || 0,
                     status: t.status,
-                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item ?? t.profit) || 0) : 0,
                     notes: t.notes || '-'
                 };
+
+                if (isSuperAdmin) {
+                    const effModal = getEffectiveTrxModal(formatted);
+                    const effProfit = getEffectiveTrxProfit(formatted);
+                    if (formatted.totalModal === 0 && effModal > 0) formatted.totalModal = effModal;
+                    if (formatted.profitPerItem === 0 && effProfit !== 0) formatted.profitPerItem = Math.round(effProfit / (Math.abs(formatted.qty) || 1));
+                }
+
                 if (!newTrxData[formatted.monthKey]) newTrxData[formatted.monthKey] = [];
                 newTrxData[formatted.monthKey].push(formatted);
             });

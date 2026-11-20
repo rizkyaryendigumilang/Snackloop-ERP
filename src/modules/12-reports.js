@@ -132,7 +132,7 @@ function renderReportPnL(data) {
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const paidRev = data.transactions.filter(t => t.status === 'Lunas').reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const unpaidRev = totalRev - paidRev;
-    const totalCOGS = data.transactions.reduce((acc, t) => acc + (t.totalModal || 0), 0);
+    const totalCOGS = data.transactions.reduce((acc, t) => acc + (typeof getEffectiveTrxModal === 'function' ? getEffectiveTrxModal(t) : (t.totalModal || 0)), 0);
     const grossProfit = totalRev - totalCOGS;
     const grossMargin = totalRev > 0 ? (grossProfit / totalRev) * 100 : 0;
 
@@ -564,7 +564,7 @@ function exportToExcel(reportType) {
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const paidRev = data.transactions.filter(t => t.status === 'Lunas').reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const unpaidRev = totalRev - paidRev;
-    const totalCOGS = data.transactions.reduce((acc, t) => acc + (t.totalModal || 0), 0);
+    const totalCOGS = data.transactions.reduce((acc, t) => acc + (typeof getEffectiveTrxModal === 'function' ? getEffectiveTrxModal(t) : (t.totalModal || 0)), 0);
     const grossProfit = totalRev - totalCOGS;
     const totalExp = data.expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
     const netProfit = grossProfit - totalExp;
@@ -687,7 +687,7 @@ function exportToPdf(reportType) {
     const totalRev = data.transactions.reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const paidRev = data.transactions.filter(t => t.status === 'Lunas').reduce((acc, t) => acc + (t.totalSell || 0), 0);
     const unpaidRev = totalRev - paidRev;
-    const totalCOGS = data.transactions.reduce((acc, t) => acc + (t.totalModal || 0), 0);
+    const totalCOGS = data.transactions.reduce((acc, t) => acc + (typeof getEffectiveTrxModal === 'function' ? getEffectiveTrxModal(t) : (t.totalModal || 0)), 0);
     const grossProfit = totalRev - totalCOGS;
     const grossMargin = totalRev > 0 ? (grossProfit / totalRev) * 100 : 0;
     const totalExp = data.expenses.reduce((acc, e) => acc + (e.amount || 0), 0);

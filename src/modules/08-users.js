@@ -232,9 +232,9 @@ function exportTransactionsCSV(monthKey = 'all') {
     ];
 
     const rows = allTrx.map(t => {
-        const modalSatuan = isSuperAdmin ? (Number(t.buy) || Number(t.buyPrice) || 0) : 0;
-        const totalModal = isSuperAdmin ? (Number(t.totalModal) || (modalSatuan * Number(t.qty || 0))) : 0;
-        const profit = isSuperAdmin ? (Number(t.profitPerItem ? t.profitPerItem * t.qty : (t.totalSell - totalModal)) || 0) : 0;
+        const totalModal = isSuperAdmin ? getEffectiveTrxModal(t) : 0;
+        const modalSatuan = isSuperAdmin ? (Number(t.qty) > 0 ? Math.round(totalModal / Number(t.qty)) : (Number(t.buy) || Number(t.buyPrice) || 0)) : 0;
+        const profit = isSuperAdmin ? getEffectiveTrxProfit(t) : 0;
 
         return [
             t.date || '',
@@ -356,8 +356,8 @@ function exportFinancialSummaryCSV() {
 
         trxList.forEach(t => {
             const sell = Number(t.totalSell) || 0;
-            const modal = Number(t.totalModal) || (Number(t.buy || 0) * Number(t.qty || 0));
-            const profit = Number(t.profitPerItem ? t.profitPerItem * t.qty : (sell - modal)) || 0;
+            const modal = getEffectiveTrxModal(t);
+            const profit = getEffectiveTrxProfit(t);
 
             if (t.status === 'Lunas') {
                 cashIn += sell;

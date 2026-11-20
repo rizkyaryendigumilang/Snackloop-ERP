@@ -488,7 +488,22 @@ async function loadCacheFromLocal() {
         repackData = (data.repackData || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
         
         transactionData = data.transactionData || {};
-        if (!isSuperAdmin) {
+        if (isSuperAdmin) {
+            for (const k in transactionData) {
+                if (Array.isArray(transactionData[k])) {
+                    transactionData[k].forEach(t => {
+                        const effModal = getEffectiveTrxModal(t);
+                        const effProfit = getEffectiveTrxProfit(t);
+                        if ((!t.totalModal || Number(t.totalModal) === 0) && effModal > 0) {
+                            t.totalModal = effModal;
+                        }
+                        if ((!t.profitPerItem || Number(t.profitPerItem) === 0) && effProfit !== 0) {
+                            t.profitPerItem = Math.round(effProfit / (Math.abs(Number(t.qty)) || 1));
+                        }
+                    });
+                }
+            }
+        } else {
             for (const k in transactionData) {
                 transactionData[k] = (transactionData[k] || []).map(t => ({
                     ...t,
@@ -1585,16 +1600,23 @@ function _handleRealtimeTransactions(payload) {
             source: t.source,
             qty: Number(t.qty) || 0,
             batch: t.batch,
-            buy: isSuperAdmin ? (Number(t.buy) || 0) : 0,
+            buy: isSuperAdmin ? (Number(t.buy ?? t.buy_price) || 0) : 0,
             extraCost: Number(t.extra_cost) || 0,
             extraCostNote: t.extra_cost_note || '-',
             totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : 0,
-            sell: Number(t.sell) || 0,
+            sell: Number(t.sell ?? t.sell_price) || 0,
             totalSell: Number(t.total_sell) || 0,
             status: t.status,
-            profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : 0,
+            profitPerItem: isSuperAdmin ? (Number(t.profit_per_item ?? t.profit) || 0) : 0,
             notes: t.notes || '-'
         };
+
+        if (isSuperAdmin) {
+            const effModal = getEffectiveTrxModal(formatted);
+            const effProfit = getEffectiveTrxProfit(formatted);
+            if (formatted.totalModal === 0 && effModal > 0) formatted.totalModal = effModal;
+            if (formatted.profitPerItem === 0 && effProfit !== 0) formatted.profitPerItem = Math.round(effProfit / (Math.abs(formatted.qty) || 1));
+        }
 
         if (!transactionData[formatted.monthKey]) {
             transactionData[formatted.monthKey] = [];
@@ -1617,7 +1639,7 @@ function _handleRealtimeTransactions(payload) {
                 const oldModal = list[idx].totalModal || 0;
                 const oldProfit = list[idx].profitPerItem || 0;
 
-                list[idx] = {
+                const updatedItem = {
                     ...list[idx],
                     date: t.date,
                     customer: t.customer,
@@ -1625,16 +1647,25 @@ function _handleRealtimeTransactions(payload) {
                     source: t.source,
                     qty: Number(t.qty) || 0,
                     batch: t.batch,
-                    buy: isSuperAdmin ? (Number(t.buy) || 0) : oldBuy,
+                    buy: isSuperAdmin ? (Number(t.buy ?? t.buy_price) || oldBuy) : oldBuy,
                     extraCost: Number(t.extra_cost) || 0,
                     extraCostNote: t.extra_cost_note || '-',
-                    totalModal: isSuperAdmin ? (Number(t.total_modal) || 0) : oldModal,
-                    sell: Number(t.sell) || 0,
+                    totalModal: isSuperAdmin ? (Number(t.total_modal) || oldModal) : oldModal,
+                    sell: Number(t.sell ?? t.sell_price) || 0,
                     totalSell: Number(t.total_sell) || 0,
                     status: t.status,
-                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item) || 0) : oldProfit,
+                    profitPerItem: isSuperAdmin ? (Number(t.profit_per_item ?? t.profit) || oldProfit) : oldProfit,
                     notes: t.notes || '-'
                 };
+
+                if (isSuperAdmin) {
+                    const effModal = getEffectiveTrxModal(updatedItem);
+                    const effProfit = getEffectiveTrxProfit(updatedItem);
+                    if (updatedItem.totalModal === 0 && effModal > 0) updatedItem.totalModal = effModal;
+                    if (updatedItem.profitPerItem === 0 && effProfit !== 0) updatedItem.profitPerItem = Math.round(effProfit / (Math.abs(updatedItem.qty) || 1));
+                }
+
+                list[idx] = updatedItem;
                 found = true;
                 break;
             }
