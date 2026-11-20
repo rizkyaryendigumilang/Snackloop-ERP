@@ -5894,7 +5894,18 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
     };
 
     try {
-        const totalModalComputed = (buy * qty) + extraCost;
+        let actualBuy = buy;
+        if (!actualBuy || actualBuy <= 0) {
+            if (source === 'Repack' && batchId) {
+                const r = repackData.find(r => String(r.id) === String(batchId));
+                if (r && Number(r.modal_per_pcs) > 0) actualBuy = Number(r.modal_per_pcs);
+            } else if (pVal) {
+                const mId = parseInt(pVal.split('|')[1]);
+                const m = masterData.find(m => m.id === mId);
+                if (m && Number(m.buy) > 0) actualBuy = Number(m.buy);
+            }
+        }
+        const totalModalComputed = (actualBuy * qty) + extraCost;
         const totalSellComputed = sell * qty;
         const netProfitItem = (totalSellComputed - totalModalComputed) / qty;
 
@@ -5944,7 +5955,7 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
             source: source,
             qty: qty,
             batch: batchId,
-            buy: buy,
+            buy: actualBuy,
             extraCost: extraCost,
             extraCostNote: extraCostNote,
             totalModal: totalModalComputed,
@@ -5990,8 +6001,8 @@ document.getElementById('trx-form')?.addEventListener('submit', async function(e
         // 4. Background dispatch / Outbox queue
         const dbTrxPayload = {
             month_key: monthKey, date, customer, item_name: itemName, source, qty, batch: batchId,
-            buy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
-            sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: newTrxData.notes,
+            buy: actualBuy, buy_price: actualBuy, extra_cost: extraCost, extra_cost_note: extraCostNote, total_modal: totalModalComputed, 
+            sell, sell_price: sell, total_sell: totalSellComputed, status, profit: (netProfitItem * qty), profit_per_item: netProfitItem, notes: newTrxData.notes,
             due_date: dueDate
         };
         const dbInvPayload = {
@@ -7806,6 +7817,9 @@ function renderTransactionsForActiveSheet() {
     tbody.innerHTML = rowsHtml;
 
     // Hitung Total Bulanan untuk Table Footer (tfoot)
+    const isFiltered = currentTransactionFilter !== 'all' || Boolean(currentSearchKeyword);
+    const summaryList = isFiltered ? filteredList : activeList;
+
     let monthTotalQty = 0;
     let monthTotalExtraCost = 0;
     let monthTotalModal = 0;
@@ -7815,7 +7829,7 @@ function renderTransactionsForActiveSheet() {
     let monthLunasCount = 0;
     let monthUnpaidCount = 0;
 
-    activeList.forEach(t => {
+    summaryList.forEach(t => {
         const qty = Number(t.qty) || 0;
         const extraCost = Number(t.extraCost) || 0;
         const modal = getEffectiveTrxModal(t);
@@ -7838,18 +7852,21 @@ function renderTransactionsForActiveSheet() {
 
     const tfoot = document.getElementById('trx-table-foot');
     if (tfoot) {
-        if (activeList.length === 0) {
+        if (summaryList.length === 0) {
             tfoot.innerHTML = '';
         } else {
             const modalDisplayFoot = isSuperAdmin ? `Rp ${monthTotalModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
             const profitDisplayFoot = isSuperAdmin ? `Rp ${monthTotalProfitLunas.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
+            const footerTitle = isFiltered 
+                ? `TOTAL TERFILTER (${summaryList.length} Transaksi - ${escapeHtml(activeMonthSheet)})`
+                : `TOTAL KESELURUHAN SEBULAN (${escapeHtml(activeMonthSheet)})`;
 
             tfoot.innerHTML = `
                 <tr class="bg-indigo-50/80 dark:bg-slate-800/90 font-bold border-t-2 border-indigo-500 text-xs text-slate-900 dark:text-slate-100 shadow-sm">
                     <td class="p-3.5 border border-inherit" colspan="3">
                         <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-extrabold text-xs">
                             <i class="fa-solid fa-chart-pie text-sm text-indigo-500"></i>
-                            <span>TOTAL KESELURUHAN SEBULAN (${escapeHtml(activeMonthSheet)})</span>
+                            <span>${footerTitle}</span>
                         </div>
                     </td>
                     <td class="p-3.5 border border-inherit text-center tabular-nums font-black">${monthTotalQty.toLocaleString()}</td>
@@ -7866,7 +7883,7 @@ function renderTransactionsForActiveSheet() {
                     <td class="p-3.5 border border-inherit text-center text-slate-400 text-xs">-</td>
                     <td class="p-3.5 border border-inherit text-center font-black text-emerald-600 dark:text-emerald-400 tabular-nums text-sm bg-emerald-50/50 dark:bg-emerald-950/20">
                         ${profitDisplayFoot}
-                        <span class="block text-[9px] font-medium text-slate-500 dark:text-slate-400">Total Profit Sebulan</span>
+                        <span class="block text-[9px] font-medium text-slate-500 dark:text-slate-400">${isFiltered ? 'Total Profit Filter' : 'Total Profit Sebulan'}</span>
                     </td>
                 </tr>
             `;
@@ -9273,8 +9290,8 @@ async function saveBulkTransactions() {
 
         dbTrxRows.push({
             month_key: monthKey, date, customer, item_name: it.name, source, qty: it.qty, batch: '-',
-            buy: it.buy, extra_cost: 0, extra_cost_note: '', total_modal: totalModalComputed,
-            sell: it.sell, total_sell: totalSellComputed, status, profit_per_item: netProfitItem, notes: `Invoice: ${invNumber}`
+            buy: it.buy, buy_price: it.buy, extra_cost: 0, extra_cost_note: '', total_modal: totalModalComputed,
+            sell: it.sell, sell_price: it.sell, total_sell: totalSellComputed, status, profit: (netProfitItem * it.qty), profit_per_item: netProfitItem, notes: `Invoice: ${invNumber}`
         });
     });
 
