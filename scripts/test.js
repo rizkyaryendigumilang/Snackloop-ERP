@@ -19,7 +19,7 @@ function runTest(name, fn) {
     passedTests++;
   } catch (err) {
     console.log('FAILED [FAIL]');
-    console.error(`  Error: ${err.message}`);
+    console.error(`  Error: ${err.message}\n  Stack: ${err.stack}`);
     process.exitCode = 1;
   }
 }
@@ -753,6 +753,99 @@ runTest('Verify Dynamic Profit Resolution, Daily Profit Column & Monthly Accumul
   assert.strictEqual(trxCode.includes('dailyProfitDisplay'), true, '11-transactions.js missing dailyProfitDisplay');
   assert.strictEqual(trxCode.includes('TOTAL KESELURUHAN SEBULAN'), true, '11-transactions.js missing monthly total footer');
   assert.strictEqual(trxCode.includes('monthTotalProfitLunas'), true, '11-transactions.js missing monthTotalProfitLunas');
+});
+
+// 22. Canonical Master Catalog, Self-Healing Modal & Laba Per Item Precision
+runTest('Verify Canonical Master Catalog, Self-Healing Modal & Laba Per Item Precision', () => {
+  const assert = require('assert');
+  const vm = require('vm');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+  const sqlUpdateCode = fs.readFileSync(path.join(rootDir, 'database', 'update_master_buy_prices_from_sheet.sql'), 'utf8');
+
+  // 1. Verify SQL file contains proper updates
+  assert.strictEqual(sqlUpdateCode.includes('UPDATE master SET buy = 18000, sell = 23000 WHERE name ILIKE \'%Mie Shorr Ayam Panggang%\''), true);
+  assert.strictEqual(sqlUpdateCode.includes('UPDATE master SET buy = 50000, sell = 65000'), true);
+  assert.strictEqual(sqlUpdateCode.includes('UPDATE transactions t'), true);
+
+  // 2. Evaluate in VM sandbox
+  const sandbox = {
+    masterData: [
+      { id: 1, name: 'Mie Shorr Ayam Panggang', buy: 0, sell: 23000 },
+      { id: 2, name: 'Le Mineral 600ml', buy: 0, sell: 65000 },
+      { id: 3, name: 'Choki - Choki Stick', buy: 0, sell: 26000 }
+    ],
+    repackData: [],
+    window: {},
+    document: {
+      getElementById: () => null,
+      createElement: () => ({ classList: { add() {}, remove() {} }, appendChild() {} }),
+      body: { appendChild() {} },
+      addEventListener: () => {}
+    }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  // 3. Verify canonical catalog exists and has >= 78 products
+  const catalog = sandbox.CANONICAL_MASTER_CATALOG || sandbox.window?.SnackLoop?.CANONICAL_MASTER_CATALOG;
+  assert.strictEqual(Array.isArray(catalog), true);
+  assert.strictEqual(catalog.length >= 78, true);
+
+  // 4. Verify canonical lookup
+  const mieShorrPrice = sandbox.getCanonicalMasterPrice('Mie Shorr Ayam Panggang');
+  assert.strictEqual(mieShorrPrice.buy, 18000);
+  assert.strictEqual(mieShorrPrice.sell, 23000);
+
+  const leMineralPrice = sandbox.getCanonicalMasterPrice('Le Mineral 600ml');
+  assert.strictEqual(leMineralPrice.buy, 50000);
+  assert.strictEqual(leMineralPrice.sell, 65000);
+
+  // 5. Test Laba Per Item calculation for Mie Shorr with 0 recorded modal
+  const trxMieShorr = {
+    date: '2026-11-03',
+    customer: 'Mba Ajo',
+    itemName: 'Mie Shorr Ayam Panggang',
+    qty: 1,
+    buy: 0,
+    totalModal: 0,
+    sell: 23000,
+    totalSell: 23000,
+    profitPerItem: 0,
+    status: 'Lunas'
+  };
+  const unitProfit = sandbox.getEffectiveTrxUnitProfit(trxMieShorr);
+  const totalModal = sandbox.getEffectiveTrxModal(trxMieShorr);
+  const totalProfit = sandbox.getEffectiveTrxProfit(trxMieShorr);
+
+  // Laba Per Item MUST BE 23.000 - 18.000 = 5.000 (NOT 23.000!)
+  assert.strictEqual(unitProfit, 5000, 'Laba Per Item for Mie Shorr must be 5000, not 0 or 23000');
+  assert.strictEqual(totalModal, 18000, 'Total Modal for Mie Shorr must resolve to 18000');
+  assert.strictEqual(totalProfit, 5000, 'Total Profit for Mie Shorr must be 5000 (NOT total sales 23000)');
+
+  // 6. Test Multi-qty (Momogi Jagung Qty 2: Modal 10.000, Jual 17.000)
+  const trxMomogi = {
+    date: '2026-11-03',
+    customer: 'Mba Ajo',
+    itemName: 'Momogi Jagung',
+    qty: 2,
+    buy: 0,
+    totalModal: 0,
+    sell: 17000,
+    totalSell: 34000,
+    profitPerItem: 0,
+    status: 'Lunas'
+  };
+  const unitProfitMomogi = sandbox.getEffectiveTrxUnitProfit(trxMomogi);
+  const totalProfitMomogi = sandbox.getEffectiveTrxProfit(trxMomogi);
+  assert.strictEqual(unitProfitMomogi, 7000, 'Laba Per Item for Momogi Jagung must be 7000');
+  assert.strictEqual(totalProfitMomogi, 14000, 'Total Profit for 2 Momogi Jagung must be 14000');
+
+  // 7. Verify self-healing function heals masterData with 0 buy
+  const modified = sandbox.selfHealMasterDataPrices();
+  assert.strictEqual(modified, true);
+  assert.strictEqual(sandbox.masterData[0].buy, 18000);
+  assert.strictEqual(sandbox.masterData[1].buy, 50000);
+  assert.strictEqual(sandbox.masterData[2].buy, 19000);
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);

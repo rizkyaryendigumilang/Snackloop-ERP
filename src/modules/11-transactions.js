@@ -2225,8 +2225,19 @@ function renderTransactionsForActiveSheet() {
             ${deleteBtn}`;
 
         const modalDisplay = isSuperAdmin ? `Rp ${itemModal.toLocaleString()}` : `<span class="opacity-40 italic">-</span>`;
-        const profitColor = itemProfit < 0 ? 'text-rose-500' : 'text-emerald-500';
-        const profitDisplay = isSuperAdmin ? `<span class="${profitColor}">Rp ${itemProfit.toLocaleString()}</span>` : `<span class="opacity-40 italic">-</span>`;
+        const itemUnitProfit = (typeof getEffectiveTrxUnitProfit === 'function') ? getEffectiveTrxUnitProfit(t) : Math.round(itemProfit / (Math.abs(Number(t.qty)) || 1));
+        const profitColor = itemUnitProfit < 0 ? 'text-rose-500' : 'text-emerald-500';
+        let profitDisplay = `<span class="opacity-40 italic">-</span>`;
+        if (isSuperAdmin) {
+            const absQty = Math.abs(Number(t.qty) || 1);
+            const showTotal = (absQty > 1 && itemProfit !== itemUnitProfit);
+            const signStr = itemUnitProfit > 0 ? '+' : '';
+            profitDisplay = `
+                <div class="leading-tight">
+                    <span class="${profitColor} font-bold font-mono text-xs">${signStr}Rp ${itemUnitProfit.toLocaleString('id-ID')}</span>
+                    ${showTotal ? `<span class="block text-[10px] text-slate-400 dark:text-slate-500 font-normal mt-0.5">Tot: Rp ${itemProfit.toLocaleString('id-ID')}</span>` : ''}
+                </div>`;
+        }
 
         // Kolom Profit Harian (sebelah Action)
         const tDate = (t.date || '').trim();
@@ -2394,8 +2405,12 @@ function renderTransactionsForActiveSheet() {
                     ? `<button type="button" onclick="updateTrxStatus('${t.id}', 'Lunas')" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full badge-soft-warn active:scale-95 transition" title="Ketuk untuk Lunasi"><i class="fa-solid fa-circle-exclamation text-[10px]"></i> ${t.status} (Lunasi)</button>`
                     : `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${t.status === 'Tempo' ? 'badge-soft-warn' : 'badge-soft-bad'}">${t.status}</span>`);
 
-            const profitColor = itemProfit < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400';
-            const profitDisplay = isSuperAdmin ? `<span class="text-xs ${profitColor} font-bold tabular-nums">Laba: Rp ${itemProfit.toLocaleString()}</span>` : '';
+            const itemUnitProfit = (typeof getEffectiveTrxUnitProfit === 'function') ? getEffectiveTrxUnitProfit(t) : Math.round(itemProfit / (Math.abs(Number(t.qty)) || 1));
+            const profitColor = itemUnitProfit < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400';
+            const absQty = Math.abs(Number(t.qty) || 1);
+            const totalText = (absQty > 1 && itemProfit !== itemUnitProfit) ? ` (Tot: Rp ${itemProfit.toLocaleString('id-ID')})` : '';
+            const signStr = itemUnitProfit > 0 ? '+' : '';
+            const profitDisplay = isSuperAdmin ? `<span class="text-xs ${profitColor} font-bold tabular-nums">Laba/Item: ${signStr}Rp ${itemUnitProfit.toLocaleString('id-ID')}${totalText}</span>` : '';
 
             const tDate = (t.date || '').trim();
             const dProfitLunas = dailyProfitLunasMap[tDate] || 0;

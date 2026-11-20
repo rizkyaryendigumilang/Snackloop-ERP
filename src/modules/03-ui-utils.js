@@ -490,6 +490,140 @@ const AppleMotion = {
 };
 
 // =========================================================================
+// CANONICAL MASTER CATALOG (REFERENSI RESMI GOOGLE SPREADSHEET)
+// Sumber: https://docs.google.com/spreadsheets/d/16-y31zsM8Trtn9AhKmnU5sprM2YkfSrt9EwU98w3euY/edit?usp=sharing
+// =========================================================================
+var CANONICAL_MASTER_CATALOG = [
+    { name: "Le Mineral 600ml", buy: 50000, sell: 65000, aliases: ["le minerale 600ml"] },
+    { name: "Le Mineal 330ml", buy: 42000, sell: 55000, aliases: ["le minerale 330ml", "le mineral 330ml"] },
+    { name: "Le Mineral 1500ml", buy: 52000, sell: 70000, aliases: ["le minerale 1500ml"] },
+    { name: "Vit Mineral 550ml", buy: 35000, sell: 55000, aliases: ["vit 550ml"] },
+    { name: "Nextar Brownis", buy: 21000, sell: 23000, aliases: ["nextar brownies"] },
+    { name: "Slai o'lai Stawberry", buy: 18000, sell: 22000, aliases: ["slai olai strawberry", "slai olai stawberry", "slai o'lai strawberry"] },
+    { name: "Chocolatos", buy: 21000, sell: 25000, aliases: ["chocolatos choco"] },
+    { name: "Sari Gandum Coklat", buy: 22000, sell: 23000 },
+    { name: "Momogi Jagung", buy: 10000, sell: 17000 },
+    { name: "Momogi Keju", buy: 10000, sell: 17000 },
+    { name: "Momogi Coklat", buy: 10000, sell: 17000 },
+    { name: "Astor", buy: 18000, sell: 20000 },
+    { name: "Better", buy: 18000, sell: 20000 },
+    { name: "Better Caramel", buy: 18000, sell: 20000 },
+    { name: "Coki-Coki", buy: 19000, sell: 20000, aliases: ["coki coki", "choki choki", "choki-choki", "choki-choki stick", "choki - choki stick"] },
+    { name: "Superstar", buy: 19000, sell: 22000 },
+    { name: "Pocky Mini Size Box", buy: 26022, sell: 27000, aliases: ["pocky mini"] },
+    { name: "Sari Gandum Peanute", buy: 24273, sell: 25000, aliases: ["sari gandum peanut"] },
+    { name: "Chocolatos Mix Variant", buy: 23274, sell: 25000 },
+    { name: "SPIX Soba Renceng BBQ", buy: 12000, sell: 15000, aliases: ["spix soba"] },
+    { name: "Oishi Snack Renceng Pop Corn", buy: 20773, sell: 25000, aliases: ["oishi pop corn", "oishi popcorn"] },
+    { name: "Garuda Kacang Telur Pack", buy: 20273, sell: 25000, aliases: ["garuda kacang telur"] },
+    { name: "Slai o'lai Nanas", buy: 19523, sell: 23000, aliases: ["slai olai nanas"] },
+    { name: "Go! Egg roll", buy: 13023, sell: 17000, aliases: ["go egg roll"] },
+    { name: "Gery Wafer Roll Coconut", buy: 11733, sell: 15000, aliases: ["gery coconut"] },
+    { name: "Superco", buy: 10023, sell: 15000 },
+    { name: "Nabati AHH Long Staw", buy: 9398, sell: 15000, aliases: ["nabati ahh long straw", "nabati ahh long strawberry", "nabati ahh long staw"] },
+    { name: "Nabati AHH Long Chese", buy: 9000, sell: 15000, aliases: ["nabati ahh long cheese", "nabati ahh long chese"] },
+    { name: "Roma Malkist Keju Manis Renceng", buy: 9273, sell: 15000 },
+    { name: "Roma Malkist Original Renceng", buy: 9273, sell: 15000 },
+    { name: "Kacang Garuda Roast Renceng Bawang", buy: 9223, sell: 14000 },
+    { name: "Kacang Garuda Roast Renceng Pedas", buy: 9223, sell: 14000 },
+    { name: "Momogi Caramel", buy: 8148, sell: 17000 },
+    { name: "Momogi Rendang", buy: 8148, sell: 17000 },
+    { name: "Momogi Jagung Pedas", buy: 8148, sell: 17000 },
+    { name: "Momogi Seaweed", buy: 8148, sell: 17000 },
+    { name: "Nextar Brownis SP", buy: 18523, sell: 23000 },
+    { name: "Momogi Truffle", buy: 9000, sell: 17000 },
+    { name: "Momogi Soto Ayam", buy: 9000, sell: 17000 },
+    { name: "Ciki Chuba Balado", buy: 19346, sell: 23000, aliases: ["chuba balado"] },
+    { name: "Ciki Chuba Keju", buy: 19346, sell: 23000, aliases: ["chuba keju"] },
+    { name: "SaltCheese", buy: 10505, sell: 15000, aliases: ["salt cheese"] },
+    { name: "Mie Shorr Ayam Panggang", buy: 18000, sell: 23000, aliases: ["mie shorr"] },
+    { name: "NoriGo Pedas", buy: 22000, sell: 25000, aliases: ["norigo", "nori renceng"] },
+    { name: "Nabati Waffer Coklat", buy: 9000, sell: 15000, aliases: ["nabati wafer coklat"] },
+    { name: "Dilan Matcha", buy: 22000, sell: 25000 },
+    { name: "Nextar Chocopie", buy: 22000, sell: 25000 },
+    { name: "Stick Biscuite Nissin", buy: 9000, sell: 14000, aliases: ["stick biscuit nissin"] },
+    { name: "Soba Baldo", buy: 9000, sell: 13000, aliases: ["soba balado"] },
+    { name: "Mie Lidi (25pcs)", buy: 10000, sell: 20000, aliases: ["mie lidi"] },
+    { name: "Kripik Kaca", buy: 10000, sell: 11000 },
+    { name: "Makaroni Pedas Daun Jeruk 175 Grm", buy: 7964, sell: 8000, aliases: ["makaroni pedas daun jeruk"] },
+    { name: "Makaroni Ulir 175Grm", buy: 8234, sell: 8000, aliases: ["makaroni ulir"] },
+    { name: "Krupuk Seblak", buy: 6191, sell: 8000 },
+    { name: "Apetito Snack Stik", buy: 18000, sell: 20000 },
+    { name: "Basreng Daun Jeruk 175Grm", buy: 6000, sell: 8000, aliases: ["basreng daun jeruk"] },
+    { name: "Nextar Chocopie Staw", buy: 22000, sell: 25000, aliases: ["nextar chocopie straw", "nextar chocopie strawberry"] },
+    { name: "Chupacups", buy: 22000, sell: 25000, aliases: ["chupa chups", "chupacup"] },
+    { name: "Fruta Gummy", buy: 11000, sell: 16000 },
+    { name: "Popmie Biasa Kuah", buy: 4375, sell: 5500 },
+    { name: "Makaroni Bantet 1Kg", buy: 27788, sell: 35000 },
+    { name: "Seblak Rafael", buy: 19799, sell: 25000 },
+    { name: "Arden Blueberry", buy: 22000, sell: 25000 },
+    { name: "Floaty", buy: 10000, sell: 12000 },
+    { name: "Good Time", buy: 22000, sell: 25000 },
+    { name: "Caca", buy: 18000, sell: 23000 },
+    { name: "Cannonball", buy: 11000, sell: 20000 },
+    { name: "Bonita", buy: 22000, sell: 25000 },
+    { name: "Oreo Softcake", buy: 22000, sell: 25000 },
+    { name: "OMG Snack", buy: 18000, sell: 28000 },
+    { name: "Marie Gold", buy: 22000, sell: 25000 },
+    { name: "Makaroni Naruto (6pcs)", buy: 10000, sell: 12000, aliases: ["makaroni naruto"] },
+    { name: "Roti Aoka", buy: 9000, sell: 13000 },
+    { name: "Le Mineral 1500ml Agen Mampang", buy: 60000, sell: 70000 },
+    { name: "Le Mineral 600ml Agen Mampang", buy: 52000, sell: 65000 },
+    { name: "Cannonball Big Size", buy: 22000, sell: 26000 },
+    { name: "Popmie Biasa Kuah Mix 1 Karton 24PCs", buy: 108000, sell: 130000, aliases: ["popmie biasa kuah mix", "popmie 1 karton 24pcs"] },
+    { name: "Nice Tissu", buy: 5805, sell: 6500, aliases: ["nice tissue"] }
+];
+
+function getCanonicalMasterPrice(name) {
+    if (!name) return null;
+    const clean = String(name).trim().toLowerCase();
+    const cleanNorm = clean.replace(/[^a-z0-9]/g, '');
+
+    // 1. Exact match on name
+    for (const item of CANONICAL_MASTER_CATALOG) {
+        if (item.name.toLowerCase() === clean) return item;
+    }
+    // 2. Normalized match on name
+    for (const item of CANONICAL_MASTER_CATALOG) {
+        if (item.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanNorm) return item;
+    }
+    // 3. Match on aliases
+    for (const item of CANONICAL_MASTER_CATALOG) {
+        if (Array.isArray(item.aliases)) {
+            for (const alias of item.aliases) {
+                if (alias.toLowerCase() === clean || alias.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanNorm) {
+                    return item;
+                }
+            }
+        }
+    }
+    // 4. Substring / contains match
+    for (const item of CANONICAL_MASTER_CATALOG) {
+        const itemNorm = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cleanNorm.includes(itemNorm) || itemNorm.includes(cleanNorm)) {
+            return item;
+        }
+    }
+    return null;
+}
+
+function selfHealMasterDataPrices() {
+    if (typeof masterData === 'undefined' || !Array.isArray(masterData)) return false;
+    let modified = false;
+    masterData.forEach(m => {
+        if (!m.buy || Number(m.buy) <= 0) {
+            const canonical = getCanonicalMasterPrice(m.name);
+            if (canonical && canonical.buy > 0) {
+                m.buy = canonical.buy;
+                if (!m.sell || Number(m.sell) <= 0) m.sell = canonical.sell;
+                modified = true;
+            }
+        }
+    });
+    return modified;
+}
+
+// =========================================================================
 // SMART PROFIT & COST RESOLUTION (FINANCIAL RECOGNITION ENGINE)
 // =========================================================================
 function getEffectiveTrxModal(t) {
@@ -527,6 +661,53 @@ function getEffectiveTrxModal(t) {
         }
     }
 
+    // 5. Fallback ke CANONICAL_MASTER_CATALOG resmi spreadsheet
+    if (t.itemName) {
+        const canonical = getCanonicalMasterPrice(t.itemName);
+        if (canonical && canonical.buy > 0) {
+            return (canonical.buy * (qty || 1)) + extraCost;
+        }
+    }
+
+    return 0;
+}
+
+function getEffectiveTrxUnitProfit(t) {
+    if (!t) return 0;
+    const qty = Math.abs(Number(t.qty) || 0) || 1;
+    const isNegative = (Number(t.qty) < 0) || Boolean(t.isReturn);
+
+    // 1. Jika profitPerItem sudah tercatat valid dan bukan 0
+    const recordedProfit = Number(t.profitPerItem);
+    if (!isNaN(recordedProfit) && recordedProfit !== 0) {
+        return isNegative ? -Math.abs(recordedProfit) : recordedProfit;
+    }
+
+    const sellUnit = Number(t.sell || t.sell_price || 0) || (Math.abs(Number(t.totalSell) || 0) / qty);
+    let unitBuy = Number(t.buy || t.buy_price || 0);
+
+    if (unitBuy <= 0) {
+        if (t.source === 'Repack' && t.batch && typeof repackData !== 'undefined' && Array.isArray(repackData)) {
+            const rItem = repackData.find(r => String(r.id) === String(t.batch));
+            if (rItem && Number(rItem.modal_per_pcs) > 0) unitBuy = Number(rItem.modal_per_pcs);
+        }
+    }
+    if (unitBuy <= 0 && t.itemName && typeof masterData !== 'undefined' && Array.isArray(masterData)) {
+        const cleanName = String(t.itemName).trim().toLowerCase();
+        const mItem = masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName && (!t.source || m.source === t.source))
+                   || masterData.find(m => m.name && String(m.name).trim().toLowerCase() === cleanName);
+        if (mItem && Number(mItem.buy) > 0) unitBuy = Number(mItem.buy);
+    }
+    if (unitBuy <= 0 && t.itemName) {
+        const canonical = getCanonicalMasterPrice(t.itemName);
+        if (canonical && canonical.buy > 0) unitBuy = canonical.buy;
+    }
+
+    if (sellUnit > 0 && unitBuy > 0) {
+        const diff = sellUnit - unitBuy;
+        return isNegative ? -diff : diff;
+    }
+
     return 0;
 }
 
@@ -534,33 +715,26 @@ function getEffectiveTrxProfit(t) {
     if (!t) return 0;
     const qty = Math.abs(Number(t.qty) || 0) || 1;
     const isNegative = (Number(t.qty) < 0) || Boolean(t.isReturn);
-    const totalSell = Math.abs(Number(t.totalSell) || ((Number(t.sell || t.sell_price || 0)) * qty));
     const extraCost = Number(t.extraCost) || 0;
 
-    // 1. Jika profitPerItem sudah tercatat valid dan bukan 0
-    const recordedProfit = Number(t.profitPerItem);
-    if (!isNaN(recordedProfit) && recordedProfit !== 0) {
-        const raw = recordedProfit * qty;
+    // 1. Jika profit per item teridentifikasi
+    const unitProfit = getEffectiveTrxUnitProfit(t);
+    if (unitProfit !== 0) {
+        const raw = (unitProfit * qty) - extraCost;
         return isNegative ? -Math.abs(raw) : raw;
     }
 
     // 2. Hitung dari effective modal
     const effModal = getEffectiveTrxModal(t);
+    const totalSell = Math.abs(Number(t.totalSell) || ((Number(t.sell || t.sell_price || 0)) * qty));
     if (effModal > 0 && totalSell > 0) {
         const diff = totalSell - effModal;
         return isNegative ? -diff : diff;
     }
 
-    // 3. Jika totalModal tercatat di objek transaksi tapi effModal 0
-    const recordedTotalModal = Number(t.totalModal) || 0;
-    if (recordedTotalModal > 0 && totalSell > 0) {
-        const diff = totalSell - recordedTotalModal;
-        return isNegative ? -diff : diff;
-    }
-
-    // 4. Jika transaksi berstatus Lunas tapi modal 0 / tidak ditemukan (misal biaya jasa, ongkir murni, margin fee)
-    // Seluruh hasil penjualan bersih diakui sebagai keuntungan nominal
-    if (t.status === 'Lunas' && totalSell > 0) {
+    // 3. Khusus jasa murni / fee ongkir tanpa modal fisik (source: Jasa / nama mengandung Jasa)
+    const isPureService = t.source === 'Jasa' || (t.itemName && /jasa|titip|ongkir|fee|service/i.test(t.itemName));
+    if (isPureService && t.status === 'Lunas' && totalSell > 0) {
         const netRevenue = Math.max(0, totalSell - extraCost);
         return isNegative ? -netRevenue : netRevenue;
     }
@@ -571,7 +745,11 @@ function getEffectiveTrxProfit(t) {
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.AppleMotion = AppleMotion;
+    window.SnackLoop.CANONICAL_MASTER_CATALOG = CANONICAL_MASTER_CATALOG;
+    window.SnackLoop.getCanonicalMasterPrice = getCanonicalMasterPrice;
+    window.SnackLoop.selfHealMasterDataPrices = selfHealMasterDataPrices;
     window.SnackLoop.getEffectiveTrxModal = getEffectiveTrxModal;
+    window.SnackLoop.getEffectiveTrxUnitProfit = getEffectiveTrxUnitProfit;
     window.SnackLoop.getEffectiveTrxProfit = getEffectiveTrxProfit;
     if (typeof validateSessionTTL !== 'undefined') {
         window.SnackLoop.validateSessionTTL = validateSessionTTL;

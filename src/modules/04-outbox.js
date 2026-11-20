@@ -484,6 +484,9 @@ async function loadCacheFromLocal() {
         }
         agentData = data.agentData || [];
         masterData = (data.masterData || []).map(m => isSuperAdmin ? m : { ...m, buy: 0 });
+        if (isSuperAdmin && typeof selfHealMasterDataPrices === 'function') {
+            selfHealMasterDataPrices();
+        }
         customerData = data.customerData || [];
         repackData = (data.repackData || []).map(r => isSuperAdmin ? r : { ...r, modal_per_pcs: 0 });
         
@@ -494,11 +497,12 @@ async function loadCacheFromLocal() {
                     transactionData[k].forEach(t => {
                         const effModal = getEffectiveTrxModal(t);
                         const effProfit = getEffectiveTrxProfit(t);
+                        const effUnitProfit = getEffectiveTrxUnitProfit(t);
                         if ((!t.totalModal || Number(t.totalModal) === 0) && effModal > 0) {
                             t.totalModal = effModal;
                         }
-                        if ((!t.profitPerItem || Number(t.profitPerItem) === 0) && effProfit !== 0) {
-                            t.profitPerItem = Math.round(effProfit / (Math.abs(Number(t.qty)) || 1));
+                        if ((!t.profitPerItem || Number(t.profitPerItem) === 0) && effUnitProfit !== 0) {
+                            t.profitPerItem = effUnitProfit;
                         }
                     });
                 }

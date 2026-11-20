@@ -40,6 +40,9 @@ if (typeof document !== 'undefined') {
 }
 
 async function renderMaster() {
+    if (currentRole === 'super_admin' && typeof selfHealMasterDataPrices === 'function') {
+        selfHealMasterDataPrices();
+    }
     const tbody = document.getElementById('master-table-body');
     if(!tbody) return;
     const canEdit = currentRole === 'super_admin';
@@ -52,7 +55,15 @@ async function renderMaster() {
             <button onclick="openHistoryModal(${m.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat</button>
         `;
 
-        const buyPrice = Number(m.buy) || 0;
+        let buyPrice = Number(m.buy) || 0;
+        if (buyPrice <= 0 && typeof getCanonicalMasterPrice === 'function') {
+            const c = getCanonicalMasterPrice(m.name);
+            if (c && c.buy > 0) {
+                buyPrice = c.buy;
+                m.buy = c.buy;
+                if (!m.sell || Number(m.sell) <= 0) m.sell = c.sell;
+            }
+        }
         const sellPrice = Number(m.sell) || 0;
         const buyPriceDisplay = canEdit ? `Rp ${buyPrice.toLocaleString('id-ID')}` : `<span class="opacity-40 italic">-</span>`;
 

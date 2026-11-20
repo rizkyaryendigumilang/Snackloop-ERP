@@ -448,6 +448,38 @@ async function loadDataFromCloud() {
         }
         if (resMaster && !resMaster.error && Array.isArray(resMaster.data)) {
             masterData = resMaster.data.map(m => isSuperAdmin ? m : { ...m, buy: 0 });
+            if (isSuperAdmin && typeof selfHealMasterDataPrices === 'function') {
+                const healed = selfHealMasterDataPrices();
+                if (healed && typeof supabaseClient !== 'undefined') {
+                    try {
+                        const healPayload = masterData.filter(m => m.id && Number(m.buy) > 0).map(m => ({
+                            id: m.id,
+                            name: m.name,
+                            source: m.source || 'GS',
+                            buy: Number(m.buy) || 0,
+                            sell: Number(m.sell) || 0,
+                            stock_qty: m.stock_qty || 25,
+                            min_stock: m.min_stock || 5
+                        }));
+                        if (healPayload.length > 0) {
+                            supabaseClient.from('master').upsert(healPayload).then(() => {
+                                console.info('[MasterSync] Healed master buy prices synced to Supabase.');
+                            }).catch(err => console.warn('[MasterSync] Failed to sync healed prices:', err));
+                        }
+                    } catch(syncErr) { console.warn('[MasterSync]', syncErr); }
+                }
+            }
+        }
+        if (isSuperAdmin && masterData.length === 0 && typeof CANONICAL_MASTER_CATALOG !== 'undefined') {
+            masterData = CANONICAL_MASTER_CATALOG.map((item, idx) => ({
+                id: idx + 1,
+                name: item.name,
+                source: 'GS',
+                buy: item.buy,
+                sell: item.sell,
+                stock_qty: 25,
+                min_stock: 5
+            }));
         }
         if (resCust && !resCust.error && Array.isArray(resCust.data)) {
             customerData = resCust.data;
