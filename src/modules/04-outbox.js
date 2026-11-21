@@ -1142,6 +1142,7 @@ function resumeBackgroundTimers() {
     if (!syncIntervalId) {
         setSyncInterval(isEcoModeActive ? 60000 : 30000);
     }
+    requestScreenWakeLock();
     console.info("[PowerSaver] Tab aktif kembali. Sinkronisasi dipulihkan.");
     if (navigator.onLine && getOutbox().length > 0 && !isSyncing) {
         syncOutboxQueue();

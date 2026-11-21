@@ -29,10 +29,6 @@ function isAppInstalled() {
            document.referrer.includes('android-app://');
 }
 
-function isIosDevice() {
-    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-}
-
 function showPwaInstallElements() {
     // Sembunyikan floating banner & tombol navbar agar tidak mengganggu tampilan website
     const banner = document.getElementById('pwa-install-banner');
@@ -120,14 +116,6 @@ function openInstallGuideModal(preferredTab = null) {
 
 function closeInstallGuideModal() {
     closeModalById('modal-install-guide');
-}
-
-function openIosInstallModal() {
-    openInstallGuideModal('ios');
-}
-
-function closeIosInstallModal() {
-    closeInstallGuideModal();
 }
 
 async function triggerPwaInstall() {

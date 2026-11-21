@@ -30,8 +30,6 @@ const EXCLUDED = new Set([
   'docs',
   'icons',
   'GLOSSARY.md',
-  'SnackLoop_import.xlsx',
-  'SnackLoop_Backup_Migrasi.json',
   'SnackLoop_Backup_Lengkap_Unified.json'
 ]);
 

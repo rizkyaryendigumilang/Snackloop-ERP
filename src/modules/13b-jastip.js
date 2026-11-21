@@ -131,26 +131,6 @@ function saveJastipToLocal() {
     if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
 }
 
-// 1b. Sinkronisasi Cloud Supabase (Otomatis & Offline-Tolerant)
-async function fetchJastipFromCloud() {
-    if (typeof supabaseClient === 'undefined' || !supabaseClient || !navigator.onLine) return;
-    try {
-        const { data, error } = await supabaseClient
-            .from('jastip_orders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (!error && Array.isArray(data) && data.length > 0) {
-            // Gabungkan data cloud dengan cache lokal
-            jastipData = data;
-            saveJastipToLocal();
-            renderJastip();
-        }
-    } catch (err) {
-        console.warn('Catatan Cloud Jastip (fallback lokal):', err);
-    }
-}
-
 function dispatchJastipMutation(type, payload) {
     if (typeof dispatchMutation === 'function') {
         dispatchMutation({ type, payload }, () => syncSingleOutboxItem({ type, payload }));

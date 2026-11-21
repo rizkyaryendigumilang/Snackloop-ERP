@@ -1425,16 +1425,6 @@ function openWaWithCurrentMessage() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// Fallback untuk kompatibilitas panggilan modul lain
-function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
-    openWaInvoiceTemplatesModal(invNumber);
-}
-
-// Alias untuk kompatibilitas mundur
-function sendInvoiceWA(invNumber, custName, amount, statusInv) {
-    openWaInvoiceTemplatesModal(invNumber);
-}
-
 // =========================================================================
 // FITUR DISTRIBUSI AGEN: LEADERBOARD MITRA & RESELLER TERBAIK
 // =========================================================================

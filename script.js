@@ -2320,6 +2320,7 @@ function resumeBackgroundTimers() {
     if (!syncIntervalId) {
         setSyncInterval(isEcoModeActive ? 60000 : 30000);
     }
+    requestScreenWakeLock();
     console.info("[PowerSaver] Tab aktif kembali. Sinkronisasi dipulihkan.");
     if (navigator.onLine && getOutbox().length > 0 && !isSyncing) {
         syncOutboxQueue();
@@ -7188,16 +7189,6 @@ function openWaWithCurrentMessage() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// Fallback untuk kompatibilitas panggilan modul lain
-function sendSmartInvoiceReminderWA(invNumber, custName, amount, invDate, statusInv) {
-    openWaInvoiceTemplatesModal(invNumber);
-}
-
-// Alias untuk kompatibilitas mundur
-function sendInvoiceWA(invNumber, custName, amount, statusInv) {
-    openWaInvoiceTemplatesModal(invNumber);
-}
-
 // =========================================================================
 // FITUR DISTRIBUSI AGEN: LEADERBOARD MITRA & RESELLER TERBAIK
 // =========================================================================
@@ -11526,26 +11517,6 @@ function saveJastipToLocal() {
     if (typeof saveCacheToLocal === 'function') saveCacheToLocal();
 }
 
-// 1b. Sinkronisasi Cloud Supabase (Otomatis & Offline-Tolerant)
-async function fetchJastipFromCloud() {
-    if (typeof supabaseClient === 'undefined' || !supabaseClient || !navigator.onLine) return;
-    try {
-        const { data, error } = await supabaseClient
-            .from('jastip_orders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (!error && Array.isArray(data) && data.length > 0) {
-            // Gabungkan data cloud dengan cache lokal
-            jastipData = data;
-            saveJastipToLocal();
-            renderJastip();
-        }
-    } catch (err) {
-        console.warn('Catatan Cloud Jastip (fallback lokal):', err);
-    }
-}
-
 function dispatchJastipMutation(type, payload) {
     if (typeof dispatchMutation === 'function') {
         dispatchMutation({ type, payload }, () => syncSingleOutboxItem({ type, payload }));
@@ -12859,10 +12830,6 @@ function isAppInstalled() {
            document.referrer.includes('android-app://');
 }
 
-function isIosDevice() {
-    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-}
-
 function showPwaInstallElements() {
     // Sembunyikan floating banner & tombol navbar agar tidak mengganggu tampilan website
     const banner = document.getElementById('pwa-install-banner');
@@ -12950,14 +12917,6 @@ function openInstallGuideModal(preferredTab = null) {
 
 function closeInstallGuideModal() {
     closeModalById('modal-install-guide');
-}
-
-function openIosInstallModal() {
-    openInstallGuideModal('ios');
-}
-
-function closeIosInstallModal() {
-    closeInstallGuideModal();
 }
 
 async function triggerPwaInstall() {
