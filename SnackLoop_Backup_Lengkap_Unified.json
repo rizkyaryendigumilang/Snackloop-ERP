@@ -4868,6 +4868,44 @@
         "status": "Belum Lunas",
         "profitPerItem": 13000,
         "notes": "Invoice: INV-20261120-7701AJO1"
+      },
+      {
+        "id": 51,
+        "monthKey": "Nov 2026",
+        "date": "2026-11-05",
+        "customer": "Mba Ajo",
+        "itemName": "Le Mineral 1500ml",
+        "source": "Agen Mineral Mampang",
+        "batch": "-",
+        "qty": 2,
+        "buy": 60000,
+        "sell": 70000,
+        "totalModal": 120000,
+        "totalSell": 140000,
+        "profitPerItem": 10000,
+        "status": "Belum Lunas",
+        "notes": "Invoice: INV-20261105-0566EDG1",
+        "extraCost": 0,
+        "extraCostNote": "-"
+      },
+      {
+        "id": 52,
+        "monthKey": "Nov 2026",
+        "date": "2026-11-05",
+        "customer": "Mba Ajo",
+        "itemName": "Le Mineral 600ml",
+        "source": "Agen Mineral Mampang",
+        "batch": "-",
+        "qty": 1,
+        "buy": 52000,
+        "sell": 65000,
+        "totalModal": 52000,
+        "totalSell": 65000,
+        "profitPerItem": 13000,
+        "status": "Belum Lunas",
+        "notes": "Invoice: INV-20261105-0566EDG1",
+        "extraCost": 0,
+        "extraCostNote": "-"
       }
     ],
     "Okt 2026": [
@@ -5217,6 +5255,15 @@
       "total_amount": 40000,
       "status": "Belum Lunas",
       "notes": "Bon Penjualan Toko / Mba Ajo (2 Item)"
+    },
+    {
+      "id": "inv_20261105_0566EDG1",
+      "invoice_number": "INV-20261105-0566EDG1",
+      "date": "2026-11-05",
+      "customer_name": "Mba Ajo",
+      "total_amount": 205000,
+      "status": "Belum Lunas",
+      "notes": "Pesanan Le Mineral 5 Nov 2026 - Belum Lunas"
     }
   ],
   "priceHistoryData": [
