@@ -39,14 +39,53 @@ if (typeof document !== 'undefined') {
     });
 }
 
-async function renderMaster() {
+function filterMasterList(list, keyword) {
+    if (!list || !Array.isArray(list)) return [];
+    if (!keyword || !keyword.trim()) return list;
+    const cleanKw = keyword.trim().toLowerCase();
+    return list.filter(m => 
+        (m.name && m.name.toLowerCase().includes(cleanKw)) ||
+        (m.source && m.source.toLowerCase().includes(cleanKw)) ||
+        (m.barcode && String(m.barcode).toLowerCase().includes(cleanKw))
+    );
+}
+
+let masterSearchDebounceTimer = null;
+function debouncedFilterMaster() {
+    clearTimeout(masterSearchDebounceTimer);
+    masterSearchDebounceTimer = setTimeout(() => {
+        const input = document.getElementById('master-search');
+        const clearBtn = document.getElementById('master-search-clear');
+        const kw = input ? input.value : '';
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', !kw || kw.trim().length === 0);
+        }
+        const filtered = filterMasterList(masterData, kw);
+        renderMaster(filtered);
+    }, 150);
+}
+
+function clearMasterSearch() {
+    const input = document.getElementById('master-search');
+    const clearBtn = document.getElementById('master-search-clear');
+    if (input) input.value = '';
+    if (clearBtn) clearBtn.classList.add('hidden');
+    renderMaster(masterData);
+}
+
+async function renderMaster(customList) {
     if (currentRole === 'super_admin' && typeof selfHealMasterDataPrices === 'function') {
         selfHealMasterDataPrices();
     }
     const tbody = document.getElementById('master-table-body');
     if(!tbody) return;
+    const listToRender = Array.isArray(customList) ? customList : masterData;
     const canEdit = currentRole === 'super_admin';
-    const rows = masterData.map((m) => {
+    if (listToRender.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 dark:text-slate-500 italic"><i class="fa-solid fa-magnifying-glass mr-2"></i>Tidak ada produk yang cocok dengan pencarian</td></tr>`;
+        return;
+    }
+    const rows = listToRender.map((m) => {
         const actionBtns = canEdit ? `
             <button onclick="openEditMasterModal(${m.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold mr-1"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
             <button onclick="openHistoryModal(${m.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold mr-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat</button>

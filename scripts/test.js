@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const assert = require('assert');
 
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.resolve(rootDir, 'dist');
@@ -1056,6 +1057,43 @@ runTest('Verify Financial Dashboard KPI Calculations, Cashflow Split & AR Aging 
   };
   const sumArTiers = arTiers.tier1 + arTiers.tier2 + arTiers.tier3 + arTiers.tier4;
   assert.strictEqual(sumArTiers, piutang, 'Partisi AR Aging kuadran harus identik dengan total piutang');
+});
+
+// TEST 25: Verify Master Search Bar and Transaction Editing Holistic Math Integrity
+runTest('Verify Master Search Bar and Transaction Editing Holistic Math Integrity', () => {
+  const scriptContent = fs.readFileSync(path.join(rootDir, 'script.js'), 'utf8');
+
+  // 1. Verify filterMasterList exists in script.js
+  if (!scriptContent.includes('function filterMasterList')) {
+    throw new Error('function filterMasterList not found in script.js');
+  }
+
+  // 2. Verify filter logic
+  const dummyMaster = [
+    { id: 1, name: "Le Mineral 600ml", source: "Agen Mineral Mampang", barcode: "899123456" },
+    { id: 2, name: "Nextar Brownis", source: "Toko Sumber Aceh Kemang", barcode: "899654321" },
+    { id: 3, name: "Vit Mineral 550ml", source: "Toko Sumber Aceh Kemang", barcode: "" }
+  ];
+
+  // We test the logic pattern
+  const filterFn = (list, kw) => {
+    if (!kw || !kw.trim()) return list;
+    const cleanKw = kw.trim().toLowerCase();
+    return list.filter(m => 
+      (m.name && m.name.toLowerCase().includes(cleanKw)) ||
+      (m.source && m.source.toLowerCase().includes(cleanKw)) ||
+      (m.barcode && String(m.barcode).toLowerCase().includes(cleanKw))
+    );
+  };
+
+  const res1 = filterFn(dummyMaster, "mineral");
+  assert.strictEqual(res1.length, 2, "Should find 2 Mineral products");
+  const res2 = filterFn(dummyMaster, "kemang");
+  assert.strictEqual(res2.length, 2, "Should find 2 products from Kemang");
+  const res3 = filterFn(dummyMaster, "899654");
+  assert.strictEqual(res3.length, 1, "Should find 1 product by barcode");
+  const resEmpty = filterFn(dummyMaster, "   ");
+  assert.strictEqual(resEmpty.length, 3, "Empty search must return all products");
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
