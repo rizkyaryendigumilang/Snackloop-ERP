@@ -1168,6 +1168,122 @@ runTest('Verify Master Search Bar and Transaction Editing Holistic Math Integrit
   assert.strictEqual(masterProduct.buy, 18000, "Master catalog price must remain isolated");
 });
 
+// 26. Number Flow Rolling Digit Engine & Accessibility Verification (Details.so / Barvian Architecture)
+runTest('Verify Number Flow Architecture, Accessibility, Rolling Ribbons & Formatting Integrity', () => {
+  const assert = require('assert');
+  const vm = require('vm');
+  const uiUtilsCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', '03-ui-utils.js'), 'utf8');
+
+  // Verify function existence in module source code
+  assert(uiUtilsCode.includes('function renderNumberFlow('), 'renderNumberFlow function must be defined');
+
+  const sandbox = {
+    document: {
+      addEventListener: () => {},
+      body: { appendChild() {}, classList: { contains: () => false } },
+      createElement: (tag) => {
+        const el = {
+          tagName: tag.toUpperCase(),
+          className: '',
+          style: {},
+          children: [],
+          attributes: {},
+          setAttribute: (k, v) => { el.attributes[k] = v; },
+          getAttribute: (k) => el.attributes[k],
+          appendChild: (c) => el.children.push(c),
+          insertBefore: (c, ref) => {
+            const idx = el.children.indexOf(ref);
+            if (idx === -1) el.children.unshift(c);
+            else el.children.splice(idx, 0, c);
+          },
+          querySelectorAll: () => [],
+          querySelector: () => null,
+          remove: () => {}
+        };
+        return el;
+      }
+    },
+    window: {
+      matchMedia: () => ({ matches: false }),
+      requestAnimationFrame: (cb) => cb()
+    },
+    AppleMotion: {},
+    CANONICAL_MASTER_CATALOG: {},
+    getCanonicalMasterPrice: () => null,
+    selfHealMasterDataPrices: () => {},
+    getEffectiveTrxModal: () => 0,
+    getEffectiveTrxUnitProfit: () => 0,
+    getEffectiveTrxProfit: () => 0
+  };
+
+  vm.createContext(sandbox);
+  vm.runInContext(uiUtilsCode, sandbox);
+
+  assert(typeof sandbox.renderNumberFlow === 'function', 'sandbox.renderNumberFlow must be a function');
+
+  // 1. Positive value formatting
+  const testEl1 = {
+    attributes: {},
+    children: [],
+    style: {},
+    classList: { add: () => {}, remove: () => {} },
+    setAttribute(k, v) { this.attributes[k] = v; },
+    getAttribute(k) { return this.attributes[k]; },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    appendChild(c) { this.children.push(c); },
+    insertBefore(c) { this.children.unshift(c); }
+  };
+  sandbox.renderNumberFlow(testEl1, 153000);
+  assert.strictEqual(testEl1.attributes['aria-label'], 'Rp 153.000', 'Aria label for 153.000 must be Rp 153.000');
+  assert.strictEqual(testEl1._numberFlowCurrent, 153000);
+
+  // 2. Negative value formatting (net loss)
+  const testEl2 = {
+    attributes: {},
+    children: [],
+    style: {},
+    classList: { add: () => {}, remove: () => {} },
+    setAttribute(k, v) { this.attributes[k] = v; },
+    getAttribute(k) { return this.attributes[k]; },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    appendChild(c) { this.children.push(c); },
+    insertBefore(c) { this.children.unshift(c); }
+  };
+  sandbox.renderNumberFlow(testEl2, -25000);
+  assert.strictEqual(testEl2.attributes['aria-label'], '-Rp 25.000', 'Aria label for -25.000 must be -Rp 25.000');
+  assert.strictEqual(testEl2._numberFlowCurrent, -25000);
+
+  // 3. String values (Secret / Non-numeric)
+  const testEl3 = { innerText: '' };
+  sandbox.renderNumberFlow(testEl3, '*** (Rahasia)');
+  assert.strictEqual(testEl3.innerText, '*** (Rahasia)', 'Secret values must render as plain text');
+
+  // 4. Zero value formatting
+  const testEl4 = {
+    attributes: {},
+    children: [],
+    style: {},
+    classList: { add: () => {}, remove: () => {} },
+    setAttribute(k, v) { this.attributes[k] = v; },
+    getAttribute(k) { return this.attributes[k]; },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    appendChild(c) { this.children.push(c); },
+    insertBefore(c) { this.children.unshift(c); }
+  };
+  sandbox.renderNumberFlow(testEl4, 0);
+  assert.strictEqual(testEl4.attributes['aria-label'], 'Rp 0');
+
+  // 5. Verify CSS styling restraint (No forbidden transitions)
+  const css = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+  assert(css.includes('.number-flow-root'), 'style.css must define .number-flow-root');
+  assert(css.includes('.number-flow-ribbon'), 'style.css must define .number-flow-ribbon');
+  assert(css.includes('.number-flow-digit-box'), 'style.css must define .number-flow-digit-box');
+  assert(!/number-flow[^{]*\{[^}]*transition\s*:[^;]*\ball\b/i.test(css), 'Number flow must never use transition: all');
+});
+
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);
 if (process.exitCode) {
   console.error('Test suite failed!');

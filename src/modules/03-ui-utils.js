@@ -755,6 +755,209 @@ function getEffectiveTrxProfit(t) {
     return 0;
 }
 
+// =========================================================================
+// NUMBER FLOW ROLLING DIGIT ENGINE (DETAILS.SO / BARVIAN ARCHITECTURE)
+// Smooth continuous numeric transitions with Apple spring physics & tabular-nums
+// =========================================================================
+function renderNumberFlow(el, targetVal, options = {}) {
+    if (!el) return;
+
+    const prefix = options.prefix !== undefined ? options.prefix : 'Rp ';
+    const suffix = options.suffix || '';
+    const duration = options.duration || 600;
+
+    // Handle non-numeric text like '*** (Rahasia)'
+    if (typeof targetVal === 'string' && isNaN(Number(targetVal))) {
+        el.innerText = targetVal;
+        delete el._numberFlowCurrent;
+        return;
+    }
+
+    const num = Math.round(Number(targetVal) || 0);
+    const isNegative = num < 0;
+    const absNum = Math.abs(num);
+    const formattedStr = absNum.toLocaleString('id-ID');
+    const fullPrefix = isNegative ? (prefix === 'Rp ' ? '-Rp ' : '-' + prefix) : prefix;
+    const fullText = fullPrefix + formattedStr + suffix;
+
+    // Headless / Node vm mock fallback (for test.js compatibility)
+    if (typeof el.setAttribute !== 'function' || typeof document === 'undefined' || typeof document.createElement !== 'function' || !el.classList) {
+        el.innerText = fullText;
+        el._numberFlowCurrent = num;
+        return;
+    }
+
+    // Set accessibility label
+    el.setAttribute('aria-label', fullText);
+
+    // Respect user motion preferences
+    const prefersReducedMotion = typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+        el.innerText = fullText;
+        el._numberFlowCurrent = num;
+        return;
+    }
+
+    // Tokenize characters from right to left (positional ranking)
+    const chars = formattedStr.split('');
+    const tokens = [];
+    let digitRank = 0;
+    let symbolRank = 0;
+
+    for (let i = chars.length - 1; i >= 0; i--) {
+        const ch = chars[i];
+        if (ch >= '0' && ch <= '9') {
+            tokens.unshift({
+                type: 'digit',
+                char: ch,
+                digit: parseInt(ch, 10),
+                key: 'd_' + digitRank,
+                rank: digitRank
+            });
+            digitRank++;
+        } else {
+            tokens.unshift({
+                type: 'symbol',
+                char: ch,
+                key: 's_' + symbolRank,
+                rank: symbolRank
+            });
+            symbolRank++;
+        }
+    }
+
+    // Check if container already has number-flow structure
+    let root = el.querySelector('.number-flow-root');
+    const isFirstRender = !root;
+
+    if (!root) {
+        el.innerHTML = '';
+        root = document.createElement('span');
+        root.className = 'number-flow-root inline-flex items-baseline select-none';
+        root.setAttribute('aria-hidden', 'true');
+        el.appendChild(root);
+    }
+
+    // Update or create prefix
+    let prefixEl = root.querySelector('.number-flow-prefix');
+    if (!prefixEl) {
+        prefixEl = document.createElement('span');
+        prefixEl.className = 'number-flow-prefix inline-block shrink-0';
+        root.insertBefore(prefixEl, root.firstChild);
+    }
+    prefixEl.textContent = fullPrefix;
+
+    // Update or create suffix (if any)
+    let suffixEl = root.querySelector('.number-flow-suffix');
+    if (suffix) {
+        if (!suffixEl) {
+            suffixEl = document.createElement('span');
+            suffixEl.className = 'number-flow-suffix inline-block shrink-0';
+            root.appendChild(suffixEl);
+        }
+        suffixEl.textContent = suffix;
+    } else if (suffixEl) {
+        suffixEl.remove();
+    }
+
+    // Map existing token elements by key
+    const existingMap = new Map();
+    root.querySelectorAll('[data-nf-key]').forEach(node => {
+        existingMap.set(node.getAttribute('data-nf-key'), node);
+    });
+
+    const newElements = [];
+    const digitHeightEm = 1.25;
+
+    tokens.forEach((token, idx) => {
+        let tokenEl = existingMap.get(token.key);
+
+        if (token.type === 'symbol') {
+            if (!tokenEl) {
+                tokenEl = document.createElement('span');
+                tokenEl.className = 'number-flow-symbol inline-block shrink-0';
+                tokenEl.setAttribute('data-nf-key', token.key);
+                tokenEl.textContent = token.char;
+            } else {
+                tokenEl.textContent = token.char;
+                existingMap.delete(token.key);
+            }
+            newElements.push(tokenEl);
+        } else {
+            // Digit token
+            const targetY = - (token.digit * digitHeightEm);
+            const delayMs = Math.min(180, (tokens.length - 1 - idx) * 20); // subtle stagger from right
+
+            if (!tokenEl) {
+                // Create new digit box & ribbon
+                tokenEl = document.createElement('span');
+                tokenEl.className = 'number-flow-digit-box inline-block overflow-hidden relative shrink-0';
+                tokenEl.setAttribute('data-nf-key', token.key);
+                tokenEl.style.height = `${digitHeightEm}em`;
+                tokenEl.style.lineHeight = `${digitHeightEm}em`;
+                tokenEl.style.width = '1ch';
+                tokenEl.style.verticalAlign = 'baseline';
+
+                const ribbon = document.createElement('span');
+                ribbon.className = 'number-flow-ribbon flex flex-col will-change-transform';
+                // Fluid entrance: start at 0 and roll to target position
+                ribbon.style.transform = 'translate3d(0, 0, 0)';
+                ribbon.style.transition = `transform ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms`;
+
+                for (let d = 0; d <= 9; d++) {
+                    const digitSpan = document.createElement('span');
+                    digitSpan.className = 'number-flow-digit inline-block text-center';
+                    digitSpan.style.height = `${digitHeightEm}em`;
+                    digitSpan.style.lineHeight = `${digitHeightEm}em`;
+                    digitSpan.style.width = '1ch';
+                    digitSpan.textContent = String(d);
+                    ribbon.appendChild(digitSpan);
+                }
+
+                tokenEl.appendChild(ribbon);
+
+                // Animate into target position on next frame
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => {
+                        ribbon.style.transform = `translate3d(0, ${targetY}em, 0)`;
+                    });
+                } else {
+                    ribbon.style.transform = `translate3d(0, ${targetY}em, 0)`;
+                }
+            } else {
+                // Existing digit box: update ribbon transform
+                const ribbon = tokenEl.querySelector('.number-flow-ribbon');
+                if (ribbon) {
+                    ribbon.style.transition = `transform ${duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms`;
+                    ribbon.style.transform = `translate3d(0, ${targetY}em, 0)`;
+                }
+                existingMap.delete(token.key);
+            }
+            newElements.push(tokenEl);
+        }
+    });
+
+    // Remove any leftover columns that are no longer part of the number
+    existingMap.forEach(orphanEl => {
+        orphanEl.style.transition = 'opacity 250ms ease, transform 250ms ease, width 250ms ease';
+        orphanEl.style.opacity = '0';
+        orphanEl.style.width = '0';
+        orphanEl.style.overflow = 'hidden';
+        setTimeout(() => orphanEl.remove(), 260);
+    });
+
+    // Reorder/insert newElements inside root between prefix and suffix
+    const refNode = suffixEl || null;
+    newElements.forEach(node => {
+        root.insertBefore(node, refNode);
+    });
+
+    el._numberFlowCurrent = num;
+}
+
 if (typeof window !== 'undefined') {
     window.SnackLoop = window.SnackLoop || {};
     window.SnackLoop.AppleMotion = AppleMotion;
@@ -764,6 +967,8 @@ if (typeof window !== 'undefined') {
     window.SnackLoop.getEffectiveTrxModal = getEffectiveTrxModal;
     window.SnackLoop.getEffectiveTrxUnitProfit = getEffectiveTrxUnitProfit;
     window.SnackLoop.getEffectiveTrxProfit = getEffectiveTrxProfit;
+    window.SnackLoop.renderNumberFlow = renderNumberFlow;
+    window.renderNumberFlow = renderNumberFlow;
     if (typeof validateSessionTTL !== 'undefined') {
         window.SnackLoop.validateSessionTTL = validateSessionTTL;
     }

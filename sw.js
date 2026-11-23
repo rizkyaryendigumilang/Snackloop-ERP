@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v33 (Cloud Sync & Schema Alignment)
-const CACHE_NAME = 'snackloop-cache-v33';
+// SnackLoop ERP Service Worker v34 (Number Flow Dashboard Rolling Transitions)
+const CACHE_NAME = 'snackloop-cache-v34';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

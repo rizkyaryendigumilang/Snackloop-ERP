@@ -3296,13 +3296,33 @@ function updateDashboard() {
     const canMarkPaid = currentRole === 'super_admin' || currentRole === 'staff_rekap';
 
     const pEl = document.getElementById('stat-Pendapatan');
-    if (pEl) pEl.innerText = 'Rp ' + Pendapatan.toLocaleString();
+    if (pEl) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(pEl, Pendapatan);
+        } else {
+            pEl.innerText = 'Rp ' + Pendapatan.toLocaleString('id-ID');
+        }
+    }
     const expEl = document.getElementById('stat-expense');
-    if (expEl) expEl.innerText = isSuperAdmin ? ('Rp ' + totalExpense.toLocaleString()) : '*** (Rahasia)';
+    if (expEl) {
+        if (isSuperAdmin) {
+            if (typeof renderNumberFlow === 'function') {
+                renderNumberFlow(expEl, totalExpense);
+            } else {
+                expEl.innerText = 'Rp ' + totalExpense.toLocaleString('id-ID');
+            }
+        } else {
+            expEl.innerText = '*** (Rahasia)';
+        }
+    }
     const kEl = document.getElementById('stat-Keuntungan');
     if (kEl) {
         if (isSuperAdmin) {
-            kEl.innerText = (NetProfitFinal < 0 ? '-Rp ' : 'Rp ') + Math.abs(NetProfitFinal).toLocaleString();
+            if (typeof renderNumberFlow === 'function') {
+                renderNumberFlow(kEl, NetProfitFinal);
+            } else {
+                kEl.innerText = (NetProfitFinal < 0 ? '-Rp ' : 'Rp ') + Math.abs(NetProfitFinal).toLocaleString('id-ID');
+            }
             kEl.className = `text-lg sm:text-xl font-bold tracking-tight mt-1 tabular-nums ${NetProfitFinal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
         } else {
             kEl.innerText = '*** (Rahasia)';
@@ -3310,7 +3330,13 @@ function updateDashboard() {
         }
     }
     const hEl = document.getElementById('stat-Hutang');
-    if (hEl) hEl.innerText = 'Rp ' + Piutang.toLocaleString();
+    if (hEl) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(hEl, Piutang);
+        } else {
+            hEl.innerText = 'Rp ' + Piutang.toLocaleString('id-ID');
+        }
+    }
 
     // Standar Struktur Rasio Finansial (Berbasis Pendapatan Kas Masuk 100%)
     let mPct = 0, ePct = 0, pPct = 0;
@@ -3453,26 +3479,56 @@ function renderArAgingMatrixWidget() {
     if (unpaidBadge) unpaidBadge.innerText = `${allUnpaidItems.length} Nota`;
 
     const totalArEl = document.getElementById('ar-total-outstanding');
-    if (totalArEl) totalArEl.innerText = 'Rp ' + totalArOutstanding.toLocaleString('id-ID');
+    if (totalArEl) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(totalArEl, totalArOutstanding);
+        } else {
+            totalArEl.innerText = 'Rp ' + totalArOutstanding.toLocaleString('id-ID');
+        }
+    }
 
     // 2. Update 4 Kuadran Bento Cards
     const t1Tot = document.getElementById('ar-tier-1-total');
-    if (t1Tot) t1Tot.innerText = 'Rp ' + arBuckets.tier1.total.toLocaleString('id-ID');
+    if (t1Tot) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(t1Tot, arBuckets.tier1.total);
+        } else {
+            t1Tot.innerText = 'Rp ' + arBuckets.tier1.total.toLocaleString('id-ID');
+        }
+    }
     const t1Cnt = document.getElementById('ar-tier-1-count');
     if (t1Cnt) t1Cnt.innerText = `${arBuckets.tier1.count} Nota`;
 
     const t2Tot = document.getElementById('ar-tier-2-total');
-    if (t2Tot) t2Tot.innerText = 'Rp ' + arBuckets.tier2.total.toLocaleString('id-ID');
+    if (t2Tot) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(t2Tot, arBuckets.tier2.total);
+        } else {
+            t2Tot.innerText = 'Rp ' + arBuckets.tier2.total.toLocaleString('id-ID');
+        }
+    }
     const t2Cnt = document.getElementById('ar-tier-2-count');
     if (t2Cnt) t2Cnt.innerText = `${arBuckets.tier2.count} Nota`;
 
     const t3Tot = document.getElementById('ar-tier-3-total');
-    if (t3Tot) t3Tot.innerText = 'Rp ' + arBuckets.tier3.total.toLocaleString('id-ID');
+    if (t3Tot) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(t3Tot, arBuckets.tier3.total);
+        } else {
+            t3Tot.innerText = 'Rp ' + arBuckets.tier3.total.toLocaleString('id-ID');
+        }
+    }
     const t3Cnt = document.getElementById('ar-tier-3-count');
     if (t3Cnt) t3Cnt.innerText = `${arBuckets.tier3.count} Nota`;
 
     const t4Tot = document.getElementById('ar-tier-4-total');
-    if (t4Tot) t4Tot.innerText = 'Rp ' + arBuckets.tier4.total.toLocaleString('id-ID');
+    if (t4Tot) {
+        if (typeof renderNumberFlow === 'function') {
+            renderNumberFlow(t4Tot, arBuckets.tier4.total);
+        } else {
+            t4Tot.innerText = 'Rp ' + arBuckets.tier4.total.toLocaleString('id-ID');
+        }
+    }
     const t4Cnt = document.getElementById('ar-tier-4-count');
     if (t4Cnt) t4Cnt.innerText = `${arBuckets.tier4.count} Nota`;
 
