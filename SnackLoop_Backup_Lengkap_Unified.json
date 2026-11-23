@@ -4794,7 +4794,7 @@
         "extraCostNote": "-"
       },
       {
-        "id": "trx_1732185600001",
+        "id": 239,
         "monthKey": "Nov 2026",
         "date": "2026-11-20",
         "customer": "Mba Ajo",
@@ -4813,7 +4813,7 @@
         "notes": "Invoice: INV-20261120-7701AJO1"
       },
       {
-        "id": "trx_1732185600002",
+        "id": 240,
         "monthKey": "Nov 2026",
         "date": "2026-11-20",
         "customer": "Mba Ajo",
@@ -4832,7 +4832,7 @@
         "notes": "Invoice: INV-20261120-7701AJO1"
       },
       {
-        "id": "trx_1732185600003",
+        "id": 241,
         "monthKey": "Nov 2026",
         "date": "2026-11-20",
         "customer": "Mba Ajo",
@@ -4851,7 +4851,7 @@
         "notes": "Invoice: INV-20261120-7701AJO1"
       },
       {
-        "id": "trx_1732185600004",
+        "id": 242,
         "monthKey": "Nov 2026",
         "date": "2026-11-20",
         "customer": "Mba Ajo",
@@ -4910,7 +4910,7 @@
     ],
     "Okt 2026": [
       {
-        "id": "trx_1729161600001",
+        "id": 243,
         "monthKey": "Okt 2026",
         "date": "2026-10-17",
         "customer": "Mba Ajo",
@@ -4929,7 +4929,7 @@
         "notes": "Invoice: INV-20261017-7701AJO2"
       },
       {
-        "id": "trx_1729161600002",
+        "id": 244,
         "monthKey": "Okt 2026",
         "date": "2026-10-17",
         "customer": "Mba Ajo",
@@ -4948,7 +4948,7 @@
         "notes": "Invoice: INV-20261017-7701AJO2"
       },
       {
-        "id": "trx_1729161600003",
+        "id": 245,
         "monthKey": "Okt 2026",
         "date": "2026-10-17",
         "customer": "Mba Ajo",
@@ -4971,7 +4971,7 @@
   "expenseData": [],
   "invoiceData": [
     {
-      "id": "inv_1732185600001",
+      "id": 49,
       "invoice_number": "INV-20261120-7701AJO1",
       "date": "2026-11-20",
       "customer_name": "Mba Ajo",
@@ -4980,7 +4980,7 @@
       "notes": "Pesanan Air Mineral 20 Nov 2026 - Belum Lunas"
     },
     {
-      "id": "inv_1729161600001",
+      "id": 50,
       "invoice_number": "INV-20261017-7701AJO2",
       "date": "2026-10-17",
       "customer_name": "Mba Ajo",
