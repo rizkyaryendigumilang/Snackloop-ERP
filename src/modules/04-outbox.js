@@ -834,6 +834,15 @@ async function syncSingleOutboxItem(item) {
                 .eq('id', item.payload.id);
             if (error) throw error;
         }
+    } else if (item.type === 'UPDATE_TRANSACTION') {
+        if (item.payload && item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const updateData = { ...item.payload };
+            delete updateData.id;
+            const { error } = await supabaseClient.from('transactions')
+                .update(updateData)
+                .eq('id', item.payload.id);
+            if (error) throw error;
+        }
         await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'DELETE_MONTH_SHEET') {
         if (item.payload && item.payload.month_key) {

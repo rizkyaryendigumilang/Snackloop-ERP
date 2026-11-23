@@ -2012,6 +2012,15 @@ async function syncSingleOutboxItem(item) {
                 .eq('id', item.payload.id);
             if (error) throw error;
         }
+    } else if (item.type === 'UPDATE_TRANSACTION') {
+        if (item.payload && item.payload.id && !String(item.payload.id).startsWith('trx_')) {
+            const updateData = { ...item.payload };
+            delete updateData.id;
+            const { error } = await supabaseClient.from('transactions')
+                .update(updateData)
+                .eq('id', item.payload.id);
+            if (error) throw error;
+        }
         await syncDailyInvoiceCloud(item.payload.invSync);
     } else if (item.type === 'DELETE_MONTH_SHEET') {
         if (item.payload && item.payload.month_key) {
@@ -5103,14 +5112,53 @@ if (typeof document !== 'undefined') {
     });
 }
 
-async function renderMaster() {
+function filterMasterList(list, keyword) {
+    if (!list || !Array.isArray(list)) return [];
+    if (!keyword || !keyword.trim()) return list;
+    const cleanKw = keyword.trim().toLowerCase();
+    return list.filter(m => 
+        (m.name && m.name.toLowerCase().includes(cleanKw)) ||
+        (m.source && m.source.toLowerCase().includes(cleanKw)) ||
+        (m.barcode && String(m.barcode).toLowerCase().includes(cleanKw))
+    );
+}
+
+let masterSearchDebounceTimer = null;
+function debouncedFilterMaster() {
+    clearTimeout(masterSearchDebounceTimer);
+    masterSearchDebounceTimer = setTimeout(() => {
+        const input = document.getElementById('master-search');
+        const clearBtn = document.getElementById('master-search-clear');
+        const kw = input ? input.value : '';
+        if (clearBtn) {
+            clearBtn.classList.toggle('hidden', !kw || kw.trim().length === 0);
+        }
+        const filtered = filterMasterList(masterData, kw);
+        renderMaster(filtered);
+    }, 150);
+}
+
+function clearMasterSearch() {
+    const input = document.getElementById('master-search');
+    const clearBtn = document.getElementById('master-search-clear');
+    if (input) input.value = '';
+    if (clearBtn) clearBtn.classList.add('hidden');
+    renderMaster(masterData);
+}
+
+async function renderMaster(customList) {
     if (currentRole === 'super_admin' && typeof selfHealMasterDataPrices === 'function') {
         selfHealMasterDataPrices();
     }
     const tbody = document.getElementById('master-table-body');
     if(!tbody) return;
+    const listToRender = Array.isArray(customList) ? customList : masterData;
     const canEdit = currentRole === 'super_admin';
-    const rows = masterData.map((m) => {
+    if (listToRender.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 dark:text-slate-500 italic"><i class="fa-solid fa-magnifying-glass mr-2"></i>Tidak ada produk yang cocok dengan pencarian</td></tr>`;
+        return;
+    }
+    const rows = listToRender.map((m) => {
         const actionBtns = canEdit ? `
             <button onclick="openEditMasterModal(${m.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold mr-1"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
             <button onclick="openHistoryModal(${m.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold mr-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat</button>
@@ -7974,10 +8022,12 @@ function renderTransactionsForActiveSheet() {
         const returBadge = isNegativeOrReturn ? `<span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 mr-1">RETUR</span>` : '';
         const returActionBtn = !isNegativeOrReturn ? `<button onclick="openReturnModalFromTrx('${t.id}')" title="Catat Retur Toko" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : '';
 
+        const editBtn = isSuperAdmin ? `<button onclick="openEditTrxModal('${t.id}')" title="Edit Transaksi" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold mr-1"><i class="fa-solid fa-pen"></i></button>` : '';
         const deleteBtn = isSuperAdmin ? `<button onclick="confirmDeleteTrx('${t.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> Hapus</button>` : '';
 
         const actionBtn = `
             ${returActionBtn}
+            ${editBtn}
             <button onclick="downloadPDF('${t.id}')" title="Cetak / Download Nota" class="bg-slate-700 hover:bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-solid fa-print"></i></button>
             <button onclick="sendWhatsAppOnly('${t.id}')" title="Kirim WA" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg text-xs"><i class="fa-brands fa-whatsapp"></i></button>
             ${deleteBtn}`;
@@ -8213,6 +8263,7 @@ function renderTransactionsForActiveSheet() {
 
                     <div class="flex items-center gap-1.5 pt-2 border-t border-inherit">
                         ${!isNegativeOrReturn ? `<button type="button" onclick="openReturnModalFromTrx('${t.id}')" class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 text-xs font-semibold active:scale-95 transition" title="Retur Toko"><i class="fa-solid fa-arrow-rotate-left"></i></button>` : ''}
+                        ${isSuperAdmin ? `<button type="button" onclick="openEditTrxModal('${t.id}')" class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 text-xs font-semibold active:scale-95 transition" title="Edit Transaksi"><i class="fa-solid fa-pen"></i></button>` : ''}
                         <button type="button" onclick="downloadPDF('${t.id}')" class="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
                             <i class="fa-solid fa-print"></i> <span>Struk</span>
                         </button>
@@ -8427,6 +8478,304 @@ async function updateTrxStatus(id, newStatus) {
             }
         }
         await syncDailyInvoiceCloud(invSync);
+    });
+}
+
+// ======================= MODAL EDIT TRANSAKSI & REKONSILIASI ======================= //
+function updateLiveEditTrxProfit() {
+    const qty = Math.max(1, parseInt(document.getElementById('edit-trx-qty')?.value, 10) || 1);
+    const buy = getCleanNumber('edit-trx-buy');
+    const sell = getCleanNumber('edit-trx-sell');
+    const extraCost = getCleanNumber('edit-trx-extracost');
+
+    const totalModal = qty * buy;
+    const totalSell = qty * sell;
+    const netProfit = totalSell - totalModal - extraCost;
+    const marginPct = totalModal > 0 ? ((netProfit / totalModal) * 100).toFixed(1) : '0.0';
+
+    const modalEl = document.getElementById('edit-trx-total-modal');
+    const sellEl = document.getElementById('edit-trx-total-sell');
+    const profitEl = document.getElementById('edit-trx-net-profit');
+    const badgeEl = document.getElementById('edit-trx-margin-badge');
+
+    if (modalEl) modalEl.textContent = `Rp ${totalModal.toLocaleString('id-ID')}`;
+    if (sellEl) sellEl.textContent = `Rp ${totalSell.toLocaleString('id-ID')}`;
+    if (profitEl) {
+        profitEl.textContent = `${netProfit >= 0 ? '+' : ''}Rp ${netProfit.toLocaleString('id-ID')}`;
+        profitEl.className = `font-mono font-bold ${netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
+    }
+    if (badgeEl) {
+        badgeEl.textContent = `${netProfit >= 0 ? '+' : ''}${marginPct}%`;
+        badgeEl.className = `font-mono text-[10px] px-2 py-0.5 rounded-full ${netProfit >= 0 ? 'badge-soft-good' : 'badge-soft-bad'}`;
+    }
+}
+
+let editTrxListenersAttached = false;
+function setupEditTrxListeners() {
+    if (editTrxListenersAttached || typeof document === 'undefined') return;
+    const qtyInput = document.getElementById('edit-trx-qty');
+    const buyInput = document.getElementById('edit-trx-buy');
+    const sellInput = document.getElementById('edit-trx-sell');
+    const extraCostInput = document.getElementById('edit-trx-extracost');
+
+    [qtyInput, buyInput, sellInput, extraCostInput].forEach(el => {
+        if (!el) return;
+        el.addEventListener('input', () => {
+            updateLiveEditTrxProfit();
+        });
+        if (el === buyInput || el === sellInput || el === extraCostInput) {
+            el.addEventListener('blur', () => {
+                const val = getCleanNumber(el.id);
+                el.value = val.toLocaleString('id-ID');
+                updateLiveEditTrxProfit();
+            });
+            el.addEventListener('focus', () => {
+                const val = getCleanNumber(el.id);
+                el.value = val > 0 ? String(val) : '';
+            });
+        }
+    });
+    editTrxListenersAttached = true;
+}
+
+function openEditTrxModal(id) {
+    if (currentRole === 'view') {
+        return showNotification("Akses Ditolak", "Akun viewer tidak diizinkan mengubah transaksi.", "warning");
+    }
+    const target = String(id);
+    let foundTrx = null;
+    let foundMonth = activeMonthSheet;
+
+    for (const mk in transactionData) {
+        const t = (transactionData[mk] || []).find(item => String(item.id) === target);
+        if (t) {
+            foundTrx = t;
+            foundMonth = mk;
+            break;
+        }
+    }
+
+    if (!foundTrx) {
+        return showNotification("Error", "Transaksi tidak ditemukan.", "error");
+    }
+
+    const modal = document.getElementById('modal-edit-trx');
+    if (!modal) return;
+
+    setupEditTrxListeners();
+
+    // Populate hidden inputs
+    document.getElementById('edit-trx-id').value = foundTrx.id;
+    document.getElementById('edit-trx-old-month').value = foundMonth;
+
+    // Populate date and customer
+    document.getElementById('edit-trx-date').value = foundTrx.date || '';
+    document.getElementById('edit-trx-customer').value = foundTrx.customer || '';
+
+    // Populate customer datalist
+    const custDatalist = document.getElementById('edit-trx-customer-list');
+    if (custDatalist && Array.isArray(customerData)) {
+        custDatalist.innerHTML = customerData.map(c => `<option value="${escapeHtml(c.name)}"></option>`).join('');
+    }
+
+    // Populate source select
+    const sourceSelect = document.getElementById('edit-trx-source');
+    if (sourceSelect) {
+        let options = '';
+        if (Array.isArray(agentData)) {
+            options += agentData.map(a => `<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}</option>`).join('');
+        }
+        options += `<option value="Repack">Repack</option>`;
+        if (foundTrx.source && !agentData.some(a => a.name === foundTrx.source) && foundTrx.source !== 'Repack') {
+            options += `<option value="${escapeHtml(foundTrx.source)}">${escapeHtml(foundTrx.source)}</option>`;
+        }
+        sourceSelect.innerHTML = options;
+        sourceSelect.value = foundTrx.source || (agentData[0]?.name || '');
+    }
+
+    // Populate item input & datalist
+    document.getElementById('edit-trx-item').value = foundTrx.itemName || '';
+    const itemDatalist = document.getElementById('edit-trx-item-list');
+    if (itemDatalist && Array.isArray(masterData)) {
+        itemDatalist.innerHTML = masterData.map(m => `<option value="${escapeHtml(m.name)}"></option>`).join('');
+    }
+
+    // Populate numeric values
+    document.getElementById('edit-trx-qty').value = foundTrx.qty || 1;
+    document.getElementById('edit-trx-buy').value = Number(foundTrx.buy || 0).toLocaleString('id-ID');
+    document.getElementById('edit-trx-sell').value = Number(foundTrx.sell || 0).toLocaleString('id-ID');
+    document.getElementById('edit-trx-extracost').value = foundTrx.extraCost ? Number(foundTrx.extraCost).toLocaleString('id-ID') : '0';
+    document.getElementById('edit-trx-extracost-note').value = (foundTrx.extraCostNote && foundTrx.extraCostNote !== '-') ? foundTrx.extraCostNote : '';
+
+    // Populate status and notes
+    document.getElementById('edit-trx-status').value = foundTrx.status || 'Belum Lunas';
+    document.getElementById('edit-trx-notes').value = (foundTrx.notes && foundTrx.notes !== '-') ? foundTrx.notes : '';
+
+    updateLiveEditTrxProfit();
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeEditTrxModal() {
+    const modal = document.getElementById('modal-edit-trx');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+async function saveEditTrx(event) {
+    if (event) event.preventDefault();
+    if (currentRole === 'view') {
+        return showNotification("Akses Ditolak", "Akun viewer tidak diizinkan mengubah transaksi.", "error");
+    }
+
+    const id = document.getElementById('edit-trx-id').value;
+    const oldMonth = document.getElementById('edit-trx-old-month').value;
+    const newDate = document.getElementById('edit-trx-date').value;
+    const newCustomer = document.getElementById('edit-trx-customer').value.trim();
+    const newSource = document.getElementById('edit-trx-source').value.trim();
+    const newItemName = document.getElementById('edit-trx-item').value.trim();
+    const newQty = Math.max(1, parseInt(document.getElementById('edit-trx-qty').value, 10) || 1);
+    const newBuy = getCleanNumber('edit-trx-buy');
+    const newSell = getCleanNumber('edit-trx-sell');
+    const newExtraCost = getCleanNumber('edit-trx-extracost');
+    const newExtraCostNote = document.getElementById('edit-trx-extracost-note').value.trim() || '-';
+    const newStatus = document.getElementById('edit-trx-status').value;
+    const newNotes = document.getElementById('edit-trx-notes').value.trim() || '-';
+
+    if (!newDate || !newCustomer || !newItemName) {
+        return showNotification("Validasi Gagal", "Tanggal, Pelanggan, dan Nama Barang wajib diisi.", "warning");
+    }
+
+    // Determine new month key from newDate (e.g. '2026-11-20' -> 'Nov 2026')
+    const dateObj = new Date(newDate + 'T00:00:00');
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+    const newMonthKey = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+
+    // Find the transaction in oldMonth list
+    let targetList = transactionData[oldMonth] || [];
+    let idx = targetList.findIndex(t => String(t.id) === String(id));
+
+    // Fallback search across all months
+    if (idx === -1) {
+        for (const mk in transactionData) {
+            const foundIdx = (transactionData[mk] || []).findIndex(t => String(t.id) === String(id));
+            if (foundIdx !== -1) {
+                targetList = transactionData[mk];
+                idx = foundIdx;
+                break;
+            }
+        }
+    }
+
+    if (idx === -1) {
+        return showNotification("Error", "Transaksi tidak ditemukan untuk diperbarui.", "error");
+    }
+
+    const trx = targetList[idx];
+    const oldCustomer = trx.customer;
+    const oldDate = trx.date;
+
+    // Calculate new financials
+    const newTotalModal = newQty * newBuy;
+    const newTotalSell = newQty * newSell;
+    const newProfitPerItem = (newSell - newBuy) * newQty - newExtraCost;
+
+    // Update object fields
+    trx.date = newDate;
+    trx.customer = newCustomer;
+    trx.source = newSource;
+    trx.itemName = newItemName;
+    trx.qty = newQty;
+    trx.buy = newBuy;
+    trx.sell = newSell;
+    trx.totalModal = newTotalModal;
+    trx.totalSell = newTotalSell;
+    trx.extraCost = newExtraCost;
+    trx.extraCostNote = newExtraCostNote;
+    trx.status = newStatus;
+    trx.notes = newNotes;
+    trx.profitPerItem = newProfitPerItem;
+    trx.monthKey = newMonthKey;
+
+    // If month changed, migrate transaction between arrays
+    if (newMonthKey !== oldMonth) {
+        targetList.splice(idx, 1);
+        if (!transactionData[newMonthKey]) {
+            transactionData[newMonthKey] = [];
+        }
+        transactionData[newMonthKey].push(trx);
+        if (typeof renderMonthTabs === 'function') renderMonthTabs();
+        activeMonthSheet = newMonthKey;
+    }
+
+    // Auto-sync invoice for customer & date (recalculate invoice total & status)
+    syncDailyInvoiceForCustomerDate(oldCustomer, oldDate);
+    if (oldCustomer !== newCustomer || oldDate !== newDate) {
+        syncDailyInvoiceForCustomerDate(newCustomer, newDate);
+    }
+
+    // Recalculate daily profit for active sheet
+    if (typeof calculateDailyProfits === 'function') {
+        calculateDailyProfits(activeMonthSheet);
+    }
+
+    saveCacheToLocal();
+    renderTransactionsForActiveSheet();
+    renderInvoicesTable();
+    updateDashboard();
+    renderFinancialChart();
+    if (typeof renderCustomer === 'function') renderCustomer();
+    if (typeof renderArAgingTableOnly === 'function') renderArAgingTableOnly();
+
+    closeEditTrxModal();
+    showNotification("Sukses", `Transaksi ${newItemName} berhasil diperbarui!`, "success");
+    logAuditActivity('TRX_EDIT', String(id), `Mengubah transaksi ${newItemName} (${newCustomer}) - Qty: ${newQty}, Jual: Rp ${newTotalSell.toLocaleString('id-ID')}, Status: ${newStatus}`);
+
+    // Dispatch Supabase mutation
+    dispatchMutation({
+        type: 'UPDATE_TRANSACTION',
+        payload: {
+            id: trx.id,
+            month_key: newMonthKey,
+            date: newDate,
+            customer: newCustomer,
+            item_name: newItemName,
+            source: newSource,
+            qty: newQty,
+            buy: newBuy,
+            total_modal: newTotalModal,
+            sell: newSell,
+            total_sell: newTotalSell,
+            status: newStatus,
+            profit_per_item: newProfitPerItem,
+            extra_cost: newExtraCost,
+            extra_cost_note: newExtraCostNote,
+            notes: newNotes
+        }
+    }, async () => {
+        if (!String(id).startsWith('trx_')) {
+            const { error } = await supabaseClient.from('transactions').update({
+                month_key: newMonthKey,
+                date: newDate,
+                customer: newCustomer,
+                item_name: newItemName,
+                source: newSource,
+                qty: newQty,
+                buy: newBuy,
+                total_modal: newTotalModal,
+                sell: newSell,
+                total_sell: newTotalSell,
+                status: newStatus,
+                profit_per_item: newProfitPerItem,
+                extra_cost: newExtraCost,
+                extra_cost_note: newExtraCostNote,
+                notes: newNotes
+            }).eq('id', id);
+            if (error) throw error;
+        }
     });
 }
 

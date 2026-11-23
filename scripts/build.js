@@ -16,6 +16,7 @@ const EXCLUDED = new Set([
   '.gitignore',
   '.vscode',
   '.idea',
+  '.superpowers',
   'scripts',
   'package.json',
   'package-lock.json',

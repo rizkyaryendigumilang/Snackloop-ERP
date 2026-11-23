@@ -1857,6 +1857,118 @@
         </div>
     </div>
 
+    <!-- MODAL EDIT TRANSAKSI PENJUALAN -->
+    <div id="modal-edit-trx" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4 overflow-y-auto">
+        <div class="theme-card rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border my-8">
+            <div class="flex items-center justify-between border-b border-inherit pb-3">
+                <h3 class="text-base font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-500"></i> Edit Transaksi Penjualan
+                </h3>
+                <button type="button" onclick="closeEditTrxModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="form-edit-trx" onsubmit="saveEditTrx(event)" class="space-y-3.5 text-xs" novalidate>
+                <input type="hidden" id="edit-trx-id">
+                <input type="hidden" id="edit-trx-old-month">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Tanggal Transaksi <span class="text-rose-500">*</span></label>
+                        <input type="date" id="edit-trx-date" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Pelanggan <span class="text-rose-500">*</span></label>
+                        <input type="text" id="edit-trx-customer" class="w-full px-3 py-2 theme-input border rounded-xl outline-none" list="edit-trx-customer-list" required>
+                        <datalist id="edit-trx-customer-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Sumber Agen <span class="text-rose-500">*</span></label>
+                        <select id="edit-trx-source" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-medium" required></select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Nama Barang <span class="text-rose-500">*</span></label>
+                        <input type="text" id="edit-trx-item" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-medium" list="edit-trx-item-list" required>
+                        <datalist id="edit-trx-item-list"></datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Qty (Pcs) <span class="text-rose-500">*</span></label>
+                        <input type="number" inputmode="numeric" id="edit-trx-qty" min="1" value="1" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-bold" required>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Harga Beli / Modal (Rp) <span class="text-rose-500">*</span></label>
+                        <input type="text" inputmode="numeric" id="edit-trx-buy" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono font-bold" required title="Bisa diubah langsung tanpa mengubah master">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Harga Jual Satuan (Rp) <span class="text-rose-500">*</span></label>
+                        <input type="text" inputmode="numeric" id="edit-trx-sell" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono font-bold text-emerald-600 dark:text-emerald-400" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Biaya Tambahan / Ongkir (Rp)</label>
+                        <input type="text" inputmode="numeric" id="edit-trx-extracost" placeholder="0" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Keterangan Biaya Tambahan</label>
+                        <input type="text" id="edit-trx-extracost-note" placeholder="Misal: Ongkir motor, parkir..." class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Status Pembayaran <span class="text-rose-500">*</span></label>
+                        <select id="edit-trx-status" class="w-full px-3 py-2 theme-input border rounded-xl outline-none font-bold" required>
+                            <option value="Belum Lunas">Belum Lunas</option>
+                            <option value="Lunas">Lunas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 opacity-80">Catatan Transaksi / Invoice</label>
+                        <input type="text" id="edit-trx-notes" placeholder="Catatan opsional..." class="w-full px-3 py-2 theme-input border rounded-xl outline-none">
+                    </div>
+                </div>
+
+                <!-- Live Profit Preview Card -->
+                <div id="edit-trx-preview" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 space-y-2">
+                    <div class="flex items-center justify-between text-[11px] font-bold opacity-75">
+                        <span><i class="fa-solid fa-calculator text-indigo-500 mr-1.5"></i>Kalkulasi Laba Transaksi</span>
+                        <span id="edit-trx-margin-badge" class="badge-soft-good font-mono text-[10px] px-2 py-0.5 rounded-full">+0.0%</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                        <div class="p-2 rounded-lg bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50">
+                            <span class="text-[10px] opacity-60 block">Total Modal</span>
+                            <span id="edit-trx-total-modal" class="font-mono font-bold text-slate-700 dark:text-slate-300">Rp 0</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50">
+                            <span class="text-[10px] opacity-60 block">Total Jual</span>
+                            <span id="edit-trx-total-sell" class="font-mono font-bold text-slate-900 dark:text-slate-100">Rp 0</span>
+                        </div>
+                        <div class="p-2 rounded-lg bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50">
+                            <span class="text-[10px] opacity-60 block">Laba Bersih</span>
+                            <span id="edit-trx-net-profit" class="font-mono font-bold text-emerald-600 dark:text-emerald-400">Rp 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-inherit">
+                    <button type="button" onclick="closeEditTrxModal()" class="px-4 py-2 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold transition">Batal</button>
+                    <button type="submit" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold shadow-md flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL RIWAYAT HARGA MASTER -->
     <div id="history-master-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[99999] p-4">
         <div class="theme-card rounded-2xl p-6 max-w-2xl w-full shadow-xl space-y-4 border">

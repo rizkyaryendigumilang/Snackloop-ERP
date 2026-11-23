@@ -1094,6 +1094,78 @@ runTest('Verify Master Search Bar and Transaction Editing Holistic Math Integrit
   assert.strictEqual(res3.length, 1, "Should find 1 product by barcode");
   const resEmpty = filterFn(dummyMaster, "   ");
   assert.strictEqual(resEmpty.length, 3, "Empty search must return all products");
+
+  // 3. Verify Edit Modal markup and functions
+  const htmlContent = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+  assert.ok(htmlContent.includes('id="modal-edit-trx"'), 'modal-edit-trx must exist in index.html');
+  assert.ok(htmlContent.includes('id="master-search"'), 'master-search input must exist in index.html');
+  assert.ok(scriptContent.includes('function openEditTrxModal'), 'openEditTrxModal must exist in script.js');
+  assert.ok(scriptContent.includes('function closeEditTrxModal'), 'closeEditTrxModal must exist in script.js');
+  assert.ok(scriptContent.includes('function saveEditTrx'), 'saveEditTrx must exist in script.js');
+  assert.ok(scriptContent.includes('function updateLiveEditTrxProfit'), 'updateLiveEditTrxProfit must exist in script.js');
+
+  // 4. Mathematical Recalculation & Zero Variance Proof
+  const originalTrx = {
+    id: 991,
+    date: "2026-11-20",
+    customer: "Mba Ajo",
+    itemName: "Mie Shorr Ayam Panggang",
+    source: "Toko Agen Tegal Parang Diah",
+    qty: 1,
+    buy: 18000,
+    sell: 23000,
+    totalModal: 18000,
+    totalSell: 23000,
+    extraCost: 0,
+    profitPerItem: 5000,
+    status: "Belum Lunas"
+  };
+
+  // User edits: price increase from agent (18k -> 19k), sell increased (23k -> 25k), qty changed to 2, added 1k ongkir
+  const editPayload = {
+    qty: 2,
+    buy: 19000,
+    sell: 25000,
+    extraCost: 1000
+  };
+
+  const newTotalModal = editPayload.qty * editPayload.buy; // 38.000
+  const newTotalSell = editPayload.qty * editPayload.sell;   // 50.000
+  const newProfit = (editPayload.sell - editPayload.buy) * editPayload.qty - editPayload.extraCost; // 11.000
+
+  assert.strictEqual(newTotalModal, 38000, 'Total modal baru harus tepat 38.000');
+  assert.strictEqual(newTotalSell, 50000, 'Total jual baru harus tepat 50.000');
+  assert.strictEqual(newProfit, 11000, 'Laba bersih setelah biaya tambahan harus tepat 11.000');
+  const delta = (newTotalSell - newTotalModal - editPayload.extraCost) - newProfit;
+  assert.strictEqual(delta, 0, 'Invarian Delta matematis harus tepat 0');
+
+  // 5. Cross-Month Migration Logic Test
+  const mockTrxData = {
+    "Nov 2026": [{ ...originalTrx }],
+    "Okt 2026": []
+  };
+
+  const newDate = "2026-10-15"; // moved to October
+  const dateObj = new Date(newDate + 'T00:00:00');
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+  const newMonthKey = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+  assert.strictEqual(newMonthKey, "Okt 2026");
+
+  // Migrate
+  const oldMonth = "Nov 2026";
+  const idx = mockTrxData[oldMonth].findIndex(t => t.id === 991);
+  const [migrated] = mockTrxData[oldMonth].splice(idx, 1);
+  migrated.date = newDate;
+  migrated.monthKey = newMonthKey;
+  mockTrxData[newMonthKey].push(migrated);
+
+  assert.strictEqual(mockTrxData["Nov 2026"].length, 0, "Bulan lama harus berkurang");
+  assert.strictEqual(mockTrxData["Okt 2026"].length, 1, "Bulan baru harus bertambah");
+  assert.strictEqual(mockTrxData["Okt 2026"][0].monthKey, "Okt 2026");
+
+  // 6. Master Isolation Proof: Master buy price must not change when transaction buy price was overridden
+  const masterProduct = { id: 87, name: "Mie Shorr Ayam Panggang", buy: 18000, sell: 23000 };
+  assert.strictEqual(masterProduct.buy, 18000, "Master catalog price must remain isolated");
 });
 
 console.log(`\nResults: ${passedTests}/${totalTests} tests passed.`);

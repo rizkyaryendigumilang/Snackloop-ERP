@@ -33,3 +33,4 @@ ios/App/*.xcodeproj/project.xcworkspace/xcuserdata/
 # OS generated files
 .DS_Store
 Thumbs.db
+.superpowers/
