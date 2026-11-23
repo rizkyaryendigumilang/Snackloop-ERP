@@ -4082,16 +4082,14 @@ async function loadDataFromCloud() {
         const trxQuery = isSuperAdmin
             ? supabaseClient.from('transactions').select('*').order('date', { ascending: false })
             : supabaseClient.from('transactions')
-                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note, created_at')
+                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note')
                 .order('date', { ascending: false });
 
         const masterQuery = isSuperAdmin
             ? supabaseClient.from('master').select('*').order('name', { ascending: true })
-            : supabaseClient.from('master').select('id, name, source, sell, agent_id, created_at').order('name', { ascending: true });
+            : supabaseClient.from('master').select('id, name, source, sell, agent_id').order('name', { ascending: true });
 
-        const repackQuery = isSuperAdmin
-            ? supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'))
-            : supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty, created_at').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty'));
+        const repackQuery = supabaseClient.from('repack').select('*').order('id', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'));
 
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),
@@ -7838,6 +7836,35 @@ window.selectTransactionMonth = selectTransactionMonth;
 window.setTransactionYear = setTransactionYear;
 window.setInvoiceYear = setInvoiceYear;
 window.selectInvoiceMonthSheet = selectInvoiceMonthSheet;
+
+async function refreshTransactionsFromCloud() {
+    if (!navigator.onLine) {
+        if (typeof showNotification === 'function') {
+            showNotification("Mode Offline", "Koneksi internet terputus. Menampilkan data lokal.", "warning");
+        }
+        return;
+    }
+    if (typeof showNotification === 'function') {
+        showNotification("Menyinkronkan", "Memuat data transaksi terbaru dari cloud...", "info");
+    }
+    try {
+        if (typeof loadDataFromCloud === 'function') {
+            await loadDataFromCloud();
+        }
+        renderMonthTabs();
+        renderTransactionsForActiveSheet();
+        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+        if (typeof showNotification === 'function') {
+            showNotification("Sukses", "Data transaksi berhasil diselaraskan dari cloud!", "success");
+        }
+    } catch(err) {
+        console.error("Gagal refresh cloud:", err);
+        if (typeof showNotification === 'function') {
+            showNotification("Gagal", "Terjadi kendala saat menyinkronkan data cloud.", "error");
+        }
+    }
+}
+window.refreshTransactionsFromCloud = refreshTransactionsFromCloud;
 
 function filterTrxStatus(st) {
     currentTransactionFilter = st;

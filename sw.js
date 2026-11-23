@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v32 (Enterprise Architecture & Bcrypt Upgrade)
-const CACHE_NAME = 'snackloop-cache-v32';
+// SnackLoop ERP Service Worker v33 (Cloud Sync & Schema Alignment)
+const CACHE_NAME = 'snackloop-cache-v33';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
@@ -42,10 +42,10 @@ const CACHEABLE_CDN_HOSTS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker v32] Pre-caching core app shell');
+      console.log('[ServiceWorker v33] Pre-caching core app shell');
       return cache.addAll(STATIC_ASSETS);
     }).catch((err) => {
-      console.warn('[ServiceWorker v32] Pre-cache notice:', err);
+      console.warn('[ServiceWorker v33] Pre-cache notice:', err);
     })
   );
   self.skipWaiting();
@@ -58,7 +58,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker v32] Purging deprecated cache:', key);
+            console.log('[ServiceWorker v33] Purging deprecated cache:', key);
             return caches.delete(key);
           }
         })

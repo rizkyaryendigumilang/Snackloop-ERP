@@ -416,16 +416,14 @@ async function loadDataFromCloud() {
         const trxQuery = isSuperAdmin
             ? supabaseClient.from('transactions').select('*').order('date', { ascending: false })
             : supabaseClient.from('transactions')
-                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note, created_at')
+                .select('id, month_key, date, customer, item_name, source, batch, qty, sell, total_sell, status, notes, extra_cost, extra_cost_note')
                 .order('date', { ascending: false });
 
         const masterQuery = isSuperAdmin
             ? supabaseClient.from('master').select('*').order('name', { ascending: true })
-            : supabaseClient.from('master').select('id, name, source, sell, agent_id, created_at').order('name', { ascending: true });
+            : supabaseClient.from('master').select('id, name, source, sell, agent_id').order('name', { ascending: true });
 
-        const repackQuery = isSuperAdmin
-            ? supabaseClient.from('repack').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'))
-            : supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty, created_at').order('created_at', { ascending: false }).catch(() => supabaseClient.from('repack').select('id, date, name, sell_target, initial_qty, remaining_qty'));
+        const repackQuery = supabaseClient.from('repack').select('*').order('id', { ascending: false }).catch(() => supabaseClient.from('repack').select('*'));
 
         const [resAgent, resMaster, resCust, resRepack, resTrx, resExp, resUsers, resInv, resHistory, resReturns, resJastip] = await Promise.all([
             supabaseClient.from('agents').select('*').order('name', { ascending: true }),

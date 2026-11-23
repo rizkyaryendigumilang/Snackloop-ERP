@@ -580,6 +580,7 @@
                     <div class="flex flex-wrap justify-between items-center gap-2 border-b border-inherit pb-3 no-print">
                         <div id="month-tabs-container" class="flex flex-wrap items-center gap-2"></div>
                         <div class="flex items-center space-x-2">
+                            <button onclick="refreshTransactionsFromCloud()" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5" title="Muat data transaksi terbaru dari cloud database"><i class="fa-solid fa-rotate"></i> <span>Segarkan Cloud</span></button>
                             <button onclick="printMonthlyRecapPDF()" class="btn-magnetic bg-rose-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i> <span>Cetak Rekap PDF</span></button>
                             <button onclick="exportActiveSheetToExcelLocal()" class="btn-magnetic bg-emerald-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> <span>Ekspor Excel</span></button>
                         </div>
@@ -765,7 +766,7 @@
                                 <button onclick="consolidateDailyInvoices()" class="px-3 py-2 rounded-xl text-xs font-semibold border theme-input hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 transition shadow-sm" title="Gabungkan beberapa nota untuk pelanggan yang sama di hari yang sama menjadi 1 invoice utuh">
                                     <i class="fa-solid fa-layer-group"></i> <span>Gabungkan Invoice Harian</span>
                                 </button>
-                                <button onclick="renderInvoicesTable()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Segarkan Data</button>
+                                <button onclick="refreshTransactionsFromCloud()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5" title="Muat data invoice dan transaksi terbaru dari cloud"><i class="fa-solid fa-rotate"></i> <span>Segarkan Data</span></button>
                             </div>
                         </div>
 
