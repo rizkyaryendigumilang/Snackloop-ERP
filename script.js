@@ -488,8 +488,18 @@ function showNotification(title, message, type = 'success') {
 
 // ======================= CHRONOLOGICAL MONTH PARSING & SORTING ======================= //
 const INDO_MONTHS_MAP = {
-    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5,
-    'Jul': 6, 'Agu': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11
+    'Jan': 0, 'Januari': 0, 'January': 0,
+    'Feb': 1, 'Februari': 1, 'February': 1,
+    'Mar': 2, 'Maret': 2, 'March': 2,
+    'Apr': 3, 'April': 3,
+    'Mei': 4, 'May': 4,
+    'Jun': 5, 'Juni': 5, 'June': 5,
+    'Jul': 6, 'Juli': 6, 'July': 6,
+    'Agu': 7, 'Agt': 7, 'Agustus': 7, 'Aug': 7, 'August': 7,
+    'Sep': 8, 'September': 8,
+    'Okt': 9, 'Oct': 9, 'Oktober': 9, 'October': 9,
+    'Nov': 10, 'November': 10,
+    'Des': 11, 'Dec': 11, 'Desember': 11, 'December': 11
 };
 
 function parseMonthKey(mk) {
