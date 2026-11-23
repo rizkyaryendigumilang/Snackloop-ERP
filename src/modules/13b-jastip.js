@@ -248,7 +248,7 @@ function renderJastip() {
                     <div class="flex flex-col items-center justify-center space-y-2">
                         <i class="fa-solid fa-plane-departure text-3xl opacity-30"></i>
                         <p class="font-medium text-xs">Belum ada pesanan Jastip pada kategori ini.</p>
-                        <button onclick="openJastipOrderModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline">+ Buat Order Baru</button>
+                        <button onclick="openJastipOrderModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline">+ Buat Pesanan Baru</button>
                     </div>
                 </td>
             </tr>
@@ -375,7 +375,7 @@ function renderJastip() {
                         <button onclick="openEditJastipModal('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-indigo-500 text-indigo-600 transition" title="Edit Pesanan">
                             <i class="fa-solid fa-pen-to-square text-xs"></i>
                         </button>
-                        <button onclick="changeJastipStatus('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-blue-500 text-blue-600 transition" title="Update Status Tahapan">
+                        <button onclick="changeJastipStatus('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-blue-500 text-blue-600 transition" title="Perbarui Status Tahapan">
                             <i class="fa-solid fa-arrow-progress text-xs"></i>
                         </button>
                         <button onclick="confirmDeleteJastip('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-rose-500 text-rose-600 transition" title="Hapus Pesanan">

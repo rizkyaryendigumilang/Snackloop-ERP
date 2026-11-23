@@ -493,15 +493,15 @@ function renderAutoSyncStatusUI() {
                 <strong class="tabular-nums font-semibold">${timeText}</strong>
             </div>
             <div>
-                <span class="opacity-60 block text-[10px]">Data Ter-sync Saat Ini:</span>
+                <span class="opacity-60 block text-[10px]">Data Tersinkron Saat Ini:</span>
                 <strong class="tabular-nums font-semibold">${totalTrx} Transaksi • ${totalMaster} Master</strong>
             </div>
             <div class="flex items-center gap-1.5 justify-end">
                 <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh JSON">
-                    <i class="fa-solid fa-rotate"></i> <span>Sync JSON</span>
+                    <i class="fa-solid fa-rotate"></i> <span>Sinkronkan JSON</span>
                 </button>
                 <button type="button" onclick="syncAndDownloadLatestBackup('csv')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh CSV">
-                    <i class="fa-solid fa-file-csv"></i> <span>Sync CSV</span>
+                    <i class="fa-solid fa-file-csv"></i> <span>Sinkronkan CSV</span>
                 </button>
             </div>
         </div>

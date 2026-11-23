@@ -192,7 +192,7 @@ function toggleCompactView(forceState = null) {
     });
 
     if (statusText) {
-        statusText.textContent = isCompact ? 'ON' : 'OFF';
+        statusText.textContent = isCompact ? (typeof currentLanguage !== 'undefined' && currentLanguage === 'en' ? 'ON' : 'Aktif') : (typeof currentLanguage !== 'undefined' && currentLanguage === 'en' ? 'OFF' : 'Nonaktif');
         statusText.className = isCompact ? 'text-emerald-500 font-bold' : 'opacity-50';
     }
     if (btn) {

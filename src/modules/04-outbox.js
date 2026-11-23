@@ -1243,13 +1243,13 @@ function initPageVisibilityAndPowerSaver() {
 
         window.addEventListener('online', () => {
             updateNetworkStatus();
-            showNotification("Online", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
+            showNotification("Terhubung", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
             syncOutboxQueue();
         });
 
         window.addEventListener('offline', () => {
             updateNetworkStatus();
-            showNotification("Offline", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
+            showNotification("Terputus", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
         });
     }
 

@@ -196,7 +196,7 @@ function clearLocalAppCache() {
                 window.location.reload();
             }, 1000);
         } catch(e) {
-            showNotification("Error", "Gagal membersihkan cache: " + e.message, "error");
+            showNotification("Gagal", "Gagal membersihkan cache: " + e.message, "error");
         }
     });
 }

@@ -1021,9 +1021,9 @@ function renderInvoicePaginationControls(totalPages, totalItems, fromItem, toIte
                 Menampilkan <b>${fromItem}</b> - <b>${toItem}</b> dari <b>${totalItems}</b> invoice (Hal. ${currentInvoicePage} dari ${totalPages})
             </span>
             <div class="flex items-center space-x-1.5">
-                <button onclick="changeInvoicePage(${currentInvoicePage - 1})" ${currentInvoicePage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                <button onclick="changeInvoicePage(${currentInvoicePage - 1})" ${currentInvoicePage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}><i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya</button>
                 <span class="px-2 font-mono font-bold">${currentInvoicePage} / ${totalPages}</span>
-                <button onclick="changeInvoicePage(${currentInvoicePage + 1})" ${currentInvoicePage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}>Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                <button onclick="changeInvoicePage(${currentInvoicePage + 1})" ${currentInvoicePage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}>Berikutnya <i class="fa-solid fa-chevron-right ml-1"></i></button>
             </div>
         </div>
     `;
@@ -2108,7 +2108,7 @@ function renderTransactionsForActiveSheet() {
                 </div>
                 ${hasActiveFilter ? `
                     <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
-                        <i class="fa-solid fa-rotate-left"></i> Reset Filter & Pencarian
+                        <i class="fa-solid fa-rotate-left"></i> Atur Ulang Filter & Pencarian
                     </button>
                 ` : `
                     <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
@@ -2129,7 +2129,7 @@ function renderTransactionsForActiveSheet() {
                     <p class="text-xs opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau pencarian Anda' : 'pada lembar bulan ini'}.</p>
                     ${hasActiveFilter ? `
                         <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
-                            <i class="fa-solid fa-rotate-left"></i> Reset Filter
+                            <i class="fa-solid fa-rotate-left"></i> Atur Ulang Filter
                         </button>
                     ` : `
                         <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
@@ -2511,8 +2511,8 @@ function renderPaginationControls(totalPages) {
     paginationContainer.innerHTML = `
         <span class="opacity-70">Halaman ${currentTransactionPage} dari ${totalPages} (Menampilkan 25 baris/hal)</span>
         <div class="space-x-1">
-            <button onclick="changeTrxPage(${currentTransactionPage - 1})" ${currentTransactionPage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Prev</button>
-            <button onclick="changeTrxPage(${currentTransactionPage + 1})" ${currentTransactionPage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Next</button>
+            <button onclick="changeTrxPage(${currentTransactionPage - 1})" ${currentTransactionPage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}><i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya</button>
+            <button onclick="changeTrxPage(${currentTransactionPage + 1})" ${currentTransactionPage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Berikutnya <i class="fa-solid fa-chevron-right ml-1"></i></button>
         </div>
     `;
 }
@@ -2744,7 +2744,7 @@ function openEditTrxModal(id) {
     }
 
     if (!foundTrx) {
-        return showNotification("Error", "Transaksi tidak ditemukan.", "error");
+        return showNotification("Gagal", "Transaksi tidak ditemukan.", "error");
     }
 
     const modal = document.getElementById('modal-edit-trx');
@@ -2859,7 +2859,7 @@ async function saveEditTrx(event) {
     }
 
     if (idx === -1) {
-        return showNotification("Error", "Transaksi tidak ditemukan untuk diperbarui.", "error");
+        return showNotification("Gagal", "Transaksi tidak ditemukan untuk diperbarui.", "error");
     }
 
     const trx = targetList[idx];
@@ -4172,7 +4172,7 @@ async function saveBulkTransactions() {
     });
 
     logAuditActivity('TRANSACTION_BULK_CREATE', invNumber, `Input kilat ${checkedItems.length} produk untuk ${customer} (${source}) total Rp ${grandTotalSell.toLocaleString('id-ID')}`);
-    showNotification("Sukses!", `${checkedItems.length} produk berhasil ditambahkan ke Buku Transaksi dalam 1 Invoice (${invNumber}).`, "success");
+    showNotification("Sukses", `${checkedItems.length} produk berhasil ditambahkan ke Buku Transaksi dalam 1 Invoice (${invNumber}).`, "success");
     closeBulkOrderModal();
 }
 

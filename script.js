@@ -153,11 +153,23 @@ const I18N = {
         nav_helpdesk: "Bantuan & Lapor",
         nav_install: "Pasang App",
         nav_logout: "Keluar",
+        nav_more: "Lainnya",
 
         // Header & Actions
         btn_install: "Pasang App",
         tab_preferences: "Preferensi Sistem",
         set_modal_title: "Pengaturan Sistem & Profil Usaha",
+        btn_export_excel: "Ekspor Excel",
+        btn_refresh_data: "Segarkan Data",
+        btn_prev: "Sebelumnya",
+        btn_next: "Berikutnya",
+        btn_cancel: "Batal",
+        btn_close: "Tutup",
+        btn_save: "Simpan",
+        btn_save_changes: "Simpan Perubahan",
+        btn_reset: "Atur Ulang",
+        btn_edit: "Edit",
+        btn_delete: "Hapus",
 
         // Login Screen
         login_tagline: "Masuk ke Akun Anda",
@@ -199,7 +211,7 @@ const I18N = {
         th_totalsell: "Total Jual",
         th_status: "Status",
         th_profit: "Laba / Item",
-        th_daily_profit: "Profit Harian",
+        th_daily_profit: "Laba Harian",
         th_action: "Aksi",
 
         // Modal Pengaturan
@@ -228,11 +240,23 @@ const I18N = {
         nav_helpdesk: "Help & Support",
         nav_install: "Install App",
         nav_logout: "Logout",
+        nav_more: "More",
 
         // Header & Actions
         btn_install: "Install App",
         tab_preferences: "System Preferences",
         set_modal_title: "System Settings & Business Profile",
+        btn_export_excel: "Export Excel",
+        btn_refresh_data: "Refresh Data",
+        btn_prev: "Previous",
+        btn_next: "Next",
+        btn_cancel: "Cancel",
+        btn_close: "Close",
+        btn_save: "Save",
+        btn_save_changes: "Save Changes",
+        btn_reset: "Reset",
+        btn_edit: "Edit",
+        btn_delete: "Delete",
 
         // Login Screen
         login_tagline: "Sign in to Your Account",
@@ -330,7 +354,7 @@ const TAB_TITLES = {
         master: 'Data Master Produk',
         customers: 'Manajemen Pelanggan',
         agents: 'Kelola Agen & Supplier',
-        users: 'Kelola Akun User'
+        users: 'Kelola Pengguna'
     },
     en: {
         dashboard: 'Financial Dashboard',
@@ -2431,13 +2455,13 @@ function initPageVisibilityAndPowerSaver() {
 
         window.addEventListener('online', () => {
             updateNetworkStatus();
-            showNotification("Online", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
+            showNotification("Terhubung", "Koneksi internet terhubung kembali. Memulai sinkronisasi data...", "info");
             syncOutboxQueue();
         });
 
         window.addEventListener('offline', () => {
             updateNetworkStatus();
-            showNotification("Offline", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
+            showNotification("Terputus", "Koneksi terputus. SnackLoop beralih ke mode penyimpanan lokal.", "warning");
         });
     }
 
@@ -3182,7 +3206,7 @@ function toggleCompactView(forceState = null) {
     });
 
     if (statusText) {
-        statusText.textContent = isCompact ? 'ON' : 'OFF';
+        statusText.textContent = isCompact ? (typeof currentLanguage !== 'undefined' && currentLanguage === 'en' ? 'ON' : 'Aktif') : (typeof currentLanguage !== 'undefined' && currentLanguage === 'en' ? 'OFF' : 'Nonaktif');
         statusText.className = isCompact ? 'text-emerald-500 font-bold' : 'opacity-50';
     }
     if (btn) {
@@ -5054,15 +5078,15 @@ function renderAutoSyncStatusUI() {
                 <strong class="tabular-nums font-semibold">${timeText}</strong>
             </div>
             <div>
-                <span class="opacity-60 block text-[10px]">Data Ter-sync Saat Ini:</span>
+                <span class="opacity-60 block text-[10px]">Data Tersinkron Saat Ini:</span>
                 <strong class="tabular-nums font-semibold">${totalTrx} Transaksi • ${totalMaster} Master</strong>
             </div>
             <div class="flex items-center gap-1.5 justify-end">
                 <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh JSON">
-                    <i class="fa-solid fa-rotate"></i> <span>Sync JSON</span>
+                    <i class="fa-solid fa-rotate"></i> <span>Sinkronkan JSON</span>
                 </button>
                 <button type="button" onclick="syncAndDownloadLatestBackup('csv')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh CSV">
-                    <i class="fa-solid fa-file-csv"></i> <span>Sync CSV</span>
+                    <i class="fa-solid fa-file-csv"></i> <span>Sinkronkan CSV</span>
                 </button>
             </div>
         </div>
@@ -6843,9 +6867,9 @@ function renderInvoicePaginationControls(totalPages, totalItems, fromItem, toIte
                 Menampilkan <b>${fromItem}</b> - <b>${toItem}</b> dari <b>${totalItems}</b> invoice (Hal. ${currentInvoicePage} dari ${totalPages})
             </span>
             <div class="flex items-center space-x-1.5">
-                <button onclick="changeInvoicePage(${currentInvoicePage - 1})" ${currentInvoicePage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                <button onclick="changeInvoicePage(${currentInvoicePage - 1})" ${currentInvoicePage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}><i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya</button>
                 <span class="px-2 font-mono font-bold">${currentInvoicePage} / ${totalPages}</span>
-                <button onclick="changeInvoicePage(${currentInvoicePage + 1})" ${currentInvoicePage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}>Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                <button onclick="changeInvoicePage(${currentInvoicePage + 1})" ${currentInvoicePage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm"'}>Berikutnya <i class="fa-solid fa-chevron-right ml-1"></i></button>
             </div>
         </div>
     `;
@@ -7930,7 +7954,7 @@ function renderTransactionsForActiveSheet() {
                 </div>
                 ${hasActiveFilter ? `
                     <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
-                        <i class="fa-solid fa-rotate-left"></i> Reset Filter & Pencarian
+                        <i class="fa-solid fa-rotate-left"></i> Atur Ulang Filter & Pencarian
                     </button>
                 ` : `
                     <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
@@ -7951,7 +7975,7 @@ function renderTransactionsForActiveSheet() {
                     <p class="text-xs opacity-70">Belum ada transaksi yang sesuai ${hasActiveFilter ? 'dengan filter atau pencarian Anda' : 'pada lembar bulan ini'}.</p>
                     ${hasActiveFilter ? `
                         <button type="button" onclick="resetTransactionFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 transition">
-                            <i class="fa-solid fa-rotate-left"></i> Reset Filter
+                            <i class="fa-solid fa-rotate-left"></i> Atur Ulang Filter
                         </button>
                     ` : `
                         <button type="button" onclick="document.getElementById('t-date')?.focus();" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm">
@@ -8333,8 +8357,8 @@ function renderPaginationControls(totalPages) {
     paginationContainer.innerHTML = `
         <span class="opacity-70">Halaman ${currentTransactionPage} dari ${totalPages} (Menampilkan 25 baris/hal)</span>
         <div class="space-x-1">
-            <button onclick="changeTrxPage(${currentTransactionPage - 1})" ${currentTransactionPage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Prev</button>
-            <button onclick="changeTrxPage(${currentTransactionPage + 1})" ${currentTransactionPage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Next</button>
+            <button onclick="changeTrxPage(${currentTransactionPage - 1})" ${currentTransactionPage === 1 ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}><i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya</button>
+            <button onclick="changeTrxPage(${currentTransactionPage + 1})" ${currentTransactionPage === totalPages ? 'disabled class="opacity-40 px-3 py-1.5 border rounded-lg cursor-not-allowed"' : 'class="px-3 py-1.5 theme-input border rounded-lg font-bold hover:bg-slate-100 transition"'}>Berikutnya <i class="fa-solid fa-chevron-right ml-1"></i></button>
         </div>
     `;
 }
@@ -8566,7 +8590,7 @@ function openEditTrxModal(id) {
     }
 
     if (!foundTrx) {
-        return showNotification("Error", "Transaksi tidak ditemukan.", "error");
+        return showNotification("Gagal", "Transaksi tidak ditemukan.", "error");
     }
 
     const modal = document.getElementById('modal-edit-trx');
@@ -8681,7 +8705,7 @@ async function saveEditTrx(event) {
     }
 
     if (idx === -1) {
-        return showNotification("Error", "Transaksi tidak ditemukan untuk diperbarui.", "error");
+        return showNotification("Gagal", "Transaksi tidak ditemukan untuk diperbarui.", "error");
     }
 
     const trx = targetList[idx];
@@ -9994,7 +10018,7 @@ async function saveBulkTransactions() {
     });
 
     logAuditActivity('TRANSACTION_BULK_CREATE', invNumber, `Input kilat ${checkedItems.length} produk untuk ${customer} (${source}) total Rp ${grandTotalSell.toLocaleString('id-ID')}`);
-    showNotification("Sukses!", `${checkedItems.length} produk berhasil ditambahkan ke Buku Transaksi dalam 1 Invoice (${invNumber}).`, "success");
+    showNotification("Sukses", `${checkedItems.length} produk berhasil ditambahkan ke Buku Transaksi dalam 1 Invoice (${invNumber}).`, "success");
     closeBulkOrderModal();
 }
 
@@ -10468,7 +10492,7 @@ function renderReportReceivables(data) {
             : (item.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
             <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
-                <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
+                <i class="fa-brands fa-whatsapp text-emerald-600"></i> Pengingat WA
             </button>
         ` : `<span class="opacity-40 text-[10px]">No WA kosong</span>`;
 
@@ -11993,7 +12017,7 @@ function renderJastip() {
                     <div class="flex flex-col items-center justify-center space-y-2">
                         <i class="fa-solid fa-plane-departure text-3xl opacity-30"></i>
                         <p class="font-medium text-xs">Belum ada pesanan Jastip pada kategori ini.</p>
-                        <button onclick="openJastipOrderModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline">+ Buat Order Baru</button>
+                        <button onclick="openJastipOrderModal()" class="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline">+ Buat Pesanan Baru</button>
                     </div>
                 </td>
             </tr>
@@ -12120,7 +12144,7 @@ function renderJastip() {
                         <button onclick="openEditJastipModal('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-indigo-500 text-indigo-600 transition" title="Edit Pesanan">
                             <i class="fa-solid fa-pen-to-square text-xs"></i>
                         </button>
-                        <button onclick="changeJastipStatus('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-blue-500 text-blue-600 transition" title="Update Status Tahapan">
+                        <button onclick="changeJastipStatus('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-blue-500 text-blue-600 transition" title="Perbarui Status Tahapan">
                             <i class="fa-solid fa-arrow-progress text-xs"></i>
                         </button>
                         <button onclick="confirmDeleteJastip('${item.id}')" class="p-1.5 rounded-lg border theme-input hover:border-rose-500 text-rose-600 transition" title="Hapus Pesanan">
@@ -13512,7 +13536,7 @@ function clearLocalAppCache() {
                 window.location.reload();
             }, 1000);
         } catch(e) {
-            showNotification("Error", "Gagal membersihkan cache: " + e.message, "error");
+            showNotification("Gagal", "Gagal membersihkan cache: " + e.message, "error");
         }
     });
 }

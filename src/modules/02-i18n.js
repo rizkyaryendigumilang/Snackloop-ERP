@@ -19,11 +19,23 @@ const I18N = {
         nav_helpdesk: "Bantuan & Lapor",
         nav_install: "Pasang App",
         nav_logout: "Keluar",
+        nav_more: "Lainnya",
 
         // Header & Actions
         btn_install: "Pasang App",
         tab_preferences: "Preferensi Sistem",
         set_modal_title: "Pengaturan Sistem & Profil Usaha",
+        btn_export_excel: "Ekspor Excel",
+        btn_refresh_data: "Segarkan Data",
+        btn_prev: "Sebelumnya",
+        btn_next: "Berikutnya",
+        btn_cancel: "Batal",
+        btn_close: "Tutup",
+        btn_save: "Simpan",
+        btn_save_changes: "Simpan Perubahan",
+        btn_reset: "Atur Ulang",
+        btn_edit: "Edit",
+        btn_delete: "Hapus",
 
         // Login Screen
         login_tagline: "Masuk ke Akun Anda",
@@ -65,7 +77,7 @@ const I18N = {
         th_totalsell: "Total Jual",
         th_status: "Status",
         th_profit: "Laba / Item",
-        th_daily_profit: "Profit Harian",
+        th_daily_profit: "Laba Harian",
         th_action: "Aksi",
 
         // Modal Pengaturan
@@ -94,11 +106,23 @@ const I18N = {
         nav_helpdesk: "Help & Support",
         nav_install: "Install App",
         nav_logout: "Logout",
+        nav_more: "More",
 
         // Header & Actions
         btn_install: "Install App",
         tab_preferences: "System Preferences",
         set_modal_title: "System Settings & Business Profile",
+        btn_export_excel: "Export Excel",
+        btn_refresh_data: "Refresh Data",
+        btn_prev: "Previous",
+        btn_next: "Next",
+        btn_cancel: "Cancel",
+        btn_close: "Close",
+        btn_save: "Save",
+        btn_save_changes: "Save Changes",
+        btn_reset: "Reset",
+        btn_edit: "Edit",
+        btn_delete: "Delete",
 
         // Login Screen
         login_tagline: "Sign in to Your Account",
@@ -196,7 +220,7 @@ const TAB_TITLES = {
         master: 'Data Master Produk',
         customers: 'Manajemen Pelanggan',
         agents: 'Kelola Agen & Supplier',
-        users: 'Kelola Akun User'
+        users: 'Kelola Pengguna'
     },
     en: {
         dashboard: 'Financial Dashboard',

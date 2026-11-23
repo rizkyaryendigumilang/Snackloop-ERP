@@ -371,7 +371,7 @@ function renderReportReceivables(data) {
             : (item.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
         const waBtn = cleanPhone && cleanPhone !== '-' ? `
             <button onclick="sendReportWhatsApp('${cleanPhone}', decodeURIComponent('${encodeURIComponent(item.name || '').replace(/'/g, "%27")}'), ${item.total}, ${item.count})" class="theme-input px-2.5 py-1 rounded-lg border text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition flex items-center gap-1 mx-auto">
-                <i class="fa-brands fa-whatsapp text-emerald-600"></i> Reminder WA
+                <i class="fa-brands fa-whatsapp text-emerald-600"></i> Pengingat WA
             </button>
         ` : `<span class="opacity-40 text-[10px]">No WA kosong</span>`;
 

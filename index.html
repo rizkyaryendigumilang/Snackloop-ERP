@@ -581,7 +581,7 @@
                         <div id="month-tabs-container" class="flex flex-wrap items-center gap-2"></div>
                         <div class="flex items-center space-x-2">
                             <button onclick="printMonthlyRecapPDF()" class="btn-magnetic bg-rose-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i> <span>Cetak Rekap PDF</span></button>
-                            <button onclick="exportActiveSheetToExcelLocal()" class="btn-magnetic bg-emerald-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> <span>Export Excel</span></button>
+                            <button onclick="exportActiveSheetToExcelLocal()" class="btn-magnetic bg-emerald-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-excel"></i> <span>Ekspor Excel</span></button>
                         </div>
                     </div>
                     
@@ -737,7 +737,7 @@
                                         <th class="p-3 border border-inherit" data-i18n="th_status">Status</th>
                                         <th class="p-3 border border-inherit text-center font-bold" data-i18n="th_profit" title="Laba bersih per item (Harga Jual - Modal Agen)">Laba / Item</th>
                                         <th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi & WhatsApp</th>
-                                        <th class="p-3 border border-inherit text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap" data-i18n="th_daily_profit" title="Akumulasi profit bersih pada tanggal/hari transaksi ini">Profit Harian</th>
+                                        <th class="p-3 border border-inherit text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap" data-i18n="th_daily_profit" title="Akumulasi laba bersih pada tanggal/hari transaksi ini">Laba Harian</th>
                                     </tr>
                                 </thead>
                                 <tbody id="trx-table-body"></tbody>
@@ -765,7 +765,7 @@
                                 <button onclick="consolidateDailyInvoices()" class="px-3 py-2 rounded-xl text-xs font-semibold border theme-input hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 transition shadow-sm" title="Gabungkan beberapa nota untuk pelanggan yang sama di hari yang sama menjadi 1 invoice utuh">
                                     <i class="fa-solid fa-layer-group"></i> <span>Gabungkan Invoice Harian</span>
                                 </button>
-                                <button onclick="renderInvoicesTable()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Refresh Data</button>
+                                <button onclick="renderInvoicesTable()" class="btn-magnetic !py-2 !px-4 flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Segarkan Data</button>
                             </div>
                         </div>
 
@@ -943,7 +943,7 @@
                                 <!-- 1. Primary Action -->
                                 <button onclick="openJastipOrderModal()" class="btn-magnetic !py-2 !px-4 flex items-center gap-2 text-xs shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shrink-0">
                                     <i class="fa-solid fa-plus"></i>
-                                    <span>+ Buat Order</span>
+                                    <span>+ Buat Pesanan</span>
                                 </button>
 
                                 <!-- 2. Operational Tools (Segmented Pill) -->
@@ -956,7 +956,7 @@
                                         <i class="fa-solid fa-passport"></i>
                                         <span class="hidden sm:inline">Pabean</span>
                                     </button>
-                                    <button onclick="openJastipCalculatorModal()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 transition flex items-center gap-1.5" title="Kalkulator Landed Cost">
+                                    <button onclick="openJastipCalculatorModal()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 transition flex items-center gap-1.5" title="Kalkulator Biaya Masuk & Laba (Landed Cost)">
                                         <i class="fa-solid fa-calculator"></i>
                                         <span class="hidden sm:inline">Kalkulator</span>
                                     </button>
@@ -1020,7 +1020,7 @@
                                     <i class="fa-solid fa-hand-holding-dollar text-slate-400"></i> Estimasi Laba Bersih
                                 </span>
                                 <h4 class="text-xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="jastip-stat-profit">Rp 0</h4>
-                                <p class="text-[10px] opacity-60">Fee jastip + profit selisih kurs</p>
+                                <p class="text-[10px] opacity-60">Fee jastip + laba selisih kurs</p>
                             </div>
                         </div>
 
@@ -1365,7 +1365,7 @@
                                             <th class="p-3 text-center">Jumlah Nota</th>
                                             <th class="p-3 text-right">Total Tagihan</th>
                                             <th class="p-3">Transaksi Terakhir</th>
-                                            <th class="p-3 text-center">Aksi Reminder</th>
+                                            <th class="p-3 text-center">Aksi Pengingat</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rep-receivables-body" class="divide-y divide-inherit"></tbody>
@@ -1532,13 +1532,13 @@
                             <div class="relative w-full sm:w-72">
                                 <i class="fa-solid fa-magnifying-glass text-xs text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                                 <input type="text" id="master-search" oninput="debouncedFilterMaster()" placeholder="Cari produk, agen, barcode..." class="w-full pl-9 pr-8 py-2 theme-input border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <button type="button" id="master-search-clear" onclick="clearMasterSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" title="Reset Pencarian"><i class="fa-solid fa-xmark"></i></button>
+                                <button type="button" id="master-search-clear" onclick="clearMasterSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs" title="Bersihkan Pencarian"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                         </div>
                         <div class="overflow-x-auto sm:max-h-[400px]">
                             <table class="w-full text-left border-collapse text-xs theme-table">
                                 <thead class="sticky top-0">
-                                    <tr><th class="p-3 border border-inherit">Nama Barang</th><th class="p-3 border border-inherit">Agen</th><th class="p-3 border border-inherit">Modal</th><th class="p-3 border border-inherit">Jual</th><th class="p-3 border border-inherit">Keuntungan</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
+                                    <tr><th class="p-3 border border-inherit">Nama Produk</th><th class="p-3 border border-inherit">Sumber Agen</th><th class="p-3 border border-inherit">Harga Modal</th><th class="p-3 border border-inherit">Harga Jual</th><th class="p-3 border border-inherit">Laba / Item</th><th class="p-3 border border-inherit text-center" data-i18n="th_action">Aksi</th></tr>
                                 </thead>
                                 <tbody id="master-table-body"></tbody>
                             </table>
@@ -1647,18 +1647,18 @@
                         <div class="theme-card rounded-2xl border shadow-sm p-6 space-y-4">
                             <div class="flex items-center justify-between flex-wrap gap-2">
                                 <h3 class="text-base font-bold"><i class="fa-solid fa-database text-emerald-500 mr-2"></i>Pusat Cadangan Data (JSON & CSV Excel)</h3>
-                                <span class="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Auto-Sync Siap</span>
+                                <span class="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Sinkronisasi Otomatis Siap</span>
                             </div>
                             <p class="text-xs opacity-70">Cadangkan seluruh data ke format JSON untuk pemulihan sistem, atau ekspor ke CSV untuk pembukuan pribadi di Microsoft Excel & Google Sheets.</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                                 <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 text-white w-full py-3 flex items-center justify-center gap-2 text-xs font-semibold">
-                                    <i class="fa-solid fa-cloud-arrow-down"></i><span>Auto-Sync Backup (.JSON)</span>
+                                    <i class="fa-solid fa-cloud-arrow-down"></i><span>Cadangkan Otomatis (.JSON)</span>
                                 </button>
                                 <button type="button" onclick="exportTransactionsCSV('all')" class="btn-magnetic bg-emerald-600 text-white w-full py-3 flex items-center justify-center gap-2 text-xs font-semibold">
                                     <i class="fa-solid fa-file-csv"></i><span>Rekap Transaksi (.CSV)</span>
                                 </button>
                                 <label class="sm:col-span-2 btn-magnetic bg-slate-700 hover:bg-slate-800 text-white w-full py-2.5 flex items-center justify-center gap-2 cursor-pointer text-xs font-semibold">
-                                    <i class="fa-solid fa-upload"></i><span>Pulihkan (Restore) dari File JSON</span>
+                                    <i class="fa-solid fa-upload"></i><span>Pulihkan Data dari Berkas JSON</span>
                                     <input type="file" id="restore-file-input" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
                                 </label>
                             </div>
@@ -2235,7 +2235,7 @@
                         <i class="fa-solid fa-calculator"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold">Kalkulator Landed Cost & Hidden Profit Valas</h3>
+                        <h3 class="text-base font-bold">Kalkulator Biaya Masuk (Landed Cost) & Laba Valas</h3>
                         <p class="text-[11px] opacity-70">Simulasi kurs riil vs buffer, tax refund turis, bea cukai & margin jastip</p>
                     </div>
                 </div>
@@ -2296,7 +2296,7 @@
                     <div>
                         <label class="block font-semibold mb-1 text-emerald-600 dark:text-emerald-400">Tax Refund Turis (%)</label>
                         <input type="number" inputmode="decimal" id="calc-tax-refund" oninput="calculateJastipSimulator()" value="10" step="any" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                        <span class="text-[9px] opacity-60 block">Hidden profit diklaim di bandara</span>
+                        <span class="text-[9px] opacity-60 block">Potensi laba pengembalian pajak (tax refund) bandara</span>
                     </div>
                     <div>
                         <label class="block font-semibold mb-1">Biaya Packing / Ops (Rp)</label>
@@ -2307,11 +2307,11 @@
                 <!-- Logistics & Customs & Fee -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                        <label class="block font-semibold mb-1">Logistik / Bagasi per item (Rp)</label>
+                        <label class="block font-semibold mb-1">Logistik / Bagasi per Item (Rp)</label>
                         <input type="number" inputmode="numeric" id="calc-logistics-cost" oninput="calculateJastipSimulator()" value="20000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                     </div>
                     <div>
-                        <label class="block font-semibold mb-1">Bea Cukai / Pabean per item (Rp)</label>
+                        <label class="block font-semibold mb-1">Bea Cukai / Pabean per Item (Rp)</label>
                         <input type="number" inputmode="numeric" id="calc-customs-cost" oninput="calculateJastipSimulator()" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         <span class="text-[9px] opacity-60 block">Bebas jika hand carry &lt; USD 500</span>
                     </div>
@@ -2494,11 +2494,11 @@
                             <input type="number" inputmode="numeric" id="jastip-ops-cost" value="15000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
-                            <label class="block font-semibold mb-1">Logistik / Bagasi / item (Rp)</label>
+                            <label class="block font-semibold mb-1">Logistik / Bagasi per Item (Rp)</label>
                             <input type="number" inputmode="numeric" id="jastip-logistics-cost" value="25000" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                         <div>
-                            <label class="block font-semibold mb-1">Bea Cukai / item (Rp)</label>
+                            <label class="block font-semibold mb-1">Bea Cukai per Item (Rp)</label>
                             <input type="number" inputmode="numeric" id="jastip-customs-cost" value="0" class="w-full theme-input border rounded-xl p-2.5 outline-none font-mono">
                         </div>
                     </div>
@@ -2553,7 +2553,7 @@
                             <input type="text" id="jastip-exp-note" placeholder="Contoh: Kondisi segel mulus, Exp Feb 2027" class="w-full theme-input border rounded-xl p-2.5 outline-none">
                         </div>
                         <div>
-                            <label class="block font-semibold mb-1">Catatan Tambahan Customer</label>
+                            <label class="block font-semibold mb-1">Catatan Tambahan Pelanggan</label>
                             <input type="text" id="jastip-notes" placeholder="Contoh: Minta kantong kresek/paper bag toko asli" class="w-full theme-input border rounded-xl p-2.5 outline-none">
                         </div>
                     </div>
@@ -2958,10 +2958,10 @@
                             </div>
                             <div class="flex items-center gap-1.5 justify-end">
                                 <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh JSON">
-                                    <i class="fa-solid fa-rotate"></i> <span>Sync JSON</span>
+                                    <i class="fa-solid fa-rotate"></i> <span>Sinkronkan JSON</span>
                                 </button>
                                 <button type="button" onclick="syncAndDownloadLatestBackup('csv')" class="btn-magnetic bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold !py-1.5 !px-2.5 rounded-lg flex items-center gap-1.5 shadow-sm" title="Sinkronkan data dan unduh CSV">
-                                    <i class="fa-solid fa-file-csv"></i> <span>Sync CSV</span>
+                                    <i class="fa-solid fa-file-csv"></i> <span>Sinkronkan CSV</span>
                                 </button>
                             </div>
                         </div>
@@ -3006,7 +3006,7 @@
                         </div>
                         <p class="text-[11px] opacity-70">Salinan arsip 13 entitas (transaksi, master, pelanggan, agen, gudang repack, retur, jastip, log audit) untuk disaster recovery dan migrasi perangkat.</p>
                         <button type="button" onclick="syncAndDownloadLatestBackup('json')" class="btn-magnetic bg-indigo-600 hover:bg-indigo-700 text-white w-full !py-2.5 text-xs flex items-center justify-center gap-1.5 font-semibold shadow-sm">
-                            <i class="fa-solid fa-download"></i> <span>Auto-Sync & Download Backup (.json)</span>
+                            <i class="fa-solid fa-download"></i> <span>Cadangkan Otomatis & Unduh (.json)</span>
                         </button>
                     </div>
 
@@ -3017,7 +3017,7 @@
                         </h4>
                         <p class="text-[11px] opacity-70">Pulihkan sistem dari file JSON cadangan. Jaring pengaman otomatis membuat snapshot darurat sebelum data ditimpa.</p>
                         <label class="btn-magnetic bg-slate-700 hover:bg-slate-800 text-white w-full !py-2.5 text-xs flex items-center justify-center gap-1.5 font-semibold cursor-pointer shadow-sm">
-                            <i class="fa-solid fa-upload"></i> <span>Pilih File Cadangan Restore (.json)</span>
+                            <i class="fa-solid fa-upload"></i> <span>Pilih Berkas Cadangan (.json)</span>
                             <input type="file" id="set-restore-file" onchange="restoreDataJSON(event)" accept=".json" class="hidden">
                         </label>
                     </div>
@@ -3117,7 +3117,7 @@
                         </div>
                         <button id="toggle-compact-btn" type="button" onclick="toggleCompactView()" class="btn-apple-press px-3.5 py-1.5 rounded-xl border theme-input hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow-sm" title="Aktifkan/Nonaktifkan Mode Ringkas">
                             <span>Status:</span>
-                            <strong id="compact-status" class="opacity-50">OFF</strong>
+                            <strong id="compact-status" class="opacity-50">Nonaktif</strong>
                         </button>
                     </div>
 
@@ -3135,7 +3135,7 @@
                         <div class="pt-1">
                             <button type="button" onclick="testThermalPrintFromSettings()" class="px-3 py-1.5 rounded-lg border theme-input hover:bg-slate-50 dark:hover:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5 transition text-xs shadow-sm">
                                 <i class="fa-solid fa-print"></i>
-                                <span>Tes Cetak Struk Contoh</span>
+                                <span>Tes Cetak Nota Thermal</span>
                             </button>
                         </div>
                     </div>
@@ -3235,7 +3235,7 @@
                 <!-- ACTION BUTTONS -->
                 <div class="flex justify-between items-center pt-3 border-t border-inherit">
                     <button type="button" onclick="resetAppSettingsToDefault()" class="text-[11px] text-rose-500 hover:underline">
-                        Reset Default
+                        Atur Ulang Standar
                     </button>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-xs theme-input border rounded-xl font-semibold">Tutup</button>
@@ -3648,7 +3648,7 @@
                         <i class="fa-solid fa-check-double mr-1"></i>Pilih Semua
                     </button>
                     <button type="button" onclick="toggleSelectAllBulk(false)" class="px-2.5 py-1.5 rounded-lg border theme-input hover:opacity-80 font-medium transition">
-                        Reset
+                        Atur Ulang
                     </button>
                 </div>
             </div>
