@@ -1889,7 +1889,14 @@ function renderMonthTabs() {
     if(!container) return;
     let keys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
     if(keys.length === 0) { keys = [getCurrentMonthKey(new Date())]; transactionData[keys[0]] = []; }
-    if(!activeMonthSheet || !transactionData[activeMonthSheet]) activeMonthSheet = keys[keys.length-1];
+    if(!activeMonthSheet || !transactionData[activeMonthSheet] || transactionData[activeMonthSheet].length === 0) {
+        const keysWithData = keys.filter(k => Array.isArray(transactionData[k]) && transactionData[k].length > 0);
+        if (keysWithData.length > 0) {
+            activeMonthSheet = keysWithData[keysWithData.length - 1];
+        } else if (!activeMonthSheet || !transactionData[activeMonthSheet]) {
+            activeMonthSheet = keys[keys.length - 1];
+        }
+    }
 
     // Extract all unique years from available sheets
     const years = [...new Set(keys.map(k => {

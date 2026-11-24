@@ -640,8 +640,14 @@ function handleSyncBadgeClick() {
         showNotification("Sinkronisasi", `Memproses ${count} data yang tertunda ke cloud (Batching Mode)...`, "info");
         syncOutboxQueue();
     } else {
-        const isLive = typeof _isRealtimeSubscribed !== 'undefined' && _isRealtimeSubscribed;
-        showNotification("Status Cloud", isLive ? "Semua data tersinkronisasi. Realtime Live Sync aktif antar-perangkat." : "Semua data sudah tersinkronisasi penuh dengan database.", "success");
+        showNotification("Menyinkronkan", "Memperbarui data terbaru dari database cloud...", "info");
+        if (typeof refreshTransactionsFromCloud === 'function') {
+            refreshTransactionsFromCloud();
+        } else if (typeof loadDataFromCloud === 'function') {
+            loadDataFromCloud().then(() => {
+                showNotification("Sukses", "Data cloud berhasil disinkronkan ke perangkat ini.", "success");
+            });
+        }
     }
 }
 

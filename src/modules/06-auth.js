@@ -345,8 +345,20 @@ async function initApp() {
     if(expDateInput && !expDateInput.value) expDateInput.valueAsDate = new Date();
     
     const currentMonthKey = getCurrentMonthKey(new Date());
-    if(!transactionData[currentMonthKey]) transactionData[currentMonthKey] = [];
-    if(!activeMonthSheet) activeMonthSheet = currentMonthKey;
+    const availableKeys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
+    const keysWithData = availableKeys.filter(k => Array.isArray(transactionData[k]) && transactionData[k].length > 0);
+
+    // Prioritaskan sheet yang benar-benar memiliki data transaksi
+    if (transactionData[currentMonthKey] && transactionData[currentMonthKey].length > 0) {
+        activeMonthSheet = currentMonthKey;
+    } else if (keysWithData.length > 0) {
+        activeMonthSheet = keysWithData[keysWithData.length - 1];
+    } else if (availableKeys.length > 0) {
+        activeMonthSheet = availableKeys[availableKeys.length - 1];
+    } else {
+        if(!transactionData[currentMonthKey]) transactionData[currentMonthKey] = [];
+        activeMonthSheet = currentMonthKey;
+    }
 
     renderAgents();
     renderDropdowns(); 

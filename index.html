@@ -3868,8 +3868,20 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then((reg) => console.log('[PWA] Service Worker registered, scope:', reg.scope))
+                    .then((reg) => {
+                        console.log('[PWA] Service Worker registered, scope:', reg.scope);
+                        // Trigger background update check
+                        if (reg.update) reg.update();
+                    })
                     .catch((err) => console.warn('[PWA] Service Worker registration failed:', err));
+
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
+                });
             });
         }
     </script>

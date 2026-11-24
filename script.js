@@ -2057,8 +2057,14 @@ function handleSyncBadgeClick() {
         showNotification("Sinkronisasi", `Memproses ${count} data yang tertunda ke cloud (Batching Mode)...`, "info");
         syncOutboxQueue();
     } else {
-        const isLive = typeof _isRealtimeSubscribed !== 'undefined' && _isRealtimeSubscribed;
-        showNotification("Status Cloud", isLive ? "Semua data tersinkronisasi. Realtime Live Sync aktif antar-perangkat." : "Semua data sudah tersinkronisasi penuh dengan database.", "success");
+        showNotification("Menyinkronkan", "Memperbarui data terbaru dari database cloud...", "info");
+        if (typeof refreshTransactionsFromCloud === 'function') {
+            refreshTransactionsFromCloud();
+        } else if (typeof loadDataFromCloud === 'function') {
+            loadDataFromCloud().then(() => {
+                showNotification("Sukses", "Data cloud berhasil disinkronkan ke perangkat ini.", "success");
+            });
+        }
     }
 }
 
@@ -4216,8 +4222,20 @@ async function initApp() {
     if(expDateInput && !expDateInput.value) expDateInput.valueAsDate = new Date();
     
     const currentMonthKey = getCurrentMonthKey(new Date());
-    if(!transactionData[currentMonthKey]) transactionData[currentMonthKey] = [];
-    if(!activeMonthSheet) activeMonthSheet = currentMonthKey;
+    const availableKeys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
+    const keysWithData = availableKeys.filter(k => Array.isArray(transactionData[k]) && transactionData[k].length > 0);
+
+    // Prioritaskan sheet yang benar-benar memiliki data transaksi
+    if (transactionData[currentMonthKey] && transactionData[currentMonthKey].length > 0) {
+        activeMonthSheet = currentMonthKey;
+    } else if (keysWithData.length > 0) {
+        activeMonthSheet = keysWithData[keysWithData.length - 1];
+    } else if (availableKeys.length > 0) {
+        activeMonthSheet = availableKeys[availableKeys.length - 1];
+    } else {
+        if(!transactionData[currentMonthKey]) transactionData[currentMonthKey] = [];
+        activeMonthSheet = currentMonthKey;
+    }
 
     renderAgents();
     renderDropdowns(); 
@@ -7938,7 +7956,14 @@ function renderMonthTabs() {
     if(!container) return;
     let keys = typeof sortMonthKeys === 'function' ? sortMonthKeys(Object.keys(transactionData)) : Object.keys(transactionData).sort();
     if(keys.length === 0) { keys = [getCurrentMonthKey(new Date())]; transactionData[keys[0]] = []; }
-    if(!activeMonthSheet || !transactionData[activeMonthSheet]) activeMonthSheet = keys[keys.length-1];
+    if(!activeMonthSheet || !transactionData[activeMonthSheet] || transactionData[activeMonthSheet].length === 0) {
+        const keysWithData = keys.filter(k => Array.isArray(transactionData[k]) && transactionData[k].length > 0);
+        if (keysWithData.length > 0) {
+            activeMonthSheet = keysWithData[keysWithData.length - 1];
+        } else if (!activeMonthSheet || !transactionData[activeMonthSheet]) {
+            activeMonthSheet = keys[keys.length - 1];
+        }
+    }
 
     // Extract all unique years from available sheets
     const years = [...new Set(keys.map(k => {

@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v34 (Number Flow Dashboard Rolling Transitions)
-const CACHE_NAME = 'snackloop-cache-v34';
+// SnackLoop ERP Service Worker v35 (Mobile Multi-Device Resilient Cloud Sync)
+const CACHE_NAME = 'snackloop-cache-v35';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [
