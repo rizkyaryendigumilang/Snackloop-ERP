@@ -2016,6 +2016,11 @@ async function refreshTransactionsFromCloud() {
         }
         renderMonthTabs();
         renderTransactionsForActiveSheet();
+        if (typeof updateDashboard === 'function') updateDashboard();
+        if (typeof renderFinancialChart === 'function') renderFinancialChart();
+        if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+        if (typeof renderCustomer === 'function') renderCustomer();
         if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
         if (typeof showNotification === 'function') {
             showNotification("Sukses", "Data transaksi berhasil diselaraskan dari cloud!", "success");

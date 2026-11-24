@@ -1,5 +1,5 @@
-// SnackLoop ERP Service Worker v35 (Mobile Multi-Device Resilient Cloud Sync)
-const CACHE_NAME = 'snackloop-cache-v35';
+// SnackLoop ERP Service Worker v36 (Mobile Bottom Navbar Polish & Instant Cloud Sync)
+const CACHE_NAME = 'snackloop-cache-v36';
 
 // 1. Core Local App Shell Assets
 const STATIC_ASSETS = [

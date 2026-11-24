@@ -446,7 +446,7 @@ async function loadDataFromCloud() {
             expQuery,
             isSuperAdmin ? supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }) : Promise.resolve({ data: (currentUser ? [{ username: currentUser, role: currentRole }] : []) }),
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
-            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
+            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('id', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
             supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);

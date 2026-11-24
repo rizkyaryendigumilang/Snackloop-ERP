@@ -718,12 +718,12 @@ header {
 @media screen and (max-width: 768px) {
   #main-content {
     margin-left: 0 !important;
-    padding: 0.75rem 0.75rem calc(4.75rem + env(safe-area-inset-bottom, 0px)) 0.75rem !important;
+    padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom, 12px)) 0.75rem !important;
     width: 100% !important;
   }
 
   body.navbar-collapsed #main-content {
-    padding: 0.75rem 0.75rem calc(1.25rem + env(safe-area-inset-bottom, 0px)) 0.75rem !important;
+    padding: 0.75rem 0.75rem calc(1.5rem + env(safe-area-inset-bottom, 12px)) 0.75rem !important;
   }
 
   .navbar {
@@ -739,8 +739,8 @@ header {
     border-right: none !important;
     border-bottom: none !important;
     border-top: 1px solid var(--border-color) !important;
-    padding: 0.35rem 0.5rem !important;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0.35rem 0.25rem !important;
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 12px)) !important;
     z-index: 999 !important;
     box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.08) !important;
     display: flex !important;
@@ -755,22 +755,15 @@ header {
   }
 
   .navbar__toggle-btn {
-    top: -0.8rem !important;
-    right: 0.85rem !important;
-    left: auto !important;
+    display: none !important;
   }
 
   body.navbar-collapsed .navbar__toggle-btn {
-    top: -2.15rem !important;
-    right: 0.85rem !important;
+    display: none !important;
   }
 
   .navbar__toggle-icon {
-    transform: rotate(-90deg);
-  }
-
-  body.navbar-collapsed .navbar__toggle-icon {
-    transform: rotate(90deg) !important;
+    display: none !important;
   }
 
   .navbar__menu {
@@ -815,55 +808,99 @@ header {
     overflow: visible !important;
   }
 
-  .navbar__hover-pill {
+  .navbar__hover-pill,
+  .navbar__active-pill {
     display: none !important;
   }
 
   .navbar__link {
     width: 100% !important;
-    max-width: 4.2rem !important;
-    height: 3.1rem !important;
+    max-width: 100% !important;
+    height: 3.25rem !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    border-radius: 12px !important;
-    padding: 0.15rem 0 !important;
+    border-radius: 10px !important;
+    padding: 0.2rem 0.05rem !important;
     gap: 2px !important;
     flex-shrink: 0 !important;
+    overflow: hidden !important;
+    color: #64748b !important;
+  }
+
+  body.dark-theme .navbar__link {
+    color: #94a3b8 !important;
   }
 
   .navbar__link svg,
   .navbar__link i {
-    width: 1.15rem !important;
-    height: 1.15rem !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    stroke: currentColor !important;
   }
 
-  .navbar__link span {
+  .navbar__link span,
+  .navbar__link .nav-text {
     display: block !important;
     position: static !important;
     transform: none !important;
-    opacity: 0.8 !important;
+    opacity: 1 !important;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
     font-size: 10px !important;
     font-weight: 500 !important;
-    line-height: 1.1 !important;
+    line-height: 1.15 !important;
     white-space: nowrap !important;
+    text-align: center !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     color: inherit !important;
   }
 
-  .navbar__menu:not(.pill-ready) .navbar__link.active {
-    background: var(--primary) !important;
-    color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16) !important;
+  .navbar__link.active {
+    background: rgba(79, 70, 229, 0.09) !important;
+    color: var(--primary) !important;
+    box-shadow: none !important;
   }
 
-  .navbar__link.active span {
+  body.dark-theme .navbar__link.active {
+    background: rgba(99, 102, 241, 0.2) !important;
+    color: #818cf8 !important;
+  }
+
+  .navbar__link.active svg,
+  .navbar__link.active i {
+    stroke: var(--primary) !important;
+    stroke-width: 2.25 !important;
+    color: var(--primary) !important;
+  }
+
+  body.dark-theme .navbar__link.active svg,
+  body.dark-theme .navbar__link.active i {
+    stroke: #818cf8 !important;
+    color: #818cf8 !important;
+  }
+
+  .navbar__link.active span,
+  .navbar__link.active .nav-text {
     opacity: 1 !important;
     font-weight: 700 !important;
+    color: var(--primary) !important;
+  }
+
+  body.dark-theme .navbar__link.active span,
+  body.dark-theme .navbar__link.active .nav-text {
+    color: #818cf8 !important;
+  }
+
+  .bento-stat-tile span:last-child {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 }
 

@@ -174,17 +174,17 @@
                 <li id="navbar-active-pill" class="navbar__active-pill" aria-hidden="true"></li>
                 <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('dashboard'); return false;" id="btn-dashboard" class="navbar__link active">
-                        <i data-feather="home"></i><span data-i18n="nav_dashboard">Dashboard</span>
+                        <i data-feather="home"></i><span class="nav-text" data-i18n="nav_dashboard">Dashboard</span>
                     </a>
                 </li>
                 <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('transactions'); return false;" id="btn-transactions" class="navbar__link">
-                        <i data-feather="book-open"></i><span data-i18n="nav_transactions">Buku Transaksi</span>
+                        <i data-feather="book-open"></i><span class="nav-text"><span class="md:hidden">Transaksi</span><span class="hidden md:inline" data-i18n="nav_transactions">Buku Transaksi</span></span>
                     </a>
                 </li>
                 <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('invoices'); return false;" id="btn-invoices" class="navbar__link">
-                        <i data-feather="file-text"></i><span data-i18n="nav_invoices">Manajemen Invoice</span>
+                        <i data-feather="file-text"></i><span class="nav-text"><span class="md:hidden">Invoice</span><span class="hidden md:inline" data-i18n="nav_invoices">Manajemen Invoice</span></span>
                     </a>
                 </li>
                 <li class="navbar__item">
@@ -209,7 +209,7 @@
                 </li>
                 <li class="navbar__item mobile-core-nav">
                     <a href="#" onclick="switchTab('master'); return false;" id="btn-master" class="navbar__link">
-                        <i data-feather="archive"></i><span data-i18n="nav_master">Master Produk</span>
+                        <i data-feather="archive"></i><span class="nav-text"><span class="md:hidden">Produk</span><span class="hidden md:inline" data-i18n="nav_master">Master Produk</span></span>
                     </a>
                 </li>
                 <li class="navbar__item">
@@ -244,7 +244,7 @@
                 </li>
                 <li class="navbar__item mobile-core-nav mobile-only-nav" id="nav-item-mobile-more">
                     <a href="#" onclick="openMobileMenuSheet(); return false;" id="btn-mobile-more" class="navbar__link" title="Menu Lainnya" data-i18n-title="nav_more">
-                        <i data-feather="grid"></i><span data-i18n="nav_more">Lainnya</span>
+                        <i data-feather="grid"></i><span class="nav-text" data-i18n="nav_more">Lainnya</span>
                     </a>
                 </li>
             </ul>
@@ -313,7 +313,14 @@
                                     <h3 class="font-bold text-sm tracking-tight" data-i18n="dash_financial_title">Pelacak Keuangan & Beban</h3>
                                     <p class="text-xs opacity-70" data-i18n="dash_financial_subtitle">Pendapatan Bersih</p>
                                 </div>
-                                <span id="stat-time-label" class="text-xs font-semibold px-3 py-1 theme-input border rounded-xl">Periode: Keseluruhan</span>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="refreshTransactionsFromCloud(); return false;" class="text-xs font-semibold px-2.5 py-1 theme-input border rounded-xl hover:opacity-80 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm" title="Segarkan Data dari Cloud">
+                                        <i data-feather="refresh-cw" class="w-3.5 h-3.5"></i>
+                                        <span class="hidden sm:inline">Segarkan Cloud</span>
+                                        <span class="sm:hidden">Segarkan</span>
+                                    </button>
+                                    <span id="stat-time-label" class="text-xs font-semibold px-3 py-1 theme-input border rounded-xl">Periode: Keseluruhan</span>
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">

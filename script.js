@@ -4323,7 +4323,7 @@ async function loadDataFromCloud() {
             expQuery,
             isSuperAdmin ? supabaseClient.from('users').select('id, username, role').order('id', { ascending: true }) : Promise.resolve({ data: (currentUser ? [{ username: currentUser, role: currentRole }] : []) }),
             supabaseClient.from('invoices').select('*').order('date', { ascending: false }),
-            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('created_at', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
+            isSuperAdmin ? supabaseClient.from('price_history').select('*').order('id', { ascending: false }).catch(() => supabaseClient.from('price_history').select('*')) : Promise.resolve({ data: [] }),
             supabaseClient.from('returns').select('*').order('date', { ascending: false }).catch(() => ({ data: null })),
             supabaseClient.from('jastip_orders').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
         ]);
@@ -8083,6 +8083,11 @@ async function refreshTransactionsFromCloud() {
         }
         renderMonthTabs();
         renderTransactionsForActiveSheet();
+        if (typeof updateDashboard === 'function') updateDashboard();
+        if (typeof renderFinancialChart === 'function') renderFinancialChart();
+        if (typeof renderMaster === 'function') renderMaster();
+        if (typeof renderRepackWarehouse === 'function') renderRepackWarehouse();
+        if (typeof renderCustomer === 'function') renderCustomer();
         if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
         if (typeof showNotification === 'function') {
             showNotification("Sukses", "Data transaksi berhasil diselaraskan dari cloud!", "success");
